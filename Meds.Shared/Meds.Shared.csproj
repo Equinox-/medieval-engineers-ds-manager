@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+        <ProjectGuid>{5F9A07A6-379A-424B-9887-6E2E8C253E22}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>Meds.Shared</RootNamespace>
+        <AssemblyName>Meds.Shared</AssemblyName>
+        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <PlatformTarget>x64</PlatformTarget>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="mscorlib" />
+        <Reference Include="System" />
+        <Reference Include="System.Configuration" />
+        <Reference Include="System.Core" />
+        <Reference Include="System.Data" />
+        <Reference Include="System.Numerics" />
+        <Reference Include="System.Runtime.Serialization" />
+        <Reference Include="System.ServiceModel" />
+        <Reference Include="System.Xml" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="ChannelDesc.cs" />
+        <Compile Include="FlatBufferPool.cs" />
+        <Compile Include="PacketBuffer.cs" />
+        <Compile Include="PacketDistributor.cs" />
+        <Compile Include="PipeClient.cs" />
+        <Compile Include="ReceiveChannel.cs" />
+        <Compile Include="SendChannel.cs" />
+        <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="PipeUtils.cs" />
+    </ItemGroup>
+    <ItemGroup>
+        <FlatSharpSchema Include="Schema.fbs" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="KdSoft.FlatBuffers" Version="1.12.0" />
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="obj\x64\Debug" />
+      <Folder Include="obj\x64\Debug\flatc\Meds\Shared\Data" />
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+
+    <PropertyGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
+        <FlatCOutput>$(IntermediateOutputPath)flatc\</FlatCOutput>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="$(FlatCOutput)**\*.cs" />
+    </ItemGroup>
+
+    <Target Name="FlatcCompile" BeforeTargets="ResolveAssemblyReferences">
+        <PropertyGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
+            <CompilerPath>$([System.IO.Path]::GetFullPath('$(PkgKdSoft_FlatBuffers)\tools\flatc.exe'))</CompilerPath>
+            <CompilerInvocation>$(CompilerPath) --csharp</CompilerInvocation>
+            <FlatCOutput>$(IntermediateOutputPath)flatc\</FlatCOutput>
+        </PropertyGroup>
+
+        <Exec Command="$(CompilerInvocation) -o $(FlatCOutput) %(FlatSharpSchema.fullpath)" CustomErrorRegularExpression=".*" Condition=" '%(FlatSharpSchema.fullpath)' != '' " />
+        <ItemGroup>
+            <FileWrites Include="$(FlatCOutput)**\*.cs" />
+        </ItemGroup>
+    </Target>
+</Project>

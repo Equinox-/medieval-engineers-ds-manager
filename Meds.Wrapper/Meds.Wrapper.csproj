@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+        <ProjectGuid>{BE538844-A014-42D7-BAEE-898FE179F69B}</ProjectGuid>
+        <OutputType>Exe</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>Meds.Wrapper</RootNamespace>
+        <AssemblyName>Meds.Wrapper</AssemblyName>
+        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <PlatformTarget>x64</PlatformTarget>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!--        <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+<!--                <OutputPath>..\TestDir\install\DedicatedServer64</OutputPath>-->
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="Microsoft.CSharp" />
+        <Reference Include="mscorlib" />
+        <Reference Include="System" />
+        <Reference Include="System.ComponentModel.Composition" />
+        <Reference Include="System.Core" />
+        <Reference Include="System.Data" />
+        <Reference Include="System.IO.Compression.FileSystem" />
+        <Reference Include="System.Numerics" />
+        <Reference Include="System.Xml" />
+        <Reference Include="MedievalEngineersDedicated">
+            <HintPath>GameBinaries\MedievalEngineersDedicated.exe</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="MedievalEngineers.Game">
+            <HintPath>GameBinaries\MedievalEngineers.Game.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="MedievalEngineers.ObjectBuilders">
+            <HintPath>GameBinaries\MedievalEngineers.ObjectBuilders.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Sandbox.Game">
+            <HintPath>GameBinaries\Sandbox.Game.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="System.Xml.Linq" />
+        <Reference Include="VRage">
+            <HintPath>GameBinaries\VRage.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="VRage.Library">
+            <HintPath>GameBinaries\VRage.Library.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="VRage.Game">
+            <HintPath>GameBinaries\VRage.Game.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="VRage.Dedicated">
+            <HintPath>GameBinaries\VRage.Dedicated.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="VRage.Steam">
+            <HintPath>GameBinaries\VRage.Steam.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Steamworks.NET">
+            <HintPath>GameBinaries\Steamworks.NET.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Config\ConfigData.cs" />
+        <Compile Include="Config\CustomConfig.cs" />
+        <Compile Include="EarlyInjectorSystem.cs" />
+        <Compile Include="LateInjectorSystem.cs" />
+        <Compile Include="Metrics\MetricTimer.cs" />
+        <Compile Include="Metrics\MetricName.cs" />
+        <Compile Include="Metrics\MetricRegistry.cs" />
+        <Compile Include="Metrics\MetricRoot.cs" />
+        <Compile Include="Program.cs" />
+        <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="Reporter\HealthReport.cs" />
+        <Compile Include="Shim\Patches.cs" />
+        <Compile Include="Shim\ShimLog.cs" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Meds.Shared\Meds.Shared.csproj">
+            <Project>{5f9a07a6-379a-424b-9887-6e2e8c253e22}</Project>
+            <Name>Meds.Shared</Name>
+            <Private>true</Private>
+        </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="HdrHistogram" Version="2.5.0" />
+        <PackageReference Include="KdSoft.FlatBuffers" Version="1.12.0" />
+        <PackageReference Include="Lib.Harmony" Version="2.0.4" />
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+    <UsingTask TaskName="GenerateMetadata" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+        <ParameterGroup>
+            <Path ParameterType="System.String" Required="true" />
+        </ParameterGroup>
+        <Task>
+            <Reference Include="System.Xml" />
+            <Using Namespace="System" />
+            <Using Namespace="System.IO" />
+            <Using Namespace="System.Security.Cryptography" />
+            <Code Type="Fragment" Language="cs">
+                <![CDATA[
+var sha1 = SHA1.Create();
+using (var writer = File.CreateText(System.IO.Path.Combine(Path, "manifest.xml"))) {
+    writer.WriteLine("<?xml version=\"1.0\"?>");
+    writer.WriteLine("<FileCache xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
+    foreach (var realPath in Directory.GetFiles(Path).Where(x => x.StartsWith(Path) && !x.EndsWith("manifest.xml"))) {
+        var fileLength = new System.IO.FileInfo(realPath).Length;
+        using (var stream = File.OpenRead(realPath))
+        {
+            writer.WriteLine("<File Path=\"" + realPath.Substring(Path.Length) + "\" Hash=\"" + Convert.ToBase64String(sha1.ComputeHash(stream)) + "\" Size=\"" + fileLength + "\"/>");
+        }
+    }
+    writer.WriteLine("</FileCache>");
+}
+]]>
+            </Code>
+        </Task>
+    </UsingTask>
+
+    <Target Name="AfterBuild">
+        <GenerateMetadata Path="$(ProjectDir)$(OutputPath)" />
+    </Target>
+</Project>

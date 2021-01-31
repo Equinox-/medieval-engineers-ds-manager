@@ -1,0 +1,110 @@
+namespace Meds.Shared.Data;
+
+table HealthState {
+    liveness: bool;
+    readiness: bool;
+}
+
+table ShutdownRequest {}
+
+enum LogSeverity: byte {
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Critical,
+    PreFormatted,
+}
+
+struct Int64LogArg { value: int64; }
+struct Float64LogArg { value: float64; }
+table StringLogArg { value: string; }
+table ExceptionLogArg {
+    type: string;
+    message: string;
+    stack: string;
+}
+
+union LogArg {
+    String: StringLogArg,
+    Int64: Int64LogArg,
+    Float64: Float64LogArg,
+    Exception: ExceptionLogArg
+}
+
+table DefinitionContext {
+    type: string;
+    subtype: string;
+}
+
+table EntityComponentContext {
+    entity: uint64;
+    type: string;
+    subtype: string;
+}
+
+table SceneComponentContext {
+    type: string;
+}
+
+union LogContext {
+    DefinitionContext,
+    EntityComponentContext,
+    SceneComponentContext
+}
+
+table StructuredLogMessage {
+    time: int64;
+    origin: string;
+    format: string;
+    thread: string;
+    severity: LogSeverity;
+    args: [LogArg];
+    context: LogContext;
+}
+
+table HistogramMetric {
+    min: int64;
+    mean: int64;
+    median: int64;
+    p75: int64;
+    p95: int64;
+    p98: int64;
+    p99: int64;
+    p999: int64;
+    max: int64;
+    std_dev: int64;
+    count: int64;
+}
+
+table CompositeMetric {
+    gauge_names: [string];
+    gauge_values: [double];
+    
+    counter_names: [string];
+    counter_values: [int64];
+}
+
+union MetricGroupData {
+    HistogramMetric,
+    CompositeMetric
+}
+
+table MetricMessage {
+    prefix: string;
+    tag_key_val: [string];
+    data: MetricGroupData;
+}
+
+union Message {
+    HealthState,
+    StructuredLogMessage,
+    ShutdownRequest,
+    MetricMessage,
+}
+
+table Packet {
+    data: [Message];
+}
+
+root_type Packet;

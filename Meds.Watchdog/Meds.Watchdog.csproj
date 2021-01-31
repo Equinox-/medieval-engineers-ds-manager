@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+        <ProjectGuid>{906F8E49-1148-48C8-933D-A34A85DF8BE5}</ProjectGuid>
+        <OutputType>Exe</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>Meds.Watchdog</RootNamespace>
+        <AssemblyName>Meds.Watchdog</AssemblyName>
+        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <PlatformTarget>x64</PlatformTarget>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="mscorlib" />
+        <Reference Include="System" />
+        <Reference Include="System.Configuration" />
+        <Reference Include="System.Core" />
+        <Reference Include="System.Data" />
+        <Reference Include="System.IdentityModel" />
+        <Reference Include="System.Numerics" />
+        <Reference Include="System.Runtime.Serialization" />
+        <Reference Include="System.ServiceModel" />
+        <Reference Include="System.Xml" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Configuration.cs" />
+        <Compile Include="Logs\LogSink.cs" />
+        <Compile Include="PipeServer.cs" />
+        <Compile Include="Program.cs" />
+        <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="Steam\CallbackPump.cs" />
+        <Compile Include="Steam\CdnPool.cs" />
+        <Compile Include="Steam\InstallJob.cs" />
+        <Compile Include="Steam\PICSProductInfoExtensions.cs" />
+        <Compile Include="Steam\SteamDownloader.cs" />
+        <Compile Include="Tasks\FullStartTask.cs" />
+        <Compile Include="Tasks\ITask.cs" />
+        <Compile Include="Tasks\ShutdownTask.cs" />
+        <Compile Include="Tasks\StartTask.cs" />
+        <Compile Include="Tasks\UpdateInstallTask.cs" />
+        <Compile Include="Tasks\UpdateModsTask.cs" />
+        <Compile Include="Tasks\UpdateTask.cs" />
+        <Compile Include="Utils\HealthTracker.cs" />
+        <Compile Include="Utils\LocalFileCache.cs" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\Meds.Shared\Meds.Shared.csproj">
+        <Project>{5f9a07a6-379a-424b-9887-6e2e8c253e22}</Project>
+        <Name>Meds.Shared</Name>
+      </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Win32.Registry" Version="4.7.0" />
+      <PackageReference Include="NLog" Version="4.7.7" />
+      <PackageReference Include="SteamKit2" Version="2.3.0" />
+      <PackageReference Include="System.Security.AccessControl" Version="4.7.0" />
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
