@@ -15,4 +15,4 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build manager 
-      run: dotnet build --configuration Release --no-restore HdrHistogram/HdrHistogram/HdrHistogram.csproj Meds.Shared/Meds.Shared.csproj Meds.Watchdog/Meds.Watchdog.csproj
+      run: dotnet build --configuration Release --no-restore Meds.Watchdog/Meds.Watchdog.csproj
