@@ -7,13 +7,13 @@ namespace Meds.Shared
 {
     public sealed class PacketBuffer
     {
-        private readonly Action<FlatBufferPool.Token> _sender;
+        private readonly Action<RefCountedObjectPool<FlatBufferBuilder>.Token> _sender;
         private List<KeyValuePair<Message, int>> _messagesOther = new List<KeyValuePair<Message, int>>();
         private List<KeyValuePair<Message, int>> _messages = new List<KeyValuePair<Message, int>>();
-        private FlatBufferPool.Token _token;
-        public FlatBufferBuilder Builder => _token.Builder;
+        private RefCountedObjectPool<FlatBufferBuilder>.Token _token;
+        public FlatBufferBuilder Builder => _token.Value;
 
-        public PacketBuffer(Action<FlatBufferPool.Token> sender)
+        public PacketBuffer(Action<RefCountedObjectPool<FlatBufferBuilder>.Token> sender)
         {
             _sender = sender;
             _token = FlatBufferPool.Instance.Borrow();
@@ -39,7 +39,7 @@ namespace Meds.Shared
             _token = FlatBufferPool.Instance.Borrow();
             using (tok)
             {
-                var builder = tok.Builder;
+                var builder = tok.Value;
                 Packet.StartDataVector(builder, messages.Count);
                 foreach (var msg in messages)
                     builder.AddOffset(msg.Value);

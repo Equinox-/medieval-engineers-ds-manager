@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
 using Sandbox.Engine.Analytics;
+using Sandbox.Engine.Physics;
 using Steamworks;
 using VRage.Logging;
 
@@ -16,9 +18,21 @@ namespace Meds.Wrapper.Shim
 {
     public static class Patches
     {
+        private static Harmony _harmony;
+
         public static void Patch()
         {
-            new Harmony("meds.wrapper.core").PatchAll(typeof(Patches).Assembly);
+            _harmony = new Harmony("meds.wrapper.core");
+            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
+                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() == null)
+                .Do(type => _harmony.CreateClassProcessor(type).Patch());
+        }
+
+        public static void PatchLate()
+        {
+            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
+                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() != null)
+                .Do(type => _harmony.CreateClassProcessor(type).Patch());
         }
 
         private static readonly NamedLogger LoggerLegacy = new NamedLogger("Legacy", NullLogger.Instance);
@@ -53,6 +67,26 @@ namespace Meds.Wrapper.Shim
             }
         }
 
+        // No need to log process information since we track that with metrics.
+        [HarmonyPatch(typeof(MyLog), "WriteProcessInformation")]
+        public static class PatchLogger4
+        {
+            public static bool Prefix()
+            {
+                return false;
+            }
+        }
+
+        // No need to log physics information since we track that with metrics.
+        [HarmonyPatch(typeof(MyPhysicsSandbox), "LogPhysics")]
+        public static class PatchPhysics
+        {
+            public static bool Prefix()
+            {
+                return false;
+            }
+        }
+
         [HarmonyPatch]
         public static class PatchWorkshopLocation
         {
@@ -67,7 +101,6 @@ namespace Meds.Wrapper.Shim
             public static bool Prefix(DepotId_t unWorkshopDepotID, ref bool __result)
             {
                 __result = SteamGameServerUGC.BInitWorkshopForGameServer(unWorkshopDepotID, Path.Combine(Program.Instance.RuntimeDirectory, "workshop"));
-                Console.WriteLine("INIT WORKSHOP " + __result);
                 return false;
             }
         }

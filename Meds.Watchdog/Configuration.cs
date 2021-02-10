@@ -48,6 +48,9 @@ namespace Meds.Watchdog
         [XmlElement]
         public double FailureTimeout = 60;
 
+        [XmlElement("Influx")]
+        public InfluxDb Influx;
+
         public class Overlay
         {
             [XmlAttribute("Uri")]
@@ -55,6 +58,33 @@ namespace Meds.Watchdog
 
             [XmlAttribute("Path")]
             public string Path = "";
+        }
+
+        public class InfluxDb
+        {
+            [XmlElement("Uri")]
+            public string Uri;
+
+            [XmlElement("Token")]
+            public string Token;
+
+            [XmlElement("Bucket")]
+            public string Bucket;
+
+            [XmlElement("Organization")]
+            public string Organization;
+
+            [XmlElement("DefaultTag")]
+            public List<DefaultTagValue> DefaultTags;
+
+            public class DefaultTagValue
+            {
+                [XmlAttribute("Tag")]
+                public string Tag;
+
+                [XmlAttribute("Value")]
+                public string Value;
+            }
         }
 
         public static Configuration Read(string path)

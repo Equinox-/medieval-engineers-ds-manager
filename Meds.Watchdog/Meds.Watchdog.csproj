@@ -42,7 +42,11 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Configuration.cs" />
-        <Compile Include="Logs\LogSink.cs" />
+        <Compile Include="Database\Influx.cs" />
+        <Compile Include="Database\LogSink.cs" />
+        <Compile Include="Database\MetricSink.cs" />
+        <Compile Include="Database\PointDataUtils.cs" />
+        <Compile Include="Database\StreamingInfluxWriter.cs" />
         <Compile Include="PipeServer.cs" />
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
@@ -68,6 +72,7 @@
       </ProjectReference>
     </ItemGroup>
     <ItemGroup>
+      <PackageReference Include="InfluxDB.Client" Version="1.15.0" />
       <PackageReference Include="Microsoft.Win32.Registry" Version="4.7.0" />
       <PackageReference Include="NLog" Version="4.7.7" />
       <PackageReference Include="SteamKit2" Version="2.3.0" />

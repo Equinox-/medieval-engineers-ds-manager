@@ -1,5 +1,6 @@
 using Medieval;
 using MedievalEngineersDedicated;
+using Meds.Wrapper.Collector;
 using Meds.Wrapper.Shim;
 using VRage.Components;
 using VRage.Engine;
@@ -15,6 +16,7 @@ namespace Meds.Wrapper
         {
             Patches.Patch();
             ShimLog.Hook();
+            CoreMetrics.Register();
         }
 
         public void AfterMetadataInitialized()

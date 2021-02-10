@@ -27,11 +27,11 @@ namespace Meds.Shared
 
         public struct MessageToken : IDisposable
         {
-            private readonly FlatBufferPool.Token _token;
+            private readonly RefCountedObjectPool<FlatBufferBuilder>.Token _token;
             private readonly int _id;
             private Packet _packet;
 
-            public MessageToken(FlatBufferPool.Token token, in Packet packet, int id)
+            public MessageToken(RefCountedObjectPool<FlatBufferBuilder>.Token token, in Packet packet, int id)
             {
                 _token = token;
                 _packet = packet;

@@ -38,17 +38,31 @@ namespace Meds.Wrapper.Metrics
         public readonly MetricTag Kv2;
         public readonly MetricTag Kv3;
 
-        public MetricName(string series,
+        private MetricName(string series, in MetricTag kv0, in MetricTag kv1, in MetricTag kv2, in MetricTag kv3)
+        {
+            Series = series;
+            Kv0 = kv0;
+            Kv1 = kv1;
+            Kv2 = kv2;
+            Kv3 = kv3;
+        }
+
+        public static MetricName Of(string series,
             string key0 = null, string val0 = null,
             string key1 = null, string val1 = null,
             string key2 = null, string val2 = null,
             string key3 = null, string val3 = null)
         {
-            Series = series;
-            Kv0 = new MetricTag(key0, val0);
-            Kv1 = new MetricTag(key1, val1);
-            Kv2 = new MetricTag(key2, val2);
-            Kv3 = new MetricTag(key3, val3);
+            return new MetricName(series,
+                new MetricTag(key0, val0),
+                new MetricTag(key1, val1),
+                new MetricTag(key2, val2),
+                new MetricTag(key3, val3));
+        }
+
+        public MetricName WithSuffix(string suffix)
+        {
+            return new MetricName(Series + suffix, Kv0, Kv1, Kv2, Kv3);
         }
 
         public bool Equals(MetricName other)

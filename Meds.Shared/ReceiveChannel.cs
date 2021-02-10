@@ -12,7 +12,6 @@ namespace Meds.Shared
     public sealed class ReceiveChannel
     {
         private readonly Stream _src;
-        private readonly FlatBufferPool _pool;
         private readonly byte[] _sizeBuf = new byte[4];
         private readonly ByteBuffer _sizeBufAccessor;
         private readonly PacketDistributor _distributor;
@@ -20,7 +19,6 @@ namespace Meds.Shared
         public ReceiveChannel(PacketDistributor distributor, Stream src)
         {
             _src = src;
-            _pool = FlatBufferPool.Instance;
             _sizeBufAccessor = new ByteBuffer(_sizeBuf);
             _distributor = distributor;
         }
@@ -43,9 +41,9 @@ namespace Meds.Shared
             {
                 Read(_sizeBuf, 0, 4);
                 var size = _sizeBufAccessor.GetInt(0);
-                using (var pooled = _pool.Borrow())
+                using (var pooled = FlatBufferPool.Instance.Borrow())
                 {
-                    var buf = pooled.Buffer;
+                    var buf = pooled.Value.DataBuffer;
                     if (buf.Length < size)
                     {
                         var len = buf.Length;

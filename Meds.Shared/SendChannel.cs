@@ -2,13 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
+using Google.FlatBuffers;
 
 namespace Meds.Shared
 {
     public sealed class SendChannel : IDisposable
     {
         public delegate void DelWriteMessage(byte[] buffer, int offset, int count);
-        private readonly BlockingCollection<FlatBufferPool.Token> _sendQueue = new BlockingCollection<FlatBufferPool.Token>();
+        private readonly BlockingCollection<RefCountedObjectPool<FlatBufferBuilder>.Token> _sendQueue = new BlockingCollection<RefCountedObjectPool<FlatBufferBuilder>.Token>();
         private readonly CancellationTokenSource _cancelToken = new CancellationTokenSource();
         private readonly DelWriteMessage _dest;
         private volatile uint _threadId;
@@ -27,14 +28,15 @@ namespace Meds.Shared
             {
                 using (var msg = _sendQueue.Take(_cancelToken.Token))
                 {
-                    var segment = msg.Buffer.ToArraySegment(msg.Buffer.Position, msg.Buffer.Length - msg.Buffer.Position);
+                    var buf = msg.Value.DataBuffer;
+                    var segment = buf.ToArraySegment(buf.Position, buf.Length - buf.Position);
                     _threadId = PipeUtils.CurrentNativeThreadId;
                     _dest(segment.Array, segment.Offset, segment.Count);
                 }
             }
         }
 
-        public void Send(FlatBufferPool.Token message)
+        public void Send(RefCountedObjectPool<FlatBufferBuilder>.Token message)
         {
             _sendQueue.Add(message.AddRef());
         }

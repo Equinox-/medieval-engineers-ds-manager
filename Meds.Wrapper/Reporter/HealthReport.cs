@@ -15,7 +15,7 @@ namespace Meds.Wrapper.Reporter
         public HealthReport()
         {
             _timer = new Timer(Report);
-            _timer.Change(0, 15 * 1000); // 15 sec
+            _timer.Change(0, (int) ReportInterval.TotalMilliseconds);
         }
 
         private void Report(object state)

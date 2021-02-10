@@ -1,3 +1,4 @@
+using System;
 using Google.FlatBuffers;
 using Meds.Shared;
 using Meds.Shared.Data;
@@ -8,6 +9,11 @@ namespace Meds.Wrapper.Metrics
     {
         public MetricName Name { get; }
 
+        /// <summary>
+        /// Update this metric every N reporter ticks.
+        /// </summary>
+        public virtual int UpdateRate => 1;
+
         protected MetricRoot(MetricName name)
         {
             Name = name;
@@ -16,7 +22,8 @@ namespace Meds.Wrapper.Metrics
         public void WriteTo(PacketBuffer buffer)
         {
             var builder = buffer.Builder;
-            WriteDataTo(builder, out var dataType, out var dataOffset);
+            if (!WriteDataTo(builder, out var dataType, out var dataOffset))
+                return;
 
             var name = Name;
             var nameOffset = builder.CreateSharedString(name.Series);
@@ -24,6 +31,7 @@ namespace Meds.Wrapper.Metrics
 
             MetricMessage.StartMetricMessage(builder);
             MetricMessage.AddPrefix(builder, nameOffset);
+            MetricMessage.AddTimeMs(builder, DateTimeOffset.Now.ToUnixTimeMilliseconds());
             if (keyValueTagsOffset.HasValue)
                 MetricMessage.AddTagKeyVal(builder, keyValueTagsOffset.Value);
             MetricMessage.AddDataType(builder, dataType);
@@ -46,7 +54,7 @@ namespace Meds.Wrapper.Metrics
 
                 if (kvCount <= 0) return null;
                 MetricMessage.StartTagKeyValVector(builder, kvCount);
-                for (var i = 0; i < kvCount; i++)
+                for (var i = kvCount - 1; i >= 0; i--)
                     builder.AddOffset(kvOffsets[i].Value);
                 return builder.EndVector();
             }
@@ -60,6 +68,6 @@ namespace Meds.Wrapper.Metrics
             offsets[count++] = builder.CreateSharedString(tag.Value);
         }
 
-        protected abstract void WriteDataTo(FlatBufferBuilder builder, out MetricGroupData type, out int offset);
+        protected abstract bool WriteDataTo(FlatBufferBuilder builder, out MetricGroupData type, out int offset);
     }
 }

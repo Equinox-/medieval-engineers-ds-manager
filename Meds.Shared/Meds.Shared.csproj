@@ -42,9 +42,11 @@
     <ItemGroup>
         <Compile Include="ChannelDesc.cs" />
         <Compile Include="FlatBufferPool.cs" />
+        <Compile Include="MiscUtils.cs" />
         <Compile Include="PacketBuffer.cs" />
         <Compile Include="PacketDistributor.cs" />
         <Compile Include="PipeClient.cs" />
+        <Compile Include="RefCountedObjectPool.cs" />
         <Compile Include="ReceiveChannel.cs" />
         <Compile Include="SendChannel.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />

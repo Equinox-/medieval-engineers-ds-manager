@@ -1,20 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Google.FlatBuffers;
-using HarmonyLib;
-using Meds.Shared;
 using Meds.Shared.Data;
 using Sandbox.Game.Entities;
-using VRage.Components;
 using VRage.Game;
 using VRage.Game.Components;
-using VRage.Library.Utils;
+using VRage.Game.Components.Session;
 using VRage.Logging;
 using VRage.Session;
 using LogSeverity = VRage.Logging.LogSeverity;
@@ -145,6 +139,50 @@ namespace Meds.Wrapper.Shim
                 }
             }
 
+            private Offset<DefinitionContext> CreateDefinitionContext(MyDefinitionBase def, FlatBufferBuilder builder)
+            {
+                var type = CreateSharedString(def.Id.TypeId.ShortName, builder);
+                var subtype = CreateSharedString(def.Id.SubtypeName, builder);
+                var package = CreateSharedString(def.Package?.Id, builder);
+                DefinitionContext.StartDefinitionContext(builder);
+                if (type.HasValue)
+                    DefinitionContext.AddType(builder, type.Value);
+                if (subtype.HasValue)
+                    DefinitionContext.AddSubtype(builder, subtype.Value);
+                if (package.HasValue)
+                    DefinitionContext.AddPackage(builder, package.Value);
+                return DefinitionContext.EndDefinitionContext(builder);
+            }
+
+            private Offset<EntityComponentContext> CreateEntityContext(MyEntityComponent component, FlatBufferBuilder builder)
+            {
+                var defCtx = MyDefinitionManager.TryGet<MyEntityComponentDefinition>(component.DefinitionId, out var def)
+                    ? CreateDefinitionContext(def, builder)
+                    : (Offset<DefinitionContext>?) null;
+                var typeString = builder.CreateSharedString(component.GetType().Name);
+                EntityComponentContext.StartEntityComponentContext(builder);
+                EntityComponentContext.AddType(builder, typeString);
+                if (component.Entity != null)
+                    EntityComponentContext.AddEntity(builder, component.Entity.Id.Value);
+                if (defCtx.HasValue)
+                    EntityComponentContext.AddDefinition(builder, defCtx.Value);
+                return EntityComponentContext.EndEntityComponentContext(builder);
+            }
+
+            private Offset<SceneComponentContext> CreateSessionContext(VRage.Scene.IMySceneComponent component, FlatBufferBuilder builder)
+            {
+                var defCtx = component is MySessionComponent sessionComponent &&
+                             MyDefinitionManager.TryGet<MySessionComponentDefinition>(sessionComponent.DefinitionId, out var def)
+                    ? CreateDefinitionContext(def, builder)
+                    : (Offset<DefinitionContext>?) null;
+                var typeString = builder.CreateSharedString(component.GetType().Name);
+                SceneComponentContext.StartSceneComponentContext(builder);
+                SceneComponentContext.AddType(builder, typeString);
+                if (defCtx.HasValue)
+                    SceneComponentContext.AddDefinition(builder, defCtx.Value);
+                return SceneComponentContext.EndSceneComponentContext(builder);
+            }
+
             public void Log(in NamedLogger source, LogSeverity severity, object message)
             {
                 var buffer = Program.Instance.Channel.SendBuffer;
@@ -161,25 +199,15 @@ namespace Meds.Wrapper.Shim
                     {
                         case MyDefinitionBase definition:
                             contextType = LogContext.DefinitionContext;
-                            DefinitionContext.StartDefinitionContext(builder);
-                            DefinitionContext.AddType(builder, builder.CreateSharedString(definition.Id.TypeId.ShortName));
-                            DefinitionContext.AddSubtype(builder, builder.CreateSharedString(definition.Id.SubtypeName));
-                            contextOffset = DefinitionContext.EndDefinitionContext(builder).Value;
+                            contextOffset = CreateDefinitionContext(definition, builder).Value;
                             break;
                         case MyEntityComponent component:
                             contextType = LogContext.EntityComponentContext;
-                            EntityComponentContext.StartEntityComponentContext(builder);
-                            if (component.Entity != null)
-                                EntityComponentContext.AddEntity(builder, component.Entity.Id.Value);
-                            EntityComponentContext.AddType(builder, builder.CreateSharedString(component.DefinitionId.TypeId.ShortName));
-                            EntityComponentContext.AddSubtype(builder, builder.CreateSharedString(component.DefinitionId.SubtypeName));
-                            contextOffset = EntityComponentContext.EndEntityComponentContext(builder).Value;
+                            contextOffset = CreateEntityContext(component, builder).Value;
                             break;
-                        case IMySceneComponent component:
+                        case VRage.Scene.IMySceneComponent component:
                             contextType = LogContext.SceneComponentContext;
-                            SceneComponentContext.StartSceneComponentContext(builder);
-                            SceneComponentContext.AddType(builder, builder.CreateSharedString(component.GetType().Name));
-                            contextOffset = SceneComponentContext.EndSceneComponentContext(builder).Value;
+                            contextOffset = CreateSessionContext(component, builder).Value;
                             break;
                     }
 
@@ -207,7 +235,12 @@ namespace Meds.Wrapper.Shim
                             }
 
                             break;
+                        case string _:
+                        case StringBuilder _:
+                            format = CreateSharedString(message.ToString(), builder);
+                            break;
                         default:
+                            format = CreateSharedString("{0}", builder);
                             argCount = 1;
                             argOffsets[0] = CreateArg(message, builder, out argTypes[0]);
                             break;
@@ -219,12 +252,12 @@ namespace Meds.Wrapper.Shim
                     if (argCount > 0)
                     {
                         StructuredLogMessage.StartArgsVector(builder, argCount);
-                        for (var i = 0; i < argCount; i++)
+                        for (var i = argCount - 1; i >= 0; i--)
                             builder.AddOffset(i < StackArgLength ? argOffsets[i] : _argOverflow[i - StackArgLength].Key);
                         argOffsetVector = builder.EndVector();
 
                         StructuredLogMessage.StartArgsTypeVector(builder, argCount);
-                        for (var i = 0; i < argCount; i++)
+                        for (var i = argCount - 1; i >= 0; i--)
                             builder.AddByte((byte) (i < StackArgLength ? argTypes[i] : _argOverflow[i - StackArgLength].Value));
                         argTypeVector = builder.EndVector();
                     }
@@ -232,7 +265,7 @@ namespace Meds.Wrapper.Shim
                     _argOverflow.Clear();
 
                     StructuredLogMessage.StartStructuredLogMessage(builder);
-                    StructuredLogMessage.AddTime(builder, DateTimeOffset.Now.ToUnixTimeMilliseconds());
+                    StructuredLogMessage.AddTimeMs(builder, DateTimeOffset.Now.ToUnixTimeMilliseconds());
                     if (origin.HasValue)
                         StructuredLogMessage.AddOrigin(builder, origin.Value);
                     if (threadName.HasValue)

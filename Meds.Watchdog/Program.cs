@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Meds.Shared;
-using Meds.Watchdog.Logs;
+using Meds.Watchdog.Database;
 using Meds.Watchdog.Tasks;
 using Meds.Watchdog.Utils;
 using NLog;
@@ -21,7 +21,7 @@ namespace Meds.Watchdog
         public PacketDistributor Distributor { get; } = new PacketDistributor();
         public PipeServer Channel { get; }
 
-        public LogSink LogSink { get; }
+        public Influx Influx { get; }
         public HealthTracker HealthTracker { get; }
         public string InstallDirectory => Path.Combine(Configuration.Directory, "install");
         public string RuntimeDirectory => Path.Combine(Configuration.Directory, "runtime");
@@ -36,7 +36,9 @@ namespace Meds.Watchdog
                     .ToString(SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(Path.GetFullPath(Configuration.Directory))))
                     .Replace("-", "");
 
-            LogSink = new LogSink(this);
+            Influx = new Influx(Configuration.Influx);
+            LogSink.Register(this);
+            MetricSink.Register(this);
             HealthTracker = new HealthTracker(this);
             Channel = new PipeServer(new ChannelDesc(Configuration.ChannelName), Distributor);
 
@@ -45,10 +47,10 @@ namespace Meds.Watchdog
 
         public async Task DoWork()
         {
-            // while (true)
-            // {
-            //     await Task.Delay(TimeSpan.FromSeconds(1));
-            // }
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
 
             while (true)
             {
@@ -86,7 +88,7 @@ namespace Meds.Watchdog
         public void Dispose()
         {
             Channel?.Dispose();
-            LogSink?.Dispose();
+            Influx?.Dispose();
         }
 
         public static async Task Main(string[] args)

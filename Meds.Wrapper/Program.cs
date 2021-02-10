@@ -1,12 +1,11 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
+using System.Reflection;
 using Medieval;
 using MedievalEngineersDedicated;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Wrapper.Reporter;
-using Meds.Wrapper.Shim;
 using Sandbox;
 using Sandbox.Engine.Physics;
 using Sandbox.Game;
@@ -14,8 +13,6 @@ using VRage.Dedicated;
 using VRage.Engine;
 using VRage.Game;
 using VRage.Game.SessionComponents;
-using VRage.Logging;
-using LogSeverity = VRage.Logging.LogSeverity;
 
 namespace Meds.Wrapper
 {
@@ -28,6 +25,7 @@ namespace Meds.Wrapper
         public PipeClient Channel { get; }
 
         public HealthReport HealthReport { get; }
+        public MetricReport MetricReport { get; }
 
         private Program(string runtimeDirectory, ChannelDesc desc)
         {
@@ -36,6 +34,7 @@ namespace Meds.Wrapper
             Distributor.RegisterPacketHandler(_ => MySandboxGame.ExitThreadSafe(), Message.ShutdownRequest);
             Channel = new PipeClient(desc, Distributor);
             HealthReport = new HealthReport();
+            MetricReport = new MetricReport();
         }
 
         private void Run()
@@ -44,8 +43,8 @@ namespace Meds.Wrapper
             {
                 "-noconsole",
                 "-ignorelastsession",
-                // "--unique-log-names",
-                // "true",
+                "--unique-log-names",
+                "true",
                 "--data-path",
                 RuntimeDirectory,
                 "--system",
@@ -75,6 +74,7 @@ namespace Meds.Wrapper
 
         public void Dispose()
         {
+            MetricReport?.Dispose();
             HealthReport?.Dispose();
             Channel?.Dispose();
         }

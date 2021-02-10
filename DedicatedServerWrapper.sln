@@ -6,6 +6,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Wrapper", "Meds.Wrappe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Shared", "Meds.Shared\Meds.Shared.csproj", "{5F9A07A6-379A-424B-9887-6E2E8C253E22}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{009285D5-A6B8-4F70-8553-B4098DE10B8F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HdrHistogram", "HdrHistogram\HdrHistogram\HdrHistogram.csproj", "{54D17764-192D-469B-8DCA-BCA216EDD6E5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -24,5 +28,13 @@ Global
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Debug|x64.Build.0 = Debug|x64
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Release|x64.ActiveCfg = Release|x64
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Release|x64.Build.0 = Release|x64
+		{009285D5-A6B8-4F70-8553-B4098DE10B8F}.Debug|x64.ActiveCfg = Debug|x64
+		{009285D5-A6B8-4F70-8553-B4098DE10B8F}.Debug|x64.Build.0 = Debug|x64
+		{009285D5-A6B8-4F70-8553-B4098DE10B8F}.Release|x64.ActiveCfg = Release|x64
+		{009285D5-A6B8-4F70-8553-B4098DE10B8F}.Release|x64.Build.0 = Release|x64
+		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Release|x64.ActiveCfg = Release|Any CPU
+		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Debug|x64.Build.0 = Debug|Any CPU
+		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

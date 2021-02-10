@@ -21,8 +21,8 @@
         <DebugSymbols>true</DebugSymbols>
         <DebugType>full</DebugType>
         <Optimize>false</Optimize>
-        <OutputPath>bin\Debug\</OutputPath>
-<!--                <OutputPath>..\TestDir\install\DedicatedServer64</OutputPath>-->
+<!--        <OutputPath>bin\Debug\</OutputPath>-->
+        <OutputPath>..\TestDir\install\DedicatedServer64</OutputPath>
         <DefineConstants>DEBUG;TRACE</DefineConstants>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
@@ -57,6 +57,10 @@
             <HintPath>GameBinaries\Sandbox.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="HavokWrapper">
+            <HintPath>GameBinaries\HavokWrapper.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="System.Xml.Linq" />
         <Reference Include="VRage">
             <HintPath>GameBinaries\VRage.dll</HintPath>
@@ -84,21 +88,44 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Collector\EntityGridDatabaseMetrics.cs" />
+        <Compile Include="Collector\CoreMetrics.cs" />
+        <Compile Include="Collector\PhysicsMetrics.cs" />
+        <Compile Include="Collector\TransportLayerMetrics.cs" />
+        <Compile Include="Collector\UpdateSchedulerMetrics.cs" />
         <Compile Include="Config\ConfigData.cs" />
         <Compile Include="Config\CustomConfig.cs" />
         <Compile Include="EarlyInjectorSystem.cs" />
         <Compile Include="LateInjectorSystem.cs" />
-        <Compile Include="Metrics\MetricTimer.cs" />
+        <Compile Include="Metrics\Counter.cs" />
+        <Compile Include="Metrics\LeafMetric.cs" />
+        <Compile Include="Metrics\HistogramReader.cs" />
+        <Compile Include="Metrics\Gauge.cs" />
+        <Compile Include="Metrics\MetricGroup.cs" />
+        <Compile Include="Metrics\IHelperMetric.cs" />
+        <Compile Include="Metrics\Histogram.cs" />
+        <Compile Include="Metrics\PerTickAdder.cs" />
+        <Compile Include="Metrics\PerTickCounter.cs" />
+        <Compile Include="Metrics\PerTickMetric.cs" />
+        <Compile Include="Metrics\PerTickTimer.cs" />
         <Compile Include="Metrics\MetricName.cs" />
         <Compile Include="Metrics\MetricRegistry.cs" />
         <Compile Include="Metrics\MetricRoot.cs" />
+        <Compile Include="Metrics\PerTickTimerAdder.cs" />
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Reporter\HealthReport.cs" />
+        <Compile Include="Reporter\MetricReport.cs" />
         <Compile Include="Shim\Patches.cs" />
+        <Compile Include="Shim\PatchLateAttribute.cs" />
         <Compile Include="Shim\ShimLog.cs" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\HdrHistogram\HdrHistogram\HdrHistogram.csproj">
+            <Project>{54d17764-192d-469b-8dca-bca216edd6e5}</Project>
+            <Name>HdrHistogram</Name>
+            <Private>true</Private>
+        </ProjectReference>
         <ProjectReference Include="..\Meds.Shared\Meds.Shared.csproj">
             <Project>{5f9a07a6-379a-424b-9887-6e2e8c253e22}</Project>
             <Name>Meds.Shared</Name>
@@ -106,7 +133,6 @@
         </ProjectReference>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="HdrHistogram" Version="2.5.0" />
         <PackageReference Include="KdSoft.FlatBuffers" Version="1.12.0" />
         <PackageReference Include="Lib.Harmony" Version="2.0.4" />
     </ItemGroup>
