@@ -53,5 +53,5 @@ jobs:
       if: github.ref == 'refs/heads/develop' || contains(github.ref, 'refs/tags/')
       with:
         credentials: ${{ secrets.RELEASE_UPLOAD_KEY }}
-        path: Meds.Wrapper/bin/Release/
+        path: Meds.Wrapper/bin/Release/*
         destination: "meds-dist/${{github.ref}}/wrapper/"
