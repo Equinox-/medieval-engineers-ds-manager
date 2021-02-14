@@ -12,6 +12,14 @@ jobs:
       uses: microsoft/setup-msbuild@v1
     - name: Setup NuGet.exe for use with actions
       uses: NuGet/setup-nuget@v1.0.5
+    - name: Generate NuGet Cache Key
+      id: nuget_cache_key
+      run: powershell -Command Write-Host "::set-output name=key::nuget-cache-$((Get-FileHash -InputStream ([IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes((Select-String -Path "*/*.csproj" -Pattern "PackageReference" | foreach {$_.line.Trim()} | Sort-Object))))).Hash)"
+    - name: Cache Nuget
+      uses: actions/cache@v2.1.4
+      with:
+        key: ${{ steps.nuget_cache_key.outputs.key }}
+        path: ~/.nuget/packages
     - name: Restore dependencies
       run: msbuild -t:restore DedicatedServerWrapper.sln
     - name: Build FlatBuffers
