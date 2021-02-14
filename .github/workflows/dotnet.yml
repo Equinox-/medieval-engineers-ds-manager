@@ -21,7 +21,7 @@ jobs:
         key: ${{ steps.nuget_cache_key.outputs.key }}
         path: ~/.nuget/packages
     - name: Restore dependencies
-      run: msbuild -t:restore DedicatedServerWrapper.sln
+      run: msbuild /p:Configuration=Release -m -t:restore DedicatedServerWrapper.sln
     - name: Build FlatBuffers
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
     - name: Build manager
