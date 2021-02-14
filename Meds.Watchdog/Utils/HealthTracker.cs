@@ -1,15 +1,17 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using Meds.Shared;
 using Meds.Shared.Data;
 
 namespace Meds.Watchdog.Utils
 {
-    public sealed class HealthTracker
+    public sealed class HealthTracker : IDisposable
     {
         private static readonly TimeSpan HealthTimeout = TimeSpan.FromMinutes(1);
         private readonly Program _program;
+        private readonly Timer _timer;
 
         private readonly BoolState _liveness = new BoolState(false);
         private readonly BoolState _readiness = new BoolState(false);
@@ -18,6 +20,19 @@ namespace Meds.Watchdog.Utils
         {
             _program = pgm;
             pgm.Distributor.RegisterPacketHandler(HandleMessage, Message.HealthState);
+            _timer = new Timer(Report);
+            _timer.Change(0, 15 * 1000);
+        }
+
+        private void Report(object state)
+        {
+            using (var writer = _program.Influx.Write("meds.health"))
+            {
+                writer.TimeMs = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                writer.WriteVal("running", ActiveProcess != null, true);
+                writer.WriteVal("liveness", _liveness.State, true);
+                writer.WriteVal("readiness", _readiness.State, true);
+            }
         }
 
         private void HandleMessage(PacketDistributor.MessageToken obj)
@@ -108,6 +123,11 @@ namespace Meds.Watchdog.Utils
                 UpdatedAt = default;
                 ChangedAt = default;
             }
+        }
+
+        public void Dispose()
+        {
+            _timer.Dispose();
         }
     }
 }

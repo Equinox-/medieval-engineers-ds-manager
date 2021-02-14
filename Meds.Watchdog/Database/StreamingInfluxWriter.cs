@@ -60,6 +60,12 @@ namespace Meds.Watchdog.Database
             Values.Append('=');
         }
 
+        public void WriteVal(string key, bool value, bool safeKey)
+        {
+            WriteValHeader(key, safeKey);
+            Values.Append(value ? "1i" : "0i").Append(",");
+        }
+
         public void WriteVal(string key, double value, bool safeKey)
         {
             WriteValHeader(key, safeKey);

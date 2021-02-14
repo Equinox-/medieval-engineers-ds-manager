@@ -4,22 +4,22 @@ namespace Meds.Watchdog.Tasks
 {
     public sealed class FullStartTask : ITask
     {
-        private readonly ShutdownTask _shutdown;
-        private readonly UpdateTask _update;
-        private readonly StartTask _start;
+        public readonly ShutdownTask Shutdown;
+        public readonly UpdateTask Update;
+        public readonly StartTask Start;
 
         public FullStartTask(Program pgm)
         {
-            _shutdown = new ShutdownTask(pgm);
-            _update = new UpdateTask(pgm);
-            _start = new StartTask(pgm);
+            Shutdown = new ShutdownTask(pgm);
+            Update = new UpdateTask(pgm);
+            Start = new StartTask(pgm);
         }
 
         public async Task Execute()
         {
-            await _shutdown.Execute();
-            await _update.Execute();
-            await _start.Execute();
+            await Shutdown.Execute();
+            await Update.Execute();
+            await Start.Execute();
         }
     }
 }

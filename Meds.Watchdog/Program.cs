@@ -47,10 +47,11 @@ namespace Meds.Watchdog
 
         public async Task DoWork()
         {
-            while (true)
+            AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
+                var task = _fullStart.Shutdown.Execute();
+                task.Wait(TimeSpan.FromMinutes(1));
+            };
 
             while (true)
             {
@@ -87,6 +88,7 @@ namespace Meds.Watchdog
 
         public void Dispose()
         {
+            HealthTracker?.Dispose();
             Channel?.Dispose();
             Influx?.Dispose();
         }
