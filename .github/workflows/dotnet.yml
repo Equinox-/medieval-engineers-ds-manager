@@ -1,0 +1,50 @@
+name: .NET
+
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
+    - name: setup-msbuild
+      uses: microsoft/setup-msbuild@v1
+    - name: Setup NuGet.exe for use with actions
+      uses: NuGet/setup-nuget@v1.0.5
+    - name: Generate NuGet Cache Key
+      id: nuget_cache_key
+      run: powershell -Command Write-Host "::set-output name=key::nuget-cache-$((Get-FileHash -InputStream ([IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes((Select-String -Path "*/*.csproj" -Pattern "PackageReference" | foreach {$_.line.Trim()} | Sort-Object))))).Hash)"
+    - name: Cache Nuget
+      uses: actions/cache@v2.1.4
+      with:
+        key: ${{ steps.nuget_cache_key.outputs.key }}
+        path: ~/.nuget/packages
+    - name: Restore dependencies
+      run: msbuild /p:Configuration=Release -m -t:restore DedicatedServerWrapper.sln
+    - name: Build FlatBuffers
+      run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
+    - name: Build manager
+      run: msbuild /p:Configuration=Release Meds.Watchdog/Meds.Watchdog.csproj
+    - name: Generate ME cache key
+      id: me_cache_key
+      run: powershell -Command Write-Host "::set-output name=key::me-cache-$(Get-Date -Format yyyy-MM)"
+    - name: Cache ME
+      uses: actions/cache@v2.1.4
+      with:
+        key: ${{ steps.me_cache_key.outputs.key }}
+        path: Meds.Shared/GameBinaries/**
+    - name: Install ME
+      run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameBinaries/
+    - name: Build wrapper
+      run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
+    - name: Upload Watchdog
+      uses: actions/upload-artifact@v2
+      with:
+        name: meds-watchdog
+        path: Meds.Watchdog/bin/Release
+    - name: Upload Wrapper
+      uses: actions/upload-artifact@v2
+      with:
+        name: meds-wrapper
+        path: Meds.Wrapper/bin/Release

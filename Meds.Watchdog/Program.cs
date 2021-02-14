@@ -101,6 +101,12 @@ namespace Meds.Watchdog
             config.AddRuleForAllLevels(consoleTarget);
             LogManager.Configuration = config;
 
+            if (args.Length == 2 && args[0] == "restore-game-binaries")
+            {
+                await CiUtils.RestoreGameBinaries(args[1]);
+                return;
+            }
+
             if (args.Length < 1)
             {
                 await Console.Error.WriteLineAsync("Usage: Meds.Watchdog.exe config.xml");
