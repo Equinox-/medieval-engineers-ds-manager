@@ -30,3 +30,13 @@ jobs:
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameBinaries/
     - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
+    - name: Upload Watchdog
+      uses: actions/upload-artifact@v2
+      with:
+        name: meds-watchdog
+        path: Meds.Watchdog/bin/Release
+    - name: Upload Wrapper
+      uses: actions/upload-artifact@v2
+      with:
+        name: meds-wrapper
+        path: Meds.Wrapper/bin/Release
