@@ -20,7 +20,7 @@ jobs:
       run: msbuild /p:Configuration=Release Meds.Watchdog/Meds.Watchdog.csproj
     - name: Generate ME cache key
       id: me_cache_key
-      run: powershell -Command Write-Host "::set-output key=me-cache-$(Get-Date -Format yyyy-MM)"
+      run: powershell -Command Write-Host "::set-output name=key::me-cache-$(Get-Date -Format yyyy-MM)"
     - name: Cache ME
       uses: actions/cache@v2.1.4
       with:
