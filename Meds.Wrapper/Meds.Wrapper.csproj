@@ -42,48 +42,48 @@
         <Reference Include="System.Numerics" />
         <Reference Include="System.Xml" />
         <Reference Include="MedievalEngineersDedicated">
-            <HintPath>GameBinaries\MedievalEngineersDedicated.exe</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\MedievalEngineersDedicated.exe</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="MedievalEngineers.Game">
-            <HintPath>GameBinaries\MedievalEngineers.Game.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\MedievalEngineers.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="MedievalEngineers.ObjectBuilders">
-            <HintPath>GameBinaries\MedievalEngineers.ObjectBuilders.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\MedievalEngineers.ObjectBuilders.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Sandbox.Game">
-            <HintPath>GameBinaries\Sandbox.Game.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\Sandbox.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="HavokWrapper">
-            <HintPath>GameBinaries\HavokWrapper.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\HavokWrapper.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="System.Xml.Linq" />
         <Reference Include="VRage">
-            <HintPath>GameBinaries\VRage.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\VRage.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Library">
-            <HintPath>GameBinaries\VRage.Library.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\VRage.Library.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Game">
-            <HintPath>GameBinaries\VRage.Game.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\VRage.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Dedicated">
-            <HintPath>GameBinaries\VRage.Dedicated.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\VRage.Dedicated.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Steam">
-            <HintPath>GameBinaries\VRage.Steam.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\VRage.Steam.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Steamworks.NET">
-            <HintPath>GameBinaries\Steamworks.NET.dll</HintPath>
+            <HintPath>GameBinaries\DedicatedServer64\Steamworks.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>
