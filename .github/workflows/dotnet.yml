@@ -18,3 +18,15 @@ jobs:
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
     - name: Build manager
       run: msbuild /p:Configuration=Release Meds.Watchdog/Meds.Watchdog.csproj
+    - name: Generate ME cache key
+      id: me_cache_key
+      run: powershell -Command Write-Host "::set-output key=me-cache-$(Get-Date -Format yyyy-MM)"
+    - name: Cache ME
+      uses: actions/cache@v2.1.4
+      with:
+        key: ${{ steps.me_cache_key.outputs.key }}
+        path: Meds.Shared/GameBinaries/**
+    - name: Install ME
+      run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameBinaries/
+    - name: Build wrapper
+      run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
