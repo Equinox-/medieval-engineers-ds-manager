@@ -28,12 +28,12 @@ jobs:
       run: msbuild /p:Configuration=Release Meds.Watchdog/Meds.Watchdog.csproj
     - name: Generate ME cache key
       id: me_cache_key
-      run: powershell -Command Write-Host "::set-output name=key::me-cache-v2-$(Get-Date -Format yyyy-MM)"
+      run: powershell -Command Write-Host "::set-output name=key::me-cache-v1-$(Get-Date -Format yyyy-MM)"
     - name: Cache ME
       uses: actions/cache@v2.1.4
       with:
         key: ${{ steps.me_cache_key.outputs.key }}
-        path: Meds.Shared/GameBinaries
+        path: Meds.Wrapper/GameBinaries
     - name: Install ME
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameBinaries/
     - name: Build wrapper
