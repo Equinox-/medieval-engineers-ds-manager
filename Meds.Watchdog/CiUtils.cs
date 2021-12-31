@@ -14,7 +14,7 @@ namespace Meds.Watchdog
             try
             {
                 await downloader.InstallAppAsync(UpdateTask.MedievalDsAppId, UpdateTask.MedievalDsDepotId, "public", target, 4,
-                    path => path.StartsWith("DedicatedServer64"));
+                    path => path.StartsWith("DedicatedServer64"), "medieval-ds");
             }
             finally
             {

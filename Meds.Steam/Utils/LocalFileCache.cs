@@ -64,7 +64,7 @@ namespace Meds.Watchdog.Utils
             if (!File.Exists(realPath))
             {
                 Size = 0;
-                Hash = new byte[0];
+                Hash = Array.Empty<byte>();
                 return;
             }
             var fileLength = new System.IO.FileInfo(realPath).Length;
