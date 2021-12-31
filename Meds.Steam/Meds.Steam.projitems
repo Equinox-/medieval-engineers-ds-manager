@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>A9FE940D-1A7C-4F13-841F-2B083EECA472</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Meds.Steam</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Steam\CallbackPump.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Steam\CdnPool.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Steam\InstallJob.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Steam\PICSProductInfoExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Steam\SteamDownloader.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\LocalFileCache.cs" />
+  </ItemGroup>
+</Project>

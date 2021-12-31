@@ -34,6 +34,13 @@ jobs:
       with:
         key: ${{ steps.me_cache_key.outputs.key }}
         path: Meds.Wrapper/GameBinaries
+    - name: Build SetupTool
+      run: msbuild /p:Configuration=Release Meds.SetupTool/Meds.SetupTool.csproj
+    - name: Upload SetupTool
+      uses: actions/upload-artifact@v2
+      with:
+        name: meds-setuptool
+        path: Meds.SetupTool/bin/Release
     - name: Install ME
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameBinaries/
     - name: Build wrapper

@@ -10,6 +10,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\Unit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HdrHistogram", "HdrHistogram\HdrHistogram\HdrHistogram.csproj", "{54D17764-192D-469B-8DCA-BCA216EDD6E5}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Meds.Steam", "Meds.Steam\Meds.Steam.shproj", "{113186BD-F34A-46CA-899A-3884AAA62430}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.SetupTool", "Meds.SetupTool\Meds.SetupTool.csproj", "{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -36,5 +40,9 @@ Global
 		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Release|x64.ActiveCfg = Release|Any CPU
 		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Debug|x64.Build.0 = Debug|Any CPU
 		{54D17764-192D-469B-8DCA-BCA216EDD6E5}.Release|x64.Build.0 = Release|Any CPU
+		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Debug|x64.ActiveCfg = Debug|x64
+		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Debug|x64.Build.0 = Debug|x64
+		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Release|x64.ActiveCfg = Release|x64
+		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal

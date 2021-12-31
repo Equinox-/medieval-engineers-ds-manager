@@ -45,21 +45,25 @@ namespace Meds.Watchdog.Tasks
             }
 
             var queued = new Queue<ulong>(mods);
+            var modNames = new Dictionary<ulong, string>();
             while (queued.Count > 0)
             {
                 var details = await downloader.LoadModDetails(UpdateTask.MedievalGameAppId, queued);
                 queued.Clear();
                 foreach (var mod in details.Values)
-                foreach (var child in mod.children)
-                    if (mods.Add(child.publishedfileid))
-                        queued.Enqueue(child.publishedfileid);
+                {
+                    modNames[mod.publishedfileid] = mod.title;
+                    foreach (var child in mod.children)
+                        if (mods.Add(child.publishedfileid))
+                            queued.Enqueue(child.publishedfileid);
+                }
             }
 
             Log.Info($"{mods.Count} mods to pre-load");
             var modDirectory = Path.Combine(_program.RuntimeDirectory, "workshop", "content", UpdateTask.MedievalGameAppId.ToString());
 
             await Task.WhenAll(mods.Select(modId => downloader.InstallModAsync(UpdateTask.MedievalGameAppId, modId,
-                Path.Combine(modDirectory, modId.ToString()), 4, UpdateTask.ShouldInstallAsset)));
+                Path.Combine(modDirectory, modId.ToString()), 4, UpdateTask.ShouldInstallAsset, modNames[modId])));
         }
 
         [XmlRoot("MyObjectBuilder_Checkpoint")]

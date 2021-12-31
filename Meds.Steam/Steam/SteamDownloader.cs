@@ -39,8 +39,12 @@ namespace Meds.Watchdog.Steam
         private LoggedOnCallback _loginDetails;
 
         private readonly ConcurrentDictionary<uint, byte[]> _depotKeys = new ConcurrentDictionary<uint, byte[]>();
-        private readonly ConcurrentDictionary<string, CDNAuthTokenCallback> _cdnAuthTokens = new ConcurrentDictionary<string, CDNAuthTokenCallback>();
-        private readonly ConcurrentDictionary<uint, PICSProductInfo> _appInfos = new ConcurrentDictionary<uint, PICSProductInfo>();
+
+        private readonly ConcurrentDictionary<string, CDNAuthTokenCallback> _cdnAuthTokens =
+            new ConcurrentDictionary<string, CDNAuthTokenCallback>();
+
+        private readonly ConcurrentDictionary<uint, PICSProductInfo> _appInfos =
+            new ConcurrentDictionary<uint, PICSProductInfo>();
 
         private bool IsLoggedIn => _loginDetails != null;
         public CdnPool CdnPool { get; }
@@ -118,7 +122,8 @@ namespace Meds.Watchdog.Steam
             var cdnClient = CdnPool.TakeClient();
             var server = CdnPool.GetBestServer();
             var cdnAuthToken = await GetCdnAuthTokenAsync(appId, depotId, server.Host).ConfigureAwait(false);
-            var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, server, cdnAuthToken, depotKey).ConfigureAwait(false);
+            var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, server, cdnAuthToken, depotKey)
+                .ConfigureAwait(false);
 
             return manifest;
         }
@@ -155,7 +160,7 @@ namespace Meds.Watchdog.Steam
             if (loginResult.Result != EResult.OK)
                 throw new Exception($"Failed to log into Steam: {loginResult.Result:G}");
 
-            await CdnPool.Initialize((int) loginResult.CellID);
+            await CdnPool.Initialize((int)loginResult.CellID);
             _loginDetails = loginResult;
             return loginResult;
         }
@@ -188,14 +193,16 @@ namespace Meds.Watchdog.Steam
         #endregion
 
 
-        public async Task InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount, Predicate<string> installFilter)
+        public async Task InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
+            Predicate<string> installFilter, string debugName)
         {
             var manifestId = await GetManifestForBranch(appId, depotId, branch);
-            await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter);
+            await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName);
         }
 
-        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId, string installPath, int workerCount,
-            Predicate<string> installFilter)
+        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId, string installPath,
+            int workerCount,
+            Predicate<string> installFilter, string debugName)
         {
             var localCache = new LocalFileCache();
             var localCacheFile = Path.Combine(installPath, CacheDir, depotId.ToString());
@@ -205,7 +212,7 @@ namespace Meds.Watchdog.Steam
                 try
                 {
                     using (var fs = File.OpenRead(localCacheFile))
-                        localCache = (LocalFileCache) LocalFileCache.Serializer.Deserialize(fs);
+                        localCache = (LocalFileCache)LocalFileCache.Serializer.Deserialize(fs);
                 }
                 catch
                 {
@@ -217,12 +224,12 @@ namespace Meds.Watchdog.Steam
             // Ensure local file cache contains up to date information for all files:
             if (File.Exists(installPath))
                 foreach (var filePath in Directory.GetFiles(installPath, "*", SearchOption.AllDirectories)
-                    .Where(x => !Directory.Exists(x))
-                    .Select(x => x.Substring(installPath.Length).TrimStart('/', '\\'))
-                    .Where(x => !x.StartsWith(CacheDir) && installFilter(x)))
+                             .Where(x => !Directory.Exists(x))
+                             .Select(x => x.Substring(installPath.Length).TrimStart('/', '\\'))
+                             .Where(x => !x.StartsWith(CacheDir) && installFilter(x)))
                 {
                     if (!localCache.TryGet(filePath, out var metadata))
-                        localCache.Add(metadata = new FileInfo {Path = filePath});
+                        localCache.Add(metadata = new FileInfo { Path = filePath });
                     metadata.RepairData(installPath);
                 }
 
@@ -232,17 +239,18 @@ namespace Meds.Watchdog.Steam
             Directory.CreateDirectory(installPath);
             Directory.CreateDirectory(Path.Combine(installPath, CacheDir));
 
+            var lockFile = Path.Combine(installPath, LockFile);
             try
             {
-                using (File.Create(Path.Combine(installPath, LockFile)))
+                using (File.Create(lockFile))
                 {
                     // Get installation details from Steam
                     var manifest = await GetManifestAsync(appId, depotId, manifestId);
 
                     var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter);
-                    using (var timer = new Timer(3000) {AutoReset = true})
+                    using (var timer = new Timer(3000) { AutoReset = true })
                     {
-                        timer.Elapsed += (sender, args) => Log.Info($"Progress: {job.ProgressRatio:0.00%}");
+                        timer.Elapsed += (sender, args) => Log.Info($"{debugName} progress: {job.ProgressRatio:0.00%}");
                         timer.Start();
                         await job.Execute(this, workerCount);
                     }
@@ -254,28 +262,40 @@ namespace Meds.Watchdog.Steam
             }
             catch
             {
-                throw new InvalidOperationException("A job is already in progress on this install.");
+                throw new InvalidOperationException(
+                    $"A job may already be in progress on this install ({debugName}).If you're sure there isn't one, delete {lockFile}");
             }
         }
 
         public async Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(uint appId, IEnumerable<ulong> modIds)
         {
-            var req = new CPublishedFile_GetDetails_Request {appid = appId, includechildren = true};
+            var req = new CPublishedFile_GetDetails_Request
+                { appid = appId, includechildren = true, includemetadata = true };
             req.publishedfileids.AddRange(modIds);
             var response = await _publishedFiles.SendMessage(svc => svc.GetDetails(req));
-            return response.GetDeserializedResponse<CPublishedFile_GetDetails_Response>().publishedfiledetails.ToDictionary(item => item.publishedfileid);
+            return response.GetDeserializedResponse<CPublishedFile_GetDetails_Response>().publishedfiledetails
+                .ToDictionary(item => item.publishedfileid);
         }
 
-        public async Task InstallModAsync(uint appId, ulong modId, string installPath, int workerCount, Predicate<string> filter)
+        public async Task InstallModAsync(uint appId, ulong modId, string installPath, int workerCount,
+            Predicate<string> filter, string debugName)
         {
             var appInfo = await GetAppInfoAsync(appId);
             var workshopDepot = appInfo.GetWorkshopDepot();
-            var req = new CPublishedFile_GetItemInfo_Request {app_id = appId};
-            req.workshop_items.Add(new CPublishedFile_GetItemInfo_Request.WorkshopItem {published_file_id = modId});
+            var req = new CPublishedFile_GetItemInfo_Request { app_id = appId };
+            req.workshop_items.Add(new CPublishedFile_GetItemInfo_Request.WorkshopItem { published_file_id = modId });
             var response = await _publishedFiles.SendMessage(svc => svc.GetItemInfo(req));
-            var result = response.GetDeserializedResponse<CPublishedFile_GetItemInfo_Response>().workshop_items.First(x => x.published_file_id == modId);
-            await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter);
-            Log.Info($"Installed mod {result.published_file_id}, manifest {result.manifest_id}");
+            var responseDecoded = response.GetDeserializedResponse<CPublishedFile_GetItemInfo_Response>();
+            if (responseDecoded.private_items.Contains(modId))
+                throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName}) -- it appears to be private");
+            var result = responseDecoded.workshop_items
+                .FirstOrDefault(x => x.published_file_id == modId);
+            if (result == null)
+                throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName})");
+
+            await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
+                debugName);
+            Log.Info($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
         }
     }
 }
