@@ -8,7 +8,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Shared", "Meds.Shared\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{009285D5-A6B8-4F70-8553-B4098DE10B8F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HdrHistogram", "HdrHistogram\HdrHistogram\HdrHistogram.csproj", "{54D17764-192D-469B-8DCA-BCA216EDD6E5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Standalone", "Meds.Standalone\Meds.Standalone.csproj", "{97BF9078-53FE-41EF-8E9C-A7F973309356}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "HdrHistogramShared", "HdrHistogramShared\HdrHistogramShared.shproj", "{4172390A-BAA4-47FA-9530-5815602AD879}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "MetricRegistry", "MetricRegistry\MetricRegistry.shproj", "{074997DD-F175-4FDD-89FE-2495639204FE}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Meds.Steam", "Meds.Steam\Meds.Steam.shproj", "{113186BD-F34A-46CA-899A-3884AAA62430}"
 EndProject
@@ -44,5 +48,9 @@ Global
 		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Debug|x64.Build.0 = Debug|x64
 		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Release|x64.ActiveCfg = Release|x64
 		{3D0C8FCA-89B0-4DB8-922C-07BC75BCD2AA}.Release|x64.Build.0 = Release|x64
+		{97BF9078-53FE-41EF-8E9C-A7F973309356}.Debug|x64.ActiveCfg = Debug|x64
+		{97BF9078-53FE-41EF-8E9C-A7F973309356}.Debug|x64.Build.0 = Debug|x64
+		{97BF9078-53FE-41EF-8E9C-A7F973309356}.Release|x64.ActiveCfg = Release|x64
+		{97BF9078-53FE-41EF-8E9C-A7F973309356}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal

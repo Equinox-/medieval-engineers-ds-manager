@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Meds.Metrics;
 using Meds.Wrapper.Metrics;
 using Sandbox;
 using Sandbox.Engine.Physics;

@@ -277,8 +277,7 @@ namespace Meds.Watchdog.Steam
                 .ToDictionary(item => item.publishedfileid);
         }
 
-        public async Task InstallModAsync(uint appId, ulong modId, string installPath, int workerCount,
-            Predicate<string> filter, string debugName)
+        public async Task<CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> InstallModAsync(uint appId, ulong modId, string installPath, int workerCount, Predicate<string> filter, string debugName)
         {
             var appInfo = await GetAppInfoAsync(appId);
             var workshopDepot = appInfo.GetWorkshopDepot();
@@ -296,6 +295,7 @@ namespace Meds.Watchdog.Steam
             await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
                 debugName);
             Log.Info($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
+            return result;
         }
     }
 }

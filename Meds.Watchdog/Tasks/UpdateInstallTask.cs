@@ -51,7 +51,7 @@ namespace Meds.Watchdog.Tasks
                 new HashSet<string>(overlays.SelectMany(overlay =>
                     overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
             await downloader.InstallAppAsync(UpdateTask.MedievalDsAppId, UpdateTask.MedievalDsDepotId, "public", installPath, 4,
-                path => UpdateTask.ShouldInstallAsset(path) && !overlayFiles.Contains(path), "medieval-ds");
+                path => !overlayFiles.Contains(path), "medieval-ds");
 
             // Apply overlays
             foreach (var overlay in overlays)

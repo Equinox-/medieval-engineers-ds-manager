@@ -43,8 +43,6 @@ namespace Meds.Wrapper
             {
                 "-noconsole",
                 "-ignorelastsession",
-                "--unique-log-names",
-                "true",
                 "--data-path",
                 RuntimeDirectory,
                 "--system",

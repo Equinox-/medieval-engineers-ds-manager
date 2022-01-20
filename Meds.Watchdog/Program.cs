@@ -35,6 +35,8 @@ namespace Meds.Watchdog
                 Configuration.ChannelName = "meds-" + BitConverter
                     .ToString(SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(Path.GetFullPath(Configuration.Directory))))
                     .Replace("-", "");
+            
+            LogManager.Configuration.AddRuleForAllLevels(new FileTarget());
 
             Influx = new Influx(Configuration.Influx);
             LogSink.Register(this);
@@ -47,6 +49,12 @@ namespace Meds.Watchdog
 
         public async Task DoWork()
         {
+            #if DEBUG
+            while (true)
+            {
+                await Task.Delay(1000);
+            }
+            #endif
             AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
             {
                 var task = _fullStart.Shutdown.Execute();

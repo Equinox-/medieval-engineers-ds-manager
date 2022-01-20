@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>8B52500D-23CF-46E9-9DAB-48388DDC5415</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>HdrHistogramShared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)HistogramBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HistogramExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IntHistogram.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IntConcurrentHistogram.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/AbstractHistogramEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/AllValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/AllValuesEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/HistogramIterationValue.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/PercentileEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/PercentileEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/RecordedValuesEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Iteration/RecordedValuesEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utilities/AtomicIntArray.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utilities/WriterReaderPhaser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utilities\Bitwise.cs" />
+  </ItemGroup>
+</Project>

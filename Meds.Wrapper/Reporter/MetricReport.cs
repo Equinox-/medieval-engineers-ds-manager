@@ -1,13 +1,14 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Meds.Metrics;
 using Meds.Wrapper.Metrics;
 
 namespace Meds.Wrapper.Reporter
 {
     public sealed class MetricReport : IDisposable
     {
-        private static readonly TimeSpan ReportInterval = TimeSpan.FromSeconds(12);
+        private static readonly TimeSpan ReportInterval = TimeSpan.FromMinutes(1);
         private readonly System.Threading.Timer _timer;
 
         private long _reportTick;
@@ -25,12 +26,13 @@ namespace Meds.Wrapper.Reporter
             _reportTick++;
             var buffer = Program.Instance.Channel.SendBuffer;
             var reader = MetricRegistry.Read();
+            var writer = FlatBufferWriter.Borrow(buffer);
             for (var i = 0; i < reader.Count; i++)
             {
                 var metric = reader[i];
                 if ((_reportTick % metric.UpdateRate) != 0)
                     continue;
-                metric.WriteTo(buffer);
+                metric.WriteTo(writer);
             }
 
             buffer.Flush();

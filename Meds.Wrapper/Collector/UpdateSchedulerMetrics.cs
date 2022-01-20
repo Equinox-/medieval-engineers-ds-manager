@@ -4,11 +4,18 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Medieval.GameSystems;
+using Meds.Metrics;
 using Meds.Wrapper.Metrics;
 using Sandbox.Engine.Networking;
+using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Planet;
 using VRage.Components;
+using VRage.Components.Session;
 using VRage.Engine;
 using VRage.Game.Components;
+using VRage.Game.Entity;
+using VRageMath;
 
 #pragma warning disable 618
 
@@ -41,12 +48,12 @@ namespace Meds.Wrapper.Collector
                 FileLog.Log($"Failed to find call {invokeMethod.DeclaringType}#{invokeMethod.Name}.  Profiling of that won't work");
         }
 
-        private static void Submit(string scheduler, MethodBase method, long start)
+        private static void Submit(string scheduler, MethodBase method, long start, object target = null)
         {
-            Submit(scheduler, method.DeclaringType, method.Name, start);
+            Submit(scheduler, method.DeclaringType, method.Name, start, target);
         }
 
-        private static void Submit(string scheduler, Type type, string method, long start)
+        private static void Submit(string scheduler, Type type, string method, long start, object target = null)
         {
             var dt = Stopwatch.GetTimestamp() - start;
             var name = MetricName.Of(SeriesName,
@@ -54,6 +61,20 @@ namespace Meds.Wrapper.Collector
                 "type", type?.Name ?? "unknown",
                 "method", method);
             MetricRegistry.PerTickTimer(in name).Record(dt);
+
+            Vector3D? geoData = null;
+            switch (target)
+            {
+                case MyEntity entity:
+                    geoData = entity.PositionComp?.WorldAABB.Center;
+                    break;
+                case MyEntityComponent entityComponent:
+                    geoData = entityComponent.Entity?.PositionComp?.WorldAABB.Center;
+                    break;
+            }
+
+            if (geoData != null)
+                RegionMetrics.RecordRegionUpdateTime(geoData.Value, dt);
         }
 
         [HarmonyPatch(typeof(MyUpdateScheduler), "RunFixedUpdates")]
@@ -71,7 +92,7 @@ namespace Meds.Wrapper.Collector
 
                 var start = Stopwatch.GetTimestamp();
                 update();
-                Submit(FixedScheduler, method, start);
+                Submit(FixedScheduler, method, start, update.Target);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) =>
@@ -86,7 +107,7 @@ namespace Meds.Wrapper.Collector
             {
                 var start = Stopwatch.GetTimestamp();
                 update(dt);
-                Submit(TimedScheduler, update.Method, start);
+                Submit(TimedScheduler, update.Method, start, update.Target);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) =>
@@ -115,7 +136,7 @@ namespace Meds.Wrapper.Collector
             {
                 var start = Stopwatch.GetTimestamp();
                 component.UpdateBeforeSimulation();
-                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.UpdateBeforeSimulation), start);
+                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.UpdateBeforeSimulation), start, component);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) =>
@@ -135,7 +156,7 @@ namespace Meds.Wrapper.Collector
             {
                 var start = Stopwatch.GetTimestamp();
                 component.Simulate();
-                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.Simulate), start);
+                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.Simulate), start, component);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) =>
@@ -155,7 +176,7 @@ namespace Meds.Wrapper.Collector
             {
                 var start = Stopwatch.GetTimestamp();
                 component.UpdateAfterSimulation();
-                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.UpdateAfterSimulation), start);
+                Submit(LegacyScheduler, component.GetType(), nameof(MySessionComponentBase.UpdateAfterSimulation), start, component);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) =>

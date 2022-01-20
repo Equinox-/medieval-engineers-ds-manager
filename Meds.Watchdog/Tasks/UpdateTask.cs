@@ -36,26 +36,5 @@ namespace Meds.Watchdog.Tasks
                 await downloader.LogoutAsync();
             }
         }
-
-        private static readonly IEnumerable<string> ExcludeExtensions = new[]
-        {
-            ".dds",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".blend"
-        };
-
-
-        public static bool ShouldInstallAsset(string asset)
-        {
-            if (asset.StartsWith("Content"))
-                return true;
-            // Exclude image shaped files outside of the content directory.  These are normally mod textures.
-            foreach (var ext in ExcludeExtensions)
-                if (asset.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                    return false;
-            return true;
-        }
     }
 }

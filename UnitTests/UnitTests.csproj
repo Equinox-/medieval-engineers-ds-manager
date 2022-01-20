@@ -45,10 +45,6 @@
       <PackageReference Include="NUnit" Version="3.5.0" />
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\HdrHistogram\HdrHistogram\HdrHistogram.csproj">
-        <Project>{54d17764-192d-469b-8dca-bca216edd6e5}</Project>
-        <Name>HdrHistogram</Name>
-      </ProjectReference>
       <ProjectReference Include="..\Meds.Shared\Meds.Shared.csproj">
         <Project>{5f9a07a6-379a-424b-9887-6e2e8c253e22}</Project>
         <Name>Meds.Shared</Name>

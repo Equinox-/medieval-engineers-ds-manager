@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>B4137553-4304-42DF-B62B-558504234224</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>MetricRegistry</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Group\Counter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Group\Gauge.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Group\LeafMetric.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Group\MetricGroup.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Group\MetricWriter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Group\PerTickLeafAdder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Histogram.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HistogramReader.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IHelperMetric.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MetricName.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MetricRegistry.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MetricRoot.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PerTickAdder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PerTickCounter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PerTickMetric.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PerTickTimer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PerTickTimerAdder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ZeroGcStrings.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,99 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
+namespace Meds.Metrics
+{
+    public readonly struct MetricTag : IEquatable<MetricTag>
+    {
+        public readonly string Key;
+        public readonly string Value;
+
+        public MetricTag(string key, string val)
+        {
+            Debug.Assert(string.IsNullOrEmpty(key) == string.IsNullOrEmpty(val), "Both or none of key/value must be specified");
+            Key = key;
+            Value = val;
+        }
+
+        [Pure]
+        public bool Valid => !string.IsNullOrEmpty(Key);
+
+        [Pure]
+        public bool Equals(MetricTag other) => Key == other.Key && Value == other.Value;
+
+        [Pure]
+        public override bool Equals(object obj) => obj is MetricTag other && Equals(other);
+
+        [Pure]
+        public override int GetHashCode() => Key == null ? 0 : ((Key.GetHashCode() * 397) ^ Value.GetHashCode());
+    }
+
+    public readonly struct MetricName : IEquatable<MetricName>
+    {
+        public readonly string Series;
+        public readonly MetricTag Kv0;
+        public readonly MetricTag Kv1;
+        public readonly MetricTag Kv2;
+        public readonly MetricTag Kv3;
+
+        private MetricName(string series, in MetricTag kv0, in MetricTag kv1, in MetricTag kv2, in MetricTag kv3)
+        {
+            Series = series;
+            Kv0 = kv0;
+            Kv1 = kv1;
+            Kv2 = kv2;
+            Kv3 = kv3;
+        }
+
+        public static MetricName Of(string series,
+            string key0 = null, string val0 = null,
+            string key1 = null, string val1 = null,
+            string key2 = null, string val2 = null,
+            string key3 = null, string val3 = null)
+        {
+            return new MetricName(series,
+                new MetricTag(key0, val0),
+                new MetricTag(key1, val1),
+                new MetricTag(key2, val2),
+                new MetricTag(key3, val3));
+        }
+
+        public MetricName WithSeries(string series)
+        {
+            return new MetricName(series, Kv0, Kv1, Kv2, Kv3);
+        }
+
+        public MetricName WithSuffix(string suffix) => WithSeries(Series + suffix);
+
+        public bool Equals(MetricName other)
+        {
+            return Series == other.Series && Kv0.Equals(other.Kv0) && Kv1.Equals(other.Kv1) && Kv2.Equals(other.Kv2) && Kv3.Equals(other.Kv3);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is MetricName other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var tagHash = Kv0.GetHashCode() ^ Kv1.GetHashCode() ^ Kv2.GetHashCode() ^ Kv3.GetHashCode();
+                var seriesHash = Series.GetHashCode();
+                return (seriesHash * 397) ^ tagHash;
+            }
+        }
+
+        private sealed class MetricNameEqualityComparer : IEqualityComparer<MetricName>
+        {
+            public bool Equals(MetricName x, MetricName y) => x.Equals(y);
+
+            public int GetHashCode(MetricName obj) => obj.GetHashCode();
+        }
+
+        public static IEqualityComparer<MetricName> MetricNameComparer { get; } = new MetricNameEqualityComparer();
+    }
+}

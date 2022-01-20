@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Meds.Watchdog.Steam;
 using NLog;
+using SteamKit2;
+using SteamKit2.GC.Dota.Internal;
 
 namespace Meds.Watchdog.Tasks
 {
@@ -62,8 +64,27 @@ namespace Meds.Watchdog.Tasks
             Log.Info($"{mods.Count} mods to pre-load");
             var modDirectory = Path.Combine(_program.RuntimeDirectory, "workshop", "content", UpdateTask.MedievalGameAppId.ToString());
 
-            await Task.WhenAll(mods.Select(modId => downloader.InstallModAsync(UpdateTask.MedievalGameAppId, modId,
-                Path.Combine(modDirectory, modId.ToString()), 4, UpdateTask.ShouldInstallAsset, modNames[modId])));
+            var modInfo = await Task.WhenAll(mods.Select(modId => downloader.InstallModAsync(UpdateTask.MedievalGameAppId, modId,
+                Path.Combine(modDirectory, modId.ToString()), 4, path => true, modNames[modId])));
+
+            var manifest = new KeyValue("AppWorkshop");
+            manifest.Children.Add(new KeyValue("appid", UpdateTask.MedievalGameAppId.ToString()));
+            manifest.Children.Add(new KeyValue("SizeOnDisk", "0"));
+            manifest.Children.Add(new KeyValue("NeedsUpdate", "0"));
+            manifest.Children.Add(new KeyValue("NeedsDownload", "0"));
+            manifest.Children.Add(new KeyValue("TimeLastUpdated", "0"));
+            manifest.Children.Add(new KeyValue("TimeLastAppRan", "0"));
+            var items = new KeyValue("WorkshopItemsInstalled");
+            foreach (var mod in modInfo)
+            {
+                var item = new KeyValue(mod.published_file_id.ToString());
+                item.Children.Add(new KeyValue("size", "0"));
+                item.Children.Add(new KeyValue("timeupdated", mod.time_updated.ToString()));
+                item.Children.Add(new KeyValue("manifest", mod.manifest_id.ToString()));
+                items.Children.Add(item);
+            }
+            manifest.Children.Add(items);
+            manifest.SaveToFile(Path.Combine(_program.RuntimeDirectory, "workshop", $"appworkshop_{UpdateTask.MedievalGameAppId}.acf"), false);
         }
 
         [XmlRoot("MyObjectBuilder_Checkpoint")]
