@@ -65,32 +65,11 @@ namespace Meds.SetupTool
         public const uint MedievalDsDepotId = 367971;
         public const uint MedievalGameAppId = 333950;
 
-        private static readonly IEnumerable<string> ExcludeExtensions = new[]
-        {
-            ".dds",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".blend"
-        };
-
-        public static bool ShouldInstallAsset(string asset)
-        {
-            if (asset.StartsWith("Content"))
-                return true;
-            // Exclude image shaped files outside of the content directory.  These are normally mod textures.
-            foreach (var ext in ExcludeExtensions)
-                if (asset.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                    return false;
-            return true;
-        }
-
-
         private static async Task InstallDs(SteamDownloader downloader, Options opts)
         {
             Log.Info("Updating Medieval Engineers");
             await downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, "public", opts.InstallDir, 4,
-                ShouldInstallAsset, "medieval-ds");
+                path => true, "medieval-ds");
         }
 
 
@@ -138,7 +117,7 @@ namespace Meds.SetupTool
                                Path.Combine(opts.InstallDir, "workshop", "content", MedievalGameAppId.ToString());
 
             await Task.WhenAll(mods.Select(modId => downloader.InstallModAsync(MedievalGameAppId, modId,
-                Path.Combine(modDirectory, modId.ToString()), 4, ShouldInstallAsset, modNames[modId])));
+                Path.Combine(modDirectory, modId.ToString()), 4, path => true, modNames[modId])));
         }
 
         [XmlRoot("MyObjectBuilder_Checkpoint")]
