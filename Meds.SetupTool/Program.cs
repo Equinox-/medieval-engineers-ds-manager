@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using CommandLine;
@@ -116,8 +117,20 @@ namespace Meds.SetupTool
             var modDirectory = opts.ModInstallDir ??
                                Path.Combine(opts.InstallDir, "workshop", "content", MedievalGameAppId.ToString());
 
-            await Task.WhenAll(mods.Select(modId => downloader.InstallModAsync(MedievalGameAppId, modId,
-                Path.Combine(modDirectory, modId.ToString()), 4, path => true, modNames[modId])));
+            var throttler = new SemaphoreSlim(32);
+            await Task.WhenAll(mods.Select(async modId =>
+            {
+                await throttler.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    return await downloader.InstallModAsync(MedievalGameAppId, modId,
+                        Path.Combine(modDirectory, modId.ToString()), 4, path => true, modNames[modId]);
+                }
+                finally
+                {
+                    throttler.Release();
+                }
+            }));
         }
 
         [XmlRoot("MyObjectBuilder_Checkpoint")]
