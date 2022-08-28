@@ -1,16 +1,14 @@
 using System.Diagnostics;
-using HarmonyLib;
 using Havok;
 using Medieval.GameSystems;
 using Meds.Metrics;
-using Sandbox.Engine.Physics;
 using Sandbox.Game.Entities;
 using VRage.Components.Physics;
 using VRage.Physics;
 using VRageMath;
 using VRageMath.Spatial;
 
-namespace Meds.Standalone.Collector
+namespace Meds.Standalone.Metrics
 {
     public static class RegionMetrics
     {
@@ -23,16 +21,17 @@ namespace Meds.Standalone.Collector
         private const string PhysicsGroup = Prefix + "physics";
         private const string PhysicsProfiler = PhysicsGroup + ".profiler";
 
-        public static MetricName CreateRegionMetric(string metric, long regionId)
+        public static MetricName CreateRegionMetric(string metric, long regionId, string key3 = null, string value3 = null)
         {
             MyPlanetAreasComponent.UnpackAreaId(regionId, out int face, out var x, out var y);
             return MetricName.Of(metric,
                 "face", ZeroGcStrings.ToString(face),
                 "regionX", ZeroGcStrings.ToString(x),
-                "regionY", ZeroGcStrings.ToString(y));
+                "regionY", ZeroGcStrings.ToString(y),
+                key3, value3);
         }
 
-        private static long? GetRegionId(Vector3D pt)
+        public static long? GetRegionId(Vector3D pt)
         {
             var planet = MyGamePruningStructureSandbox.GetClosestPlanet(pt);
             var areas = planet?.Get<MyPlanetAreasComponent>();

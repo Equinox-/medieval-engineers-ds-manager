@@ -3,7 +3,7 @@ using VRage.Library.Threading;
 
 namespace Meds.Metrics
 {
-    public abstract class PerTickMetric : IHelperMetric
+    public abstract class PerTickMetric : HelperMetric
     {
         public static int CurrentTick => MySession.Static?.GameplayFrameCounter ?? 0;
         
@@ -11,7 +11,7 @@ namespace Meds.Metrics
         private int? _frameCounter;
         private readonly MetricRoot[] _uses;
 
-        protected PerTickMetric(params MetricRoot[] uses)
+        protected PerTickMetric(in MetricName name, MetricRoot[] uses) : base(name)
         {
             _uses = uses;
             _lock = new FastResourceLock();
@@ -45,9 +45,9 @@ namespace Meds.Metrics
             _frameCounter = frame;
         }
 
-        public HelperMetricEnumerable GetOutputMetrics() => _uses;
+        public override HelperMetricEnumerable GetOutputMetrics() => _uses;
 
-        public void Flush()
+        public override void Flush()
         {
             using (StartWriting())
             {

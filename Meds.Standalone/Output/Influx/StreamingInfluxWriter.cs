@@ -1,11 +1,9 @@
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text;
 using Meds.Metrics;
-using VRage.Library.Extensions;
 
-namespace Meds.Standalone.Output
+namespace Meds.Standalone.Output.Influx
 {
     public sealed class StreamingInfluxWriter : IDisposable
     {

@@ -9,7 +9,8 @@ namespace Meds.Metrics
         private long _count;
         private long _sum;
 
-        public PerTickAdder(Histogram perRecordSum, Histogram perTickCount, Histogram perTickSum)
+        public PerTickAdder(in MetricName name, Histogram perRecordSum, Histogram perTickCount, Histogram perTickSum)
+            : base(in name, new MetricRoot[] { perRecordSum, perTickCount, perTickSum })
         {
             _perTickCount = perTickCount;
             _perTickSum = perTickSum;
@@ -39,6 +40,7 @@ namespace Meds.Metrics
 
         public void Record(long size)
         {
+            LastModification = MetricRegistry.GcCounter;
             using (StartWriting())
             {
                 _perRecordSum.Record(size);

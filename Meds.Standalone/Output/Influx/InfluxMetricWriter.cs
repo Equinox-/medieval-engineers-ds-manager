@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Meds.Metrics;
 using Meds.Metrics.Group;
 
-namespace Meds.Standalone.Output
+namespace Meds.Standalone.Output.Influx
 {
     public sealed class InfluxMetricWriter : MetricWriter
     {
@@ -21,10 +22,11 @@ namespace Meds.Standalone.Output
             writer.WriteTag(name.Kv1, true);
             writer.WriteTag(name.Kv2, true);
             writer.WriteTag(name.Kv3, true);
+            writer.WriteTag(name.Kv4, true);
             return writer;
         }
 
-        public void WriteGroup(in MetricName name, MetricGroupReader reader)
+        public void WriteGroup<T>(in MetricName name, T reader) where T : IEnumerator<KeyValuePair<string, LeafMetricValue>>
         {
             using (var sb = StartMetric(in name))
             {

@@ -4,16 +4,20 @@ namespace Meds.Metrics.Group
 {
     public sealed class PerTickLeafAdder : LeafMetric
     {
+        private readonly MetricGroup _group;
         private long _lastFlush;
         private long _sum;
 
-        public PerTickLeafAdder(string name) : base(name)
+        public PerTickLeafAdder(MetricGroup group, string name) : base(name)
         {
+            _group = group;
             _lastFlush = long.MinValue;
+            _group.MarkChanged();
         }
 
         public void Add(long value)
         {
+            _group.MarkChanged();
             Interlocked.CompareExchange(ref _lastFlush, long.MinValue, PerTickMetric.CurrentTick);
             Interlocked.Add(ref _sum, value);
         }

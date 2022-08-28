@@ -4,8 +4,14 @@ namespace Meds.Metrics
 {
     public abstract class MetricRoot
     {
-        protected MetricName _nameUnsafe;
-        public MetricName Name => _nameUnsafe;
+        protected MetricName NameUnsafe;
+        public MetricName Name => NameUnsafe;
+
+        /// <summary>
+        /// Last modification time of this metric, according to <see cref="MetricRegistry.GcCounter"/>.
+        /// Will be <see cref="ulong.MaxValue"/> if this metric is pinned and can't be collected.
+        /// </summary>
+        public ulong LastModification { get; protected set; }
 
         /// <summary>
         /// Update this metric every N reporter ticks.
@@ -15,7 +21,7 @@ namespace Meds.Metrics
 
         protected MetricRoot(MetricName name)
         {
-            _nameUnsafe = name;
+            NameUnsafe = name;
         }
 
         public abstract void WriteTo(MetricWriter writer);

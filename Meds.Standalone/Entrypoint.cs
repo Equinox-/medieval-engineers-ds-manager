@@ -12,8 +12,6 @@ namespace Meds.Standalone
             {
                 "--system",
                 $"{typeof(MedsCoreSystem).Assembly.FullName}:{typeof(MedsCoreSystem).FullName}",
-                "--system",
-                $"{typeof(MedsLateSystem).Assembly.FullName}:{typeof(MedsLateSystem).FullName}"
             }).ToArray();
             var type = Type.GetType("MedievalEngineersDedicated.MyProgram, MedievalEngineersDedicated")
                        ?? throw new NullReferenceException("MyProgram is missing");

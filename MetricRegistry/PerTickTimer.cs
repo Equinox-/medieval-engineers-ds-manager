@@ -9,7 +9,8 @@ namespace Meds.Metrics
         private long _count;
         private long _time;
 
-        public PerTickTimer(Timer perRecordTime, Histogram perTickCount, Timer perTickTime)
+        public PerTickTimer(in MetricName name, Timer perRecordTime, Histogram perTickCount, Timer perTickTime)
+            : base(in name, new MetricRoot[] { perRecordTime, perTickCount, perTickTime })
         {
             _perTickCount = perTickCount;
             _perTickTime = perTickTime;
@@ -39,6 +40,7 @@ namespace Meds.Metrics
 
         public void Record(long stopwatchTicks)
         {
+            LastModification = MetricRegistry.GcCounter;
             using (StartWriting())
             {
                 _perRecordTime.Record(stopwatchTicks);

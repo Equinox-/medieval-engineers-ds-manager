@@ -1,8 +1,12 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
+using Meds.Watchdog;
 using Sandbox.Engine.Analytics;
 using Sandbox.Engine.Physics;
 using VRage.Logging;
@@ -14,21 +18,21 @@ namespace Meds.Standalone.Shim
 {
     public static class Patches
     {
-        private static Harmony _harmony;
+        private static readonly Harmony _harmony = new Harmony("meds.wrapper.core");
 
-        public static void Patch()
+        public static void PatchAlways(bool late)
         {
-            _harmony = new Harmony("meds.wrapper.core");
-            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
-                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() == null)
-                .Do(type => _harmony.CreateClassProcessor(type).Patch());
+            foreach (var type in typeof(Patches).Assembly.GetTypes())
+            {
+                var attr = type.GetCustomAttribute<AlwaysPatch>();
+                if (attr == null || attr.Late != late) continue;
+                Patch(type);
+            }
         }
-
-        public static void PatchLate()
+        
+        public static void Patch(Type type)
         {
-            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
-                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() != null)
-                .Do(type => _harmony.CreateClassProcessor(type).Patch());
+            _harmony.CreateClassProcessor(type).Patch();
         }
 
         private static readonly NamedLogger LoggerLegacy = new NamedLogger("Legacy", NullLogger.Instance);
@@ -65,31 +69,25 @@ namespace Meds.Standalone.Shim
 
         // No need to log process information since we track that with metrics.
         [HarmonyPatch(typeof(MyLog), "WriteProcessInformation")]
-        public static class PatchLogger4
+        [AlwaysPatch]
+        public static class DisableProcessInfoLogging
         {
-            public static bool Prefix()
-            {
-                return false;
-            }
+            public static bool Prefix() => false;
         }
 
         // No need to log physics information since we track that with metrics.
         [HarmonyPatch(typeof(MyPhysicsSandbox), "LogPhysics")]
-        public static class PatchPhysics
+        [AlwaysPatch]
+        public static class DisablePhysicsLogging
         {
-            public static bool Prefix()
-            {
-                return false;
-            }
+            public static bool Prefix() => false;
         }
 
         [HarmonyPatch(typeof(MyAnalyticsManager), nameof(MyAnalyticsManager.RegisterAnalyticsTracker))]
+        [AlwaysPatch]
         public static class DisableAnalytics
         {
-            public static bool Prefix()
-            {
-                return false;
-            }
+            public static bool Prefix() => false;
         }
     }
 }

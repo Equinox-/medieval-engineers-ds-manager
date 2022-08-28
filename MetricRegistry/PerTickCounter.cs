@@ -6,13 +6,13 @@ namespace Meds.Metrics
 
         private long _count;
 
-        public PerTickCounter(Histogram perTickCount)
+        public PerTickCounter(in MetricName name, Histogram perTickCount) : base(in name, new MetricRoot[] { perTickCount })
         {
             _perTickCount = perTickCount;
 
             _count = 0;
         }
-        
+
         public int UpdateRate
         {
             set => _perTickCount.UpdateRate = value;
@@ -26,6 +26,7 @@ namespace Meds.Metrics
 
         public void Record(long count)
         {
+            LastModification = MetricRegistry.GcCounter;
             using (StartWriting())
             {
                 _count += count;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -5,8 +6,8 @@ namespace Meds.Metrics.Group
 {
     public interface MetricWriter
     {
-        void WriteGroup(in MetricName name,
-            MetricGroupReader reader);
+        void WriteGroup<T>(in MetricName name,
+            T reader) where T : IEnumerator<KeyValuePair<string, LeafMetricValue>>;
         
         void WriteHistogram(
             in MetricName name,
@@ -64,9 +65,17 @@ namespace Meds.Metrics.Group
             }
         }
 
-        private LeafMetricValue(LeafMetricType type, bool hasData, long longVal, double doubleVal)
+        private LeafMetricValue(LeafMetricType type, bool hasData, long longVal)
         {
+            _double = 0;
             _long = longVal;
+            HasData = hasData;
+            Type = type;
+        }
+
+        private LeafMetricValue(LeafMetricType type, bool hasData, double doubleVal)
+        {
+            _long = 0;
             _double = doubleVal;
             HasData = hasData;
             Type = type;
@@ -74,17 +83,17 @@ namespace Meds.Metrics.Group
 
         public static LeafMetricValue Counter(long val)
         {
-            return new LeafMetricValue(LeafMetricType.Counter, true, val, 0);
+            return new LeafMetricValue(LeafMetricType.Counter, true, val);
         }
 
         public static LeafMetricValue Gauge(double val)
         {
-            return new LeafMetricValue(LeafMetricType.Gauge, !double.IsNaN(val), 0, val);
+            return new LeafMetricValue(LeafMetricType.Gauge, !double.IsNaN(val), val);
         }
 
         public static LeafMetricValue PerTickAdder(double? val)
         {
-            return new LeafMetricValue(LeafMetricType.PerTickAdder, val.HasValue, 0, val ?? 0);
+            return new LeafMetricValue(LeafMetricType.PerTickAdder, val.HasValue, val ?? 0);
         }
     }
 }

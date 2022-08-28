@@ -27,7 +27,7 @@ namespace Meds.Metrics.Group
             using (_lock.AcquireExclusiveUsing())
             {
                 if (!_metrics.TryGetValue(name, out val))
-                    _metrics.Add(name, val = new Counter(name));
+                    _metrics.Add(name, val = new Counter(this, name));
                 return (Counter) val;
             }
         }
@@ -39,7 +39,7 @@ namespace Meds.Metrics.Group
             using (_lock.AcquireExclusiveUsing())
             {
                 if (!_metrics.TryGetValue(name, out val))
-                    _metrics.Add(name, val = new PerTickLeafAdder(name));
+                    _metrics.Add(name, val = new PerTickLeafAdder(this, name));
                 return (PerTickLeafAdder) val;
             }
         }
@@ -51,7 +51,7 @@ namespace Meds.Metrics.Group
             using (_lock.AcquireExclusiveUsing())
             {
                 if (!_metrics.TryGetValue(name, out val))
-                    _metrics.Add(name, val = new Gauge(name, initialValue));
+                    _metrics.Add(name, val = new Gauge(this, name, initialValue));
                 return (Gauge) val;
             }
         }
@@ -63,16 +63,12 @@ namespace Meds.Metrics.Group
 
         public Gauge Gauge(string name, Func<bool> getter)
         {
-            return Gauge(name, () => getter() ? 1 : 0);
+            return Gauge(name, () => Group.Gauge.ConvertValue(getter()));
         }
 
         public Gauge Gauge(string name, Func<bool?> getter)
         {
-            return Gauge(name, () =>
-            {
-                var val = getter();
-                return val.HasValue ? (val.Value ? 1 : 0) : double.NaN;
-            });
+            return Gauge(name, () => Group.Gauge.ConvertValue(getter()));
         }
 
         public Gauge Gauge(string name, Func<double> getter)
@@ -82,7 +78,7 @@ namespace Meds.Metrics.Group
             using (_lock.AcquireExclusiveUsing())
             {
                 if (!_metrics.TryGetValue(name, out val))
-                    _metrics.Add(name, val = new Gauge(name, getter));
+                    _metrics.Add(name, val = new Gauge(this, name, getter));
                 return (Gauge) val;
             }
         }
@@ -94,10 +90,19 @@ namespace Meds.Metrics.Group
             return gauge;
         }
 
+        public Gauge SetGauge(string name, double value)
+        {
+            var gauge = Gauge(name, value);
+            gauge.SetValue(value);
+            return gauge;
+        }
+
+        internal void MarkChanged(bool pin = false) => LastModification = pin ? ulong.MaxValue : MetricRegistry.GcCounter;
+
         public override void WriteTo(MetricWriter writer)
         {
             using (_lock.AcquireSharedUsing())
-                writer.WriteGroup(in _nameUnsafe, new MetricGroupReader(_metrics.GetEnumerator()));
+                writer.WriteGroup(in NameUnsafe, new MetricGroupReader(_metrics.GetEnumerator()));
         }
     }
 

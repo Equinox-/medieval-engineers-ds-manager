@@ -17,7 +17,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Group\PerTickLeafAdder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Histogram.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HistogramReader.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)IHelperMetric.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HelperMetric.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MetricName.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MetricRegistry.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MetricRoot.cs" />

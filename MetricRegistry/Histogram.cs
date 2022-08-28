@@ -24,6 +24,7 @@ namespace Meds.Metrics
         public void Record(long stopwatchTicks)
         {
             _histogram.RecordValue(stopwatchTicks);
+            LastModification = MetricRegistry.GcCounter;
         }
 
         public override void WriteTo(MetricWriter writer)
@@ -41,7 +42,7 @@ namespace Meds.Metrics
 
             // ReSharper disable ArgumentsStyleNamedExpression
             // ReSharper disable ArgumentsStyleOther
-            writer.WriteHistogram(in _nameUnsafe,
+            writer.WriteHistogram(in NameUnsafe,
                 min: reader.Min * _scale,
                 mean: reader.Mean * _scale,
                 p50: reader.P50 * _scale,

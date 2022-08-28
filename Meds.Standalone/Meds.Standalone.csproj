@@ -91,28 +91,38 @@
             <HintPath>$(SolutionDir)\Meds.Wrapper\GameBinaries\DedicatedServer64\Steamworks.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="System.Memory">
+            <HintPath>$(SolutionDir)\Meds.Wrapper\GameBinaries\DedicatedServer64\System.Memory.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="System.Buffers">
+            <HintPath>$(SolutionDir)\Meds.Wrapper\GameBinaries\DedicatedServer64\System.Buffers.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="Collector\CoreMetrics.cs" />
-        <Compile Include="Collector\EntityGridDatabaseMetrics.cs" />
-        <Compile Include="Collector\PhysicsMetrics.cs" />
-        <Compile Include="Collector\RegionMetrics.cs" />
-        <Compile Include="Collector\TransportLayerMetrics.cs" />
-        <Compile Include="Collector\UpdateSchedulerMetrics.cs" />
+        <Compile Include="Metrics\CoreMetrics.cs" />
+        <Compile Include="Metrics\EntityGridDatabaseMetrics.cs" />
+        <Compile Include="Metrics\PhysicsMetrics.cs" />
+        <Compile Include="Metrics\PlayerMetrics.cs" />
+        <Compile Include="Metrics\RegionMetrics.cs" />
+        <Compile Include="Metrics\TransportLayerMetrics.cs" />
+        <Compile Include="Metrics\UpdateSchedulerMetrics.cs" />
         <Compile Include="Config\Configuration.cs" />
         <Compile Include="MedsCoreSystem.cs" />
         <Compile Include="Entrypoint.cs" />
-        <Compile Include="MedsLateSystem.cs" />
-        <Compile Include="Output\Influx.cs" />
-        <Compile Include="Output\InfluxMetricWriter.cs" />
-        <Compile Include="Output\PointDataUtils.cs" />
-        <Compile Include="Output\StreamingInfluxWriter.cs" />
+        <Compile Include="MiscUtils.cs" />
+        <Compile Include="Output\Influx\Influx.cs" />
+        <Compile Include="Output\Influx\InfluxMetricWriter.cs" />
+        <Compile Include="Output\Influx\InfluxMetricReporter.cs" />
+        <Compile Include="Output\Influx\PointDataUtils.cs" />
+        <Compile Include="Output\Influx\StreamingInfluxWriter.cs" />
+        <Compile Include="Output\Prometheus\PrometheusMetricWriter.cs" />
+        <Compile Include="Output\Prometheus\PrometheusPatch.cs" />
         <Compile Include="Output\StringContentBuilder.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
-        <Compile Include="Reporter\HealthReport.cs" />
-        <Compile Include="Reporter\MetricReport.cs" />
+        <Compile Include="Shim\AlwaysPatch.cs" />
         <Compile Include="Shim\Patches.cs" />
-        <Compile Include="Shim\PatchLateAttribute.cs" />
         <Compile Include="Shim\ShimLog.cs" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

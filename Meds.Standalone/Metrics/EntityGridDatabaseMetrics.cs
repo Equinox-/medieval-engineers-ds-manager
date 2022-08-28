@@ -5,10 +5,11 @@ using HarmonyLib;
 using Medieval.World.Persistence;
 using Meds.Metrics;
 using VRage.Scene;
+using Patches = Meds.Standalone.Shim.Patches;
 
 // ReSharper disable InconsistentNaming
 
-namespace Meds.Standalone.Collector
+namespace Meds.Standalone.Metrics
 {
     [HarmonyPatch]
     public static class GridDatabaseMetrics
@@ -16,6 +17,11 @@ namespace Meds.Standalone.Collector
         static IEnumerable<MethodBase> TargetMethods()
         {
             return typeof(MyEntityGridDatabase).GetConstructors();
+        }
+
+        public static void Register()
+        {
+            Patches.Patch(typeof(GridDatabaseMetrics));
         }
 
         private const string Prefix = "me.persistence.griddatabase.";

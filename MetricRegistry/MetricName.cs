@@ -37,39 +37,43 @@ namespace Meds.Metrics
         public readonly MetricTag Kv1;
         public readonly MetricTag Kv2;
         public readonly MetricTag Kv3;
+        public readonly MetricTag Kv4;
 
-        private MetricName(string series, in MetricTag kv0, in MetricTag kv1, in MetricTag kv2, in MetricTag kv3)
+        private MetricName(string series, in MetricTag kv0, in MetricTag kv1, in MetricTag kv2, in MetricTag kv3, in MetricTag kv4)
         {
             Series = series;
             Kv0 = kv0;
             Kv1 = kv1;
             Kv2 = kv2;
             Kv3 = kv3;
+            Kv4 = kv4;
         }
 
         public static MetricName Of(string series,
             string key0 = null, string val0 = null,
             string key1 = null, string val1 = null,
             string key2 = null, string val2 = null,
-            string key3 = null, string val3 = null)
+            string key3 = null, string val3 = null,
+            string key4 = null, string val4 = null)
         {
             return new MetricName(series,
                 new MetricTag(key0, val0),
                 new MetricTag(key1, val1),
                 new MetricTag(key2, val2),
-                new MetricTag(key3, val3));
+                new MetricTag(key3, val3),
+                new MetricTag(key4, val4));
         }
 
         public MetricName WithSeries(string series)
         {
-            return new MetricName(series, Kv0, Kv1, Kv2, Kv3);
+            return new MetricName(series, Kv0, Kv1, Kv2, Kv3, Kv4);
         }
 
         public MetricName WithSuffix(string suffix) => WithSeries(Series + suffix);
 
         public bool Equals(MetricName other)
         {
-            return Series == other.Series && Kv0.Equals(other.Kv0) && Kv1.Equals(other.Kv1) && Kv2.Equals(other.Kv2) && Kv3.Equals(other.Kv3);
+            return Series == other.Series && Kv0.Equals(other.Kv0) && Kv1.Equals(other.Kv1) && Kv2.Equals(other.Kv2) && Kv3.Equals(other.Kv3) && Kv4.Equals(other.Kv4);
         }
 
         public override bool Equals(object obj)
@@ -81,7 +85,7 @@ namespace Meds.Metrics
         {
             unchecked
             {
-                var tagHash = Kv0.GetHashCode() ^ Kv1.GetHashCode() ^ Kv2.GetHashCode() ^ Kv3.GetHashCode();
+                var tagHash = Kv0.GetHashCode() ^ Kv1.GetHashCode() ^ Kv2.GetHashCode() ^ Kv3.GetHashCode() ^ Kv4.GetHashCode();
                 var seriesHash = Series.GetHashCode();
                 return (seriesHash * 397) ^ tagHash;
             }

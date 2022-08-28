@@ -51,6 +51,34 @@ namespace Meds.Watchdog
         [XmlElement("Influx")]
         public InfluxDb Influx;
 
+        [XmlElement]
+        public bool Prometheus = true;
+
+        [XmlElement]
+        public MetricSettings Metrics = new MetricSettings();
+
+        [XmlElement]
+        public AuditSettings Audit = new AuditSettings();
+
+        public class MetricSettings
+        {
+            [XmlElement]
+            public bool MethodProfiling = true;
+
+            [XmlElement]
+            public bool RegionProfiling = true;
+
+            [XmlElement]
+            public bool Network = true;
+
+            [XmlElement]
+            public bool Player = true;
+        }
+
+        public class AuditSettings
+        {
+        }
+
         public class Overlay
         {
             [XmlAttribute("Uri")]

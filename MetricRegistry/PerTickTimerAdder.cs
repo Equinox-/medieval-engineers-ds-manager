@@ -12,11 +12,12 @@ namespace Meds.Metrics
         private long _time;
         private long _sum;
 
-        public PerTickTimerAdder(Timer perRecordTime,
+        public PerTickTimerAdder(in MetricName name,
+            Timer perRecordTime,
             Histogram perRecordSum,
             Histogram perTickCount,
             Timer perTickTime,
-            Histogram perTickSum)
+            Histogram perTickSum) : base(name, new MetricRoot[] { perRecordTime, perRecordSum, perTickCount, perTickTime, perTickSum })
         {
             _perRecordTime = perRecordTime;
             _perRecordSum = perRecordSum;
@@ -54,6 +55,7 @@ namespace Meds.Metrics
 
         public void Record(long stopwatchTicks, long size)
         {
+            LastModification = MetricRegistry.GcCounter;
             using (StartWriting())
             {
                 _perRecordSum.Record(size);

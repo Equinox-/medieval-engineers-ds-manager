@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Google.FlatBuffers;
 using Meds.Metrics;
@@ -48,6 +49,7 @@ namespace Meds.Wrapper.Metrics
                 WriteKv(builder, name.Kv1, kvOffsets, ref kvCount);
                 WriteKv(builder, name.Kv2, kvOffsets, ref kvCount);
                 WriteKv(builder, name.Kv3, kvOffsets, ref kvCount);
+                WriteKv(builder, name.Kv4, kvOffsets, ref kvCount);
 
                 if (kvCount <= 0) return null;
                 MetricMessage.StartTagKeyValVector(builder, kvCount);
@@ -98,7 +100,7 @@ namespace Meds.Wrapper.Metrics
             }
         }
 
-        public void WriteGroup(in MetricName name, MetricGroupReader reader)
+        public void WriteGroup<T>(in MetricName name, T reader) where T : IEnumerator<KeyValuePair<string, LeafMetricValue>>
         {
             unsafe
             {
@@ -118,7 +120,7 @@ namespace Meds.Wrapper.Metrics
 
                 CompositeMetricData.StartMetricsTypeVector(builder, offsetCount);
                 for (var i = 0; i < offsetCount; i++)
-                    builder.AddByte((byte) childTypes[i]);
+                    builder.AddByte((byte)childTypes[i]);
                 var typeVector = builder.EndVector();
                 CompositeMetricData.StartMetricsVector(builder, offsetCount);
                 for (var i = 0; i < offsetCount; i++)

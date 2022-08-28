@@ -11,10 +11,11 @@ using VRage.Engine;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRageMath;
+using Patches = Meds.Standalone.Shim.Patches;
 
 #pragma warning disable 618
 
-namespace Meds.Standalone.Collector
+namespace Meds.Standalone.Metrics
 {
     public static class UpdateSchedulerMetrics
     {
@@ -23,6 +24,29 @@ namespace Meds.Standalone.Collector
         private const string TimedScheduler = "timed";
         private const string LegacyScheduler = "legacy";
         private const string MiscScheduler = "misc";
+
+        private static bool _methodProfiling;
+        private static bool _regionProfiling;
+
+        public static void Register(bool methods, bool regions)
+        {
+            _methodProfiling = methods;
+            _regionProfiling = regions;
+
+            if (methods || regions)
+            {
+                Patches.Patch(typeof(FixedUpdatePatch));
+                Patches.Patch(typeof(TimedUpdatePatch));
+            }
+
+            if (methods)
+            {
+                Patches.Patch(typeof(LegacyUpdateBefore));
+                Patches.Patch(typeof(LegacySimulate));
+                Patches.Patch(typeof(LegacyUpdateAfter));
+                Patches.Patch(typeof(MiscProfiler));
+            }
+        }
 
         private static IEnumerable<CodeInstruction> TranspileInternal(IEnumerable<CodeInstruction> instructions, MethodInfo profileMethod,
             MethodInfo invokeMethod)
@@ -51,11 +75,14 @@ namespace Meds.Standalone.Collector
         private static void Submit(string scheduler, Type type, string method, long start, object target = null)
         {
             var dt = Stopwatch.GetTimestamp() - start;
-            var name = MetricName.Of(SeriesName,
-                "scheduler", scheduler,
-                "type", type?.Name ?? "unknown",
-                "method", method);
-            MetricRegistry.PerTickTimer(in name).Record(dt);
+            if (_methodProfiling)
+            {
+                var name = MetricName.Of(SeriesName,
+                    "scheduler", scheduler,
+                    "type", type?.Name ?? "unknown",
+                    "method", method);
+                MetricRegistry.PerTickTimer(in name).Record(dt);
+            }
 
             Vector3D? geoData = null;
             switch (target)
@@ -68,12 +95,12 @@ namespace Meds.Standalone.Collector
                     break;
             }
 
-            if (geoData != null)
+            if (geoData != null && _regionProfiling)
                 RegionMetrics.RecordRegionUpdateTime(geoData.Value, dt);
         }
 
         [HarmonyPatch(typeof(MyUpdateScheduler), "RunFixedUpdates")]
-        public static class FixedUpdatePatch
+        private static class FixedUpdatePatch
         {
             private static void Profile(MyFixedUpdate update)
             {
@@ -96,7 +123,7 @@ namespace Meds.Standalone.Collector
         }
 
         [HarmonyPatch(typeof(MyUpdateScheduler), "RunTimedUpdates")]
-        public static class TimedUpdatePatch
+        private static class TimedUpdatePatch
         {
             private static void Profile(MyTimedUpdate update, long dt)
             {
@@ -120,7 +147,7 @@ namespace Meds.Standalone.Collector
         private static readonly MethodBase RunSingleFrame = AccessTools.Method(typeof(Sandbox.Engine.Platform.Game), "RunSingleFrame");
 
         [HarmonyPatch]
-        public static class LegacyUpdateBefore
+        private static class LegacyUpdateBefore
         {
             public static IEnumerable<MethodBase> TargetMethods()
             {
@@ -140,7 +167,7 @@ namespace Meds.Standalone.Collector
         }
 
         [HarmonyPatch]
-        public static class LegacySimulate
+        private static class LegacySimulate
         {
             public static IEnumerable<MethodBase> TargetMethods()
             {
@@ -160,7 +187,7 @@ namespace Meds.Standalone.Collector
         }
 
         [HarmonyPatch]
-        public static class LegacyUpdateAfter
+        private static class LegacyUpdateAfter
         {
             public static IEnumerable<MethodBase> TargetMethods()
             {
@@ -180,7 +207,7 @@ namespace Meds.Standalone.Collector
         }
 
         [HarmonyPatch]
-        public static class MiscProfiler
+        private static class MiscProfiler
         {
             public static IEnumerable<MethodBase> TargetMethods()
             {

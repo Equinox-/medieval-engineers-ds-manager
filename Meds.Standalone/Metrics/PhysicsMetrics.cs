@@ -4,7 +4,7 @@ using Meds.Metrics;
 using Meds.Metrics.Group;
 using Sandbox.Engine.Physics;
 
-namespace Meds.Standalone.Collector
+namespace Meds.Standalone.Metrics
 {
     public static class PhysicsMetrics
     {
@@ -33,7 +33,6 @@ namespace Meds.Standalone.Collector
         public static void Update()
         {
             try
-
             {
                 var clustersOpt = MyPhysicsSandbox.GetClusterList();
                 if (!clustersOpt.HasValue)

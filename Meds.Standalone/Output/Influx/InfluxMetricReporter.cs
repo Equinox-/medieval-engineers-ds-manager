@@ -1,11 +1,10 @@
 using System;
 using System.Runtime.CompilerServices;
 using Meds.Metrics;
-using Meds.Standalone.Output;
 
-namespace Meds.Standalone.Reporter
+namespace Meds.Standalone.Output.Influx
 {
-    public sealed class MetricReport : IDisposable
+    public sealed class InfluxMetricReporter : IDisposable
     {
 #if DEBUG
         private static readonly TimeSpan ReportInterval = TimeSpan.FromSeconds(15);
@@ -17,7 +16,7 @@ namespace Meds.Standalone.Reporter
 
         private long _reportTick;
 
-        public MetricReport(Influx sink)
+        public InfluxMetricReporter(Influx sink)
         {
             _sink = new InfluxMetricWriter(sink);
             _reportTick = 0;

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Meds.Standalone.Output
+namespace Meds.Standalone.Output.Influx
 {
     /// <summary>
     /// Copied from https://github.com/influxdata/influxdb-client-csharp/blob/master/Client/Writes/PointData.cs#L478-L549

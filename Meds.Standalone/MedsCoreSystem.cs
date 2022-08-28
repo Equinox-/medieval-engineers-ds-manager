@@ -1,9 +1,10 @@
+using System;
 using System.IO;
 using Medieval;
 using MedievalEngineersDedicated;
-using Meds.Standalone.Collector;
-using Meds.Standalone.Output;
-using Meds.Standalone.Reporter;
+using Meds.Standalone.Metrics;
+using Meds.Standalone.Output.Influx;
+using Meds.Standalone.Output.Prometheus;
 using Meds.Standalone.Shim;
 using Meds.Watchdog;
 using VRage.Components;
@@ -21,28 +22,45 @@ namespace Meds.Standalone
         {
             Config = Configuration.Read(Path.Combine(MyFileSystem.UserDataPath, "meds.cfg"));
             Influx = new Influx(Config.Influx);
-            HealthReport = new HealthReport(Influx);
-            MetricReport = new MetricReport(Influx);
+            InfluxMetricReporter = new InfluxMetricReporter(Influx);
             
-            Patches.Patch();
-            CoreMetrics.Register();
+            Patches.PatchAlways(false);
         }
 
         public void AfterMetadataInitialized()
         {
         }
 
+        protected override void Start()
+        {
+            Patches.PatchAlways(true);
+            if (Config.Prometheus)
+                Patches.Patch(typeof(PrometheusPatch));
+            if (Config.Metrics.Network)
+                TransportLayerMetrics.Register();
+            if (Config.Metrics.Player)
+                PlayerMetrics.Register();
+            UpdateSchedulerMetrics.Register(Config.Metrics.MethodProfiling, Config.Metrics.RegionProfiling);
+            GridDatabaseMetrics.Register();
+            CoreMetrics.Register();
+        }
+
+        [FixedUpdate]
+        public void EveryTick()
+        {
+            PhysicsMetrics.Update();
+            if (Config.Metrics.Player)
+                PlayerMetrics.Update();
+        }
+
         public Configuration Config { get; private set; }
         public Influx Influx { get; private set; }
-        public HealthReport HealthReport { get; private set; }
-        public MetricReport MetricReport { get; private set; }
+        public InfluxMetricReporter InfluxMetricReporter { get; private set; }
 
         protected override void Shutdown()
         {
-            HealthReport?.Dispose();
-            HealthReport = null;
-            MetricReport?.Dispose();
-            MetricReport = null;
+            InfluxMetricReporter?.Dispose();
+            InfluxMetricReporter = null;
             Influx?.Dispose();
             Influx = null;
             base.Shutdown();

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Medieval;
 using Meds.Metrics;
 using Sandbox;
 using Sandbox.Engine.Physics;
@@ -8,14 +9,20 @@ using Sandbox.Game.Multiplayer;
 using Sandbox.Game.World;
 using VRage.Scene;
 
-namespace Meds.Standalone.Collector
+namespace Meds.Standalone.Metrics
 {
     public static class CoreMetrics
     {
         private const string Prefix = "me.core";
+        private const string VersionData = "me.core.version";
 
         public static void Register()
         {
+            var versionData = MetricRegistry.Group(MetricName.Of(VersionData, 
+                "version_full", MyMedievalGame.VersionString,
+                "version_release", MyMedievalGame.ME_VERSION.ToString(3)));
+            versionData.Gauge("value", () => 1);
+            
             var group = MetricRegistry.Group(MetricName.Of(Prefix));
 
             var process = Process.GetCurrentProcess();

@@ -13,7 +13,7 @@ namespace Meds.Metrics
             this.array = array;
         }
 
-        public ArrayEnumerator<MetricRoot> GetEnumerator() => new ArrayEnumerator<MetricRoot>(this.array);
+        public ArrayEnumerator<MetricRoot> GetEnumerator() => new ArrayEnumerator<MetricRoot>(array);
 
         IEnumerator<MetricRoot> IEnumerable<MetricRoot>.GetEnumerator() => GetEnumerator();
 
@@ -22,10 +22,22 @@ namespace Meds.Metrics
         public static implicit operator HelperMetricEnumerable(MetricRoot[] array) => new HelperMetricEnumerable(array);
     }
 
-    public interface IHelperMetric
+    public abstract class HelperMetric
     {
-        HelperMetricEnumerable GetOutputMetrics();
+        public MetricName Name { get; }
 
-        void Flush();
+        protected HelperMetric(in MetricName name)
+        {
+            Name = name;
+        }
+        
+        /// <summary>
+        /// Last modification time of this metric, according to <see cref="MetricRegistry.GcCounter"/>.
+        /// </summary>
+        public ulong LastModification { get; protected set; }
+
+        public abstract HelperMetricEnumerable GetOutputMetrics();
+
+        public abstract void Flush();
     }
 }
