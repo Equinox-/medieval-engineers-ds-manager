@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using Medieval;
 using MedievalEngineersDedicated;
@@ -21,9 +20,12 @@ namespace Meds.Standalone
         protected override void Init()
         {
             Config = Configuration.Read(Path.Combine(MyFileSystem.UserDataPath, "meds.cfg"));
-            Influx = new Influx(Config.Influx);
-            InfluxMetricReporter = new InfluxMetricReporter(Influx);
-            
+            if (Config.Influx != null)
+            {
+                Influx = new Influx(Config.Influx);
+                InfluxMetricReporter = new InfluxMetricReporter(Influx);
+            }
+
             Patches.PatchAlways(false);
         }
 

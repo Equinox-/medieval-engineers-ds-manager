@@ -10,6 +10,7 @@ using Meds.Shared;
 using Sandbox.Game.Multiplayer;
 using VRage.Collections;
 using VRage.GameServices;
+using VRage.Library;
 using VRage.Library.Utils;
 using VRage.Network;
 using VRage.Steam;
@@ -28,9 +29,11 @@ namespace Meds.Standalone.Metrics
             {
                 Patches.Patch(typeof(SteamPeer2PeerSend));
                 Patches.Patch(typeof(SteamPeer2PeerReceive));
+                Patches.Patch(typeof(StateSync));
             }
-            catch
+            catch (Exception err)
             {
+                Console.WriteLine(err);
                 // ignore errors
             }
         }
@@ -77,7 +80,7 @@ namespace Meds.Standalone.Metrics
                 var group = ChannelMetric(channel);
                 group.Counter("messagesSent").Inc();
                 group.Counter("bytesSent").Inc(byteCount);
-                PlayerMetrics.ReportNetwork(remoteUser, byteCount, 0);
+                PlayerMetrics.ReportNetwork(remoteUser, bytesSent: byteCount);
             }
         }
 
@@ -89,7 +92,43 @@ namespace Meds.Standalone.Metrics
                 var group = ChannelMetric(channel);
                 group.Counter("messagesReceived").Inc();
                 group.Counter("bytesReceived").Inc(dataSize);
-                PlayerMetrics.ReportNetwork(remoteUser, 0, dataSize);
+                PlayerMetrics.ReportNetwork(remoteUser, bytesReceived: dataSize);
+            }
+        }
+
+        [HarmonyPatch]
+        private static class StateSync
+        {
+            private static readonly Type ClientDataType =
+                Type.GetType("VRage.Network.MyReplicationServer+ClientData, VRage") ??
+                throw new NullReferenceException("Failed to resolve ClientData");
+
+            private static readonly FieldInfo AwakeGroupsField = AccessTools.Field(ClientDataType, "AwakeGroupsQueue");
+
+            private static readonly FieldInfo StateField = AccessTools.Field(ClientDataType, "State");
+
+            private static readonly AccessTools.FieldRef<FastPriorityQueue<MyStateDataEntry>.Node, long> PriorityField =
+                AccessTools.FieldRefAccess<FastPriorityQueue<MyStateDataEntry>.Node, long>("Priority");
+
+            public static IEnumerable<MethodBase> TargetMethods()
+            {
+                foreach (var method in AccessTools.GetDeclaredMethods(typeof(MyReplicationServer)))
+                {
+                    if (method.Name != "SendStateSync") continue;
+                    if (method.GetParameters().Length != 1) continue;
+                    if (method.GetParameters()[0].ParameterType != ClientDataType) continue;
+                    yield return method;
+                }
+            }
+
+            public static void Postfix(MyReplicationLayer __instance, object clientData)
+            {
+                var awakeGroups = (FastPriorityQueue<MyStateDataEntry>)AwakeGroupsField.GetValue(clientData);
+                var state = (MyClientStateBase)StateField.GetValue(clientData);
+
+                var groupCount = awakeGroups.Count;
+                var groupDelay = groupCount > 0 ? __instance.GetSyncFrameCounter() - PriorityField.Invoke(awakeGroups.First) : 0;
+                PlayerMetrics.ReportNetwork(state.EndpointId.Value, stateGroupCount: groupCount, stateGroupDelay: groupDelay);
             }
         }
     }

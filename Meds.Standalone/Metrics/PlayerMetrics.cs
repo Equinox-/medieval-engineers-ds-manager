@@ -17,7 +17,6 @@ using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Library.Collections;
 using VRage.Network;
-using VRage.Scene;
 using VRageMath;
 using Patches = Meds.Standalone.Shim.Patches;
 
@@ -42,11 +41,11 @@ namespace Meds.Standalone.Metrics
             Patches.Patch(typeof(DamageSystemDestroyed));
         }
 
-        public static void ReportNetwork(ulong steamId, long bytesSent, long bytesReceived)
+        public static void ReportNetwork(ulong steamId, long bytesSent = 0, long bytesReceived = 0, long? stateGroupCount = null, long? stateGroupDelay = null)
         {
             if (!Holders.TryGetValue(steamId, out var holder)) return;
-            holder.ReportNetwork(bytesSent, bytesReceived);
-        } 
+            holder.ReportNetwork(bytesSent, bytesReceived, stateGroupCount, stateGroupDelay);
+        }
 
         public static void Update()
         {
@@ -119,14 +118,14 @@ namespace Meds.Standalone.Metrics
 
             internal readonly Counter VoxelsDug;
             internal readonly Counter VoxelsDeposited;
-            
+
             internal readonly Counter ItemsAcquired;
             internal readonly Counter ItemsLost;
 
             internal readonly Counter DamageTaken;
             internal readonly Counter DamageDestroyed;
             internal readonly Counter DamageDealt;
-            
+
 
             internal PlayerMetricHolder(ulong steamId)
             {
@@ -152,12 +151,33 @@ namespace Meds.Standalone.Metrics
             }
 
             private Counter _bytesSent, _bytesReceived;
-            internal void ReportNetwork(long bytesSent, long bytesReceived)
+            private Gauge _stateGroupCount, _stateGroupDelay;
+
+            internal void ReportNetwork(long bytesSent = 0, long bytesReceived = 0, long? stateGroupCount = null, long? stateGroupDelay = null)
             {
-                if (_bytesSent == null) _bytesSent = _group.Counter("bytesSent");
-                if (_bytesReceived == null) _bytesReceived = _group.Counter("bytesReceived");
-                _bytesSent.Inc(bytesSent);
-                _bytesReceived.Inc(bytesReceived);
+                if (bytesSent > 0)
+                {
+                    if (_bytesSent == null) _bytesSent = _group.Counter("bytesSent");
+                    _bytesSent.Inc(bytesSent);
+                }
+
+                if (bytesReceived > 0)
+                {
+                    if (_bytesReceived == null) _bytesReceived = _group.Counter("bytesReceived");
+                    _bytesReceived.Inc(bytesReceived);
+                }
+
+                if (stateGroupCount != null)
+                {
+                    if (_stateGroupCount == null) _stateGroupCount = _group.Gauge("stateGroupCount", 0);
+                    _stateGroupCount.SetValue(stateGroupCount.Value);
+                }
+
+                if (stateGroupDelay != null)
+                {
+                    if (_stateGroupDelay == null) _stateGroupDelay = _group.Gauge("stateGroupDelay", 0);
+                    _stateGroupDelay.SetValue(stateGroupDelay.Value);
+                }
             }
 
             internal void Update(MyPlayer player)
@@ -271,7 +291,7 @@ namespace Meds.Standalone.Metrics
                 if (src == dst) return;
                 var srcPlayer = GetControllingPlayer(src.Entity);
                 var dstPlayer = GetControllingPlayer(dst.Entity);
-                
+
                 if (srcPlayer != null && Holders.TryGetValue(srcPlayer.Id.SteamId, out var srcHolder))
                     srcHolder.ItemsLost.Inc(amount);
                 if (dstPlayer != null && Holders.TryGetValue(dstPlayer.Id.SteamId, out var dstHolder))
@@ -280,7 +300,7 @@ namespace Meds.Standalone.Metrics
         }
 
         private const long DamageScale = 100;
-        
+
         [HarmonyPatch(typeof(MyDamageSystem), nameof(MyDamageSystem.RaiseAfterDamageApplied))]
         private static class DamageSystemDealt
         {
