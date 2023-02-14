@@ -39,8 +39,6 @@ jobs:
     - name: Install ME
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameInstall/ communityedition
     - name: Build wrapper
-      run: Get-ChildItem -Recurse
-    - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
     - name: Upload Watchdog
       uses: actions/upload-artifact@v2

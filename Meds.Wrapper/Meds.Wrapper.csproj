@@ -47,51 +47,51 @@
         <Reference Include="System.Xml" />
         <Reference Include="System.Xml.Linq" />
         <Reference Include="MedievalEngineersDedicated">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\MedievalEngineersDedicated.exe</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\MedievalEngineersDedicated.exe</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="MedievalEngineers.Game">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\MedievalEngineers.Game.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\MedievalEngineers.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="MedievalEngineers.ObjectBuilders">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\MedievalEngineers.ObjectBuilders.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\MedievalEngineers.ObjectBuilders.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Sandbox.Game">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\Sandbox.Game.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Sandbox.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="HavokWrapper">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\HavokWrapper.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\HavokWrapper.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Library">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.Library.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Library.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Game">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.Game.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Dedicated">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.Dedicated.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Dedicated.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Math">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.Math.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Math.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRage.Steam">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.Steam.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Steam.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Steamworks.NET">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\Steamworks.NET.dll</HintPath>
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Steamworks.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>
