@@ -25,8 +25,6 @@ jobs:
         path: ~/.nuget/packages
     - name: Restore dependencies
       run: msbuild /p:Configuration=Release -t:restore DedicatedServerWrapper.sln
-    - name: Build FlatBuffers
-      run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
     - name: Build Shared
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj
     - name: Build Manager
@@ -57,14 +55,14 @@ jobs:
         path: Meds.Wrapper/bin/Release
     - name: Log into gcloud
       id: auth
-      if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       uses: 'google-github-actions/auth@v0'
       with:
         workload_identity_provider: 'projects/445692247363/locations/global/workloadIdentityPools/github-actions/providers/github-actions'
         service_account: 'meds-release-uploader@machpi-net.iam.gserviceaccount.com '
     - name: Upload Wrapper Release
       uses: 'google-github-actions/upload-cloud-storage@v1'
-      if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       with:
         path: Meds.Wrapper/bin/Release
         destination: "meds-dist/${{github.ref}}/wrapper"
