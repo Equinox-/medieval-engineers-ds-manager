@@ -119,9 +119,6 @@
         <Compile Include="WorldChangingConfigReplacer.cs" />
     </ItemGroup>
     <ItemGroup>
-      <None Include="App.config" />
-    </ItemGroup>
-    <ItemGroup>
       <ProjectReference Include="..\Meds.Shared\Meds.Shared.csproj">
         <Project>{5f9a07a6-379a-424b-9887-6e2e8c253e22}</Project>
         <Name>Meds.Shared</Name>

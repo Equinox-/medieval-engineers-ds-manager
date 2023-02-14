@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Configuration>
     <!-- Location wrapper files are stored at -->
-    <Overlay Path="DedicatedServer64" Uri="file:///C:/.../Meds.Wrapper/bin/Debug"/>
+    <Overlay Path="DedicatedServer64" Uri="https://storage.googleapis.com/meds-dist/refs/heads/main/wrapper"/>
     <!-- Entrypoint to launch -->
     <EntryPoint>DedicatedServer64\Meds.Wrapper.exe</EntryPoint>
 
