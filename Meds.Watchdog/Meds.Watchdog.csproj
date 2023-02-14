@@ -32,9 +32,6 @@
     </PropertyGroup>
     <ItemGroup>
         <Reference Include="mscorlib" />
-        <Reference Include="netstandard, Version=2.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51">
-          <HintPath>..\Meds.Wrapper\GameBinaries\DedicatedServer64\netstandard.dll</HintPath>
-        </Reference>
         <Reference Include="System" />
         <Reference Include="System.Configuration" />
         <Reference Include="System.Core" />
@@ -65,6 +62,7 @@
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="DSharpPlus.CommandsNext" Version="4.3.0" />
+      <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.1" />
       <PackageReference Include="SteamKit2" Version="2.4.1" />
