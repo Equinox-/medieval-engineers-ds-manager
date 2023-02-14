@@ -80,11 +80,8 @@
       <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
       <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="obj\x64\Debug\flatc\Meds\Shared" />
-    </ItemGroup>
 
-    <Target Name="FlatcCompile" BeforeTargets="ResolveAssemblyReferences">
+    <Target Name="FlatcCompile" BeforeTargets="CoreCompile" Inputs="@(FlatSharpSchema)" Outputs="$(FlatCOutput)**\*.cs">
         <PropertyGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
             <CompilerPath>$([System.IO.Path]::GetFullPath('$(PkgKdSoft_FlatBuffers)\tools\flatc.exe'))</CompilerPath>
             <CompilerInvocation>$(CompilerPath) --csharp</CompilerInvocation>
