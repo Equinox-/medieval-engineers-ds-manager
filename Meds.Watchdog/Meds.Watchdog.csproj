@@ -75,6 +75,9 @@
         <Name>Meds.Shared</Name>
       </ProjectReference>
     </ItemGroup>
+    <ItemGroup>
+      <Content Include="config.example.xml" />
+    </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <Import Project="..\Meds.Steam\Meds.Steam.projitems" Label="Shared" />
 </Project>

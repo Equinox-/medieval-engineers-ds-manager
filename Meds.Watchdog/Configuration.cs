@@ -135,6 +135,8 @@ namespace Meds.Watchdog
             {
                 var cfg = (Configuration)Serializer.Deserialize(stream);
 
+                cfg.Directory ??= Path.GetDirectoryName(path);
+
                 // Assign ephemeral ports if needed.
                 const int ephemeralStart = 49152;
                 const int ephemeralEnd = 65530;

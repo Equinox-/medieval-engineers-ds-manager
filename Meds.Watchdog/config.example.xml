@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+    <!-- Location wrapper files are stored at -->
+    <Overlay Path="DedicatedServer64" Uri="file:///C:/.../Meds.Wrapper/bin/Debug"/>
+    <!-- Entrypoint to launch -->
+    <EntryPoint>DedicatedServer64\Meds.Wrapper.exe</EntryPoint>
+
+    <!-- Directory to install the game and server files in.  By default the folder containing your config file. -->
+    <Directory>C:\Users\westin\Programming\MedievalEngineers\DedicatedServerWrapper\TestDir</Directory>
+
+    <!-- Restart every day at midnight UTC -->
+    <ScheduledTask Cron="0 0 * * *" Utc="true" Reason="Scheduled" Restart="true"/>
+    <!-- Omit the discord block if you don't Discord integration -->
+    <Discord>
+        <Token>DiscordBotTokenHere</Token>
+        <!-- Grant bot read permissions to anyone addressing the bot in a specific channel -->
+        <Grant Perm="Read" Channel="channelId" />
+        <!-- Grant bot admin permission to the user with the provided ID -->
+        <Grant Perm="Admin" User="userId" />
+        <!-- Grant bot admin permission to any user in the provided role -->
+        <Grant Perm="Admin" Role="roleId" />
+        <!-- Post messages from the player join/leave event channel into the provided discord channel -->
+        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.playerJoinLeave" ToDiscord="true" />
+        <!-- Post messages about non-recoverable server faults to the provided discord channel and mention a user -->
+        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.serverFaulted" ToDiscord="true" MentionUser="discordUserId" />
+    </Discord>
+</Configuration>
