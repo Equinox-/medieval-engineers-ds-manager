@@ -25,6 +25,8 @@ jobs:
         path: ~/.nuget/packages
     - name: Restore dependencies
       run: msbuild /p:Configuration=Release -t:restore DedicatedServerWrapper.sln
+    - name: Build FlatBuffers
+      run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
     - name: Build Shared
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj
     - name: Build Manager
