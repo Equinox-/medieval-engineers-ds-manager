@@ -1,24 +1,30 @@
 using System.Threading.Tasks;
+using Meds.Shared;
 using Meds.Watchdog.Steam;
-using Meds.Watchdog.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using SteamKit2;
 
 namespace Meds.Watchdog
 {
     public static class CiUtils
     {
-        public static async Task RestoreGameBinaries(string target)
+        public static async Task RestoreGameBinaries(string target, string branch)
         {
-            var downloader = new SteamDownloader(SteamConfiguration.Create(x => { }));
-            await downloader.LoginAsync();
+            using var host = new HostBuilder()
+                .ConfigureServices(svc => { svc.AddSteamDownloader(SteamConfiguration.Create(x => { })); })
+                .Build();
+            await host.StartAsync();
+            var steam = host.Services.GetRequiredService<SteamDownloader>();
+            await steam.LoginAsync();
             try
             {
-                await downloader.InstallAppAsync(UpdateTask.MedievalDsAppId, UpdateTask.MedievalDsDepotId, "public", target, 4,
+                await steam.InstallAppAsync(Updater.MedievalDsAppId, Updater.MedievalDsDepotId, branch, target, 4,
                     path => path.StartsWith("DedicatedServer64"), "medieval-ds");
             }
             finally
             {
-                await downloader.LogoutAsync();
+                await steam.LogoutAsync();
+                await host.StopAsync();
             }
         }
     }

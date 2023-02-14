@@ -3,125 +3,78 @@ namespace Meds.Shared.Data;
 table HealthState {
     liveness: bool;
     readiness: bool;
+    sim_speed: float;
+    players: int32;
 }
 
-table ShutdownRequest {}
-
-// Logging
-enum LogSeverity: byte {
-    Debug,
-    Info,
-    Warning,
-    Error,
-    Critical,
-    PreFormatted,
+table ShutdownRequest {
+    pid: int32;
 }
 
-struct Int64LogArg { value: int64; }
-struct Float64LogArg { value: float64; }
-table StringLogArg { value: string; }
-table ExceptionLogArg {
-    type: string;
+enum PlayerPromotionLevel : short {
+    None,
+    Moderator,
+    Admin,    
+}
+
+table PlayerResponse {
+    steam_id: uint64;
+    name: string;
+    promotion: PlayerPromotionLevel;
+    faction_tag: string;
+    faction_rank: string;
+}
+
+table PlayersResponse {
+    players: [PlayerResponse];
+}
+
+table PlayerJoinedLeft {
+    joined: bool;
+    players: int32;
+    player: PlayerResponse;
+}
+
+table PlayersRequest {
+}
+
+table HouseChatChannel {
+    house: long;
+    channel: string;
+}
+
+table PlayerChatChannel {
+    player: ulong;
+    channel: string;
+}
+
+table GenericChatChannel {
+    channel: string;
+}
+
+union ChatChannel {
+    HouseChatChannel,
+    PlayerChatChannel,
+    GenericChatChannel,
+}
+
+table ChatMessage {
+    channel: ChatChannel;
     message: string;
-    stack: string;
-}
-
-union LogArg {
-    String: StringLogArg,
-    Int64: Int64LogArg,
-    Float64: Float64LogArg,
-    Exception: ExceptionLogArg
-}
-
-table DefinitionContext {
-    type: string;
-    subtype: string;
-    package: string;
-}
-
-table EntityComponentContext {
-    entity: uint64;
-    type: string;
-    definition: DefinitionContext;
-}
-
-table SceneComponentContext {
-    type: string;
-    definition: DefinitionContext;
-}
-
-union LogContext {
-    DefinitionContext,
-    EntityComponentContext,
-    SceneComponentContext
-}
-
-table StructuredLogMessage {
-    time_ms: int64;
-    origin: string;
-    format: string;
-    thread: string;
-    severity: LogSeverity;
-    args: [LogArg];
-    context: LogContext;
-}
-
-// Metrics
-table HistogramMetricData {
-    min: double;
-    mean: double;
-    p50: double;
-    p75: double;
-    p90: double;
-    p95: double;
-    p98: double;
-    p99: double;
-    p999: double;
-    max: double;
-    std_dev: double;
-    count: int64;
-}
-
-table GaugeMetricData {
-    name: string;
-    value: double;
-}
-
-table CounterMetricData {
-    name: string;
-    value: int64;
-}
-
-union LeafMetricData {
-    GaugeMetricData,
-    CounterMetricData,
-}
-
-table CompositeMetricData {
-    metrics: [LeafMetricData];
-}
-
-union MetricGroupData {
-    HistogramMetricData,
-    CompositeMetricData
-}
-
-table MetricMessage {
-    prefix: string;
-    tag_key_val: [string];
-    data: MetricGroupData;
-    time_ms: int64;
+    sender: ulong;
 }
 
 union Message {
     HealthState,
-    StructuredLogMessage,
     ShutdownRequest,
-    MetricMessage,
+    PlayersResponse,
+    PlayersRequest,
+    PlayerJoinedLeft,
+    ChatMessage,
 }
 
 table Packet {
-    data: [Message];
+    message: Message;
 }
 
 root_type Packet;

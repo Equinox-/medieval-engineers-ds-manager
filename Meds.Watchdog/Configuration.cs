@@ -1,9 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Xml.Serialization;
+using DSharpPlus.Entities;
+using Meds.Shared;
+using Meds.Watchdog.Discord;
 
 namespace Meds.Watchdog
 {
@@ -12,17 +12,20 @@ namespace Meds.Watchdog
     {
         public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(Configuration));
 
-        [XmlElement]
-        public string EntryPoint;
-
         [XmlElement("Overlay")]
         public List<Overlay> Overlays = new List<Overlay>();
 
         [XmlElement]
-        public string Directory;
+        public string EntryPoint;
 
         [XmlElement]
-        public string ChannelName;
+        public string Directory;
+
+        [XmlIgnore]
+        public string InstallDirectory => Path.Combine(Directory, "install");
+
+        [XmlIgnore]
+        public string RuntimeDirectory => Path.Combine(Directory, "runtime");
 
         /// <summary>
         /// Timeout for server shutdown, in seconds.
@@ -43,13 +46,79 @@ namespace Meds.Watchdog
         public double ReadinessTimeout = 60 * 5;
 
         /// <summary>
-        /// Timeout for server state
+        /// In-game channel to send status change messages to. 
         /// </summary>
         [XmlElement]
-        public double FailureTimeout = 60;
+        public string StatusChangeChannel = "System";
 
-        [XmlElement("Influx")]
-        public InfluxDb Influx;
+        [XmlElement]
+        public MessagePipe Messaging = new MessagePipe();
+
+        [XmlElement]
+        public SteamConfig Steam = new SteamConfig();
+
+        [XmlElement]
+        public MetricConfig Metrics = new MetricConfig();
+
+        [XmlElement]
+        public AuditConfig Audit = new AuditConfig();
+
+        [XmlElement]
+        public DiscordConfig Discord = new DiscordConfig();
+
+
+        [XmlElement("ScheduledTask")]
+        public List<ScheduledTaskConfig> ScheduledTasks;
+
+        public class ScheduledTaskConfig
+        {
+            [XmlAttribute("Target")]
+            public LifetimeStateCase Target = LifetimeStateCase.Faulted;
+
+            private void MaybeSetState(bool arg, LifetimeStateCase val)
+            {
+                if (arg)
+                    Target = val;
+                else if (Target == val)
+                    Target = LifetimeStateCase.Faulted;
+            }
+
+            [XmlAttribute("Shutdown")]
+            public bool Shutdown
+            {
+                get => Target == LifetimeStateCase.Shutdown;
+                set => MaybeSetState(value, LifetimeStateCase.Shutdown);
+            }
+
+            [XmlAttribute("Start")]
+            public bool Start
+            {
+                get => Target == LifetimeStateCase.Running;
+                set => MaybeSetState(value, LifetimeStateCase.Running);
+            }
+
+            [XmlAttribute("Restart")]
+            public bool Restart
+            {
+                get => Target == LifetimeStateCase.Restarting;
+                set => MaybeSetState(value, LifetimeStateCase.Restarting);
+            }
+
+            [XmlAttribute]
+            public bool Utc;
+
+            [XmlAttribute("Cron")]
+            public string Cron;
+
+            [XmlAttribute("Reason")]
+            public string Reason;
+        }
+
+        public class SteamConfig
+        {
+            [XmlAttribute]
+            public string Branch = "communityedition";
+        }
 
         public class Overlay
         {
@@ -60,38 +129,23 @@ namespace Meds.Watchdog
             public string Path = "";
         }
 
-        public class InfluxDb
-        {
-            [XmlElement("Uri")]
-            public string Uri;
-
-            [XmlElement("Token")]
-            public string Token;
-
-            [XmlElement("Bucket")]
-            public string Bucket;
-
-            [XmlElement("Organization")]
-            public string Organization;
-
-            [XmlElement("DefaultTag")]
-            public List<DefaultTagValue> DefaultTags;
-
-            public class DefaultTagValue
-            {
-                [XmlAttribute("Tag")]
-                public string Tag;
-
-                [XmlAttribute("Value")]
-                public string Value;
-            }
-        }
-
         public static Configuration Read(string path)
         {
             using (var stream = File.OpenRead(path))
             {
-                return (Configuration) Serializer.Deserialize(stream);
+                var cfg = (Configuration)Serializer.Deserialize(stream);
+
+                // Assign ephemeral ports if needed.
+                const int ephemeralStart = 49152;
+                const int ephemeralEnd = 65530;
+                var ephemeralPort = (ushort)(ephemeralStart + (path.GetHashCode() * 2503) % (ephemeralEnd - ephemeralStart));
+
+                if (cfg.Messaging.ServerToWatchdog == 0)
+                    cfg.Messaging.ServerToWatchdog = ephemeralPort;
+                if (cfg.Messaging.WatchdogToServer == 0)
+                    cfg.Messaging.WatchdogToServer = (ushort)(ephemeralPort + 1);
+
+                return cfg;
             }
         }
     }

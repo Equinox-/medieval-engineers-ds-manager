@@ -5,22 +5,23 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
+using Microsoft.Extensions.Logging;
 using SteamKit2;
+using SteamKit2.CDN;
 
 namespace Meds.Watchdog.Steam
 {
     public class CdnPool
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-        
+        private readonly ILogger<CdnPool> _log;
         private readonly SteamClient _client;
         private int _cellId;
-        private readonly ConcurrentBag<CDNClient> _clientBag = new ConcurrentBag<CDNClient>();
-        private List<CDNClient.Server> _servers;
-        
-        public CdnPool(SteamClient client)
+        private readonly ConcurrentBag<Client> _clientBag = new ConcurrentBag<Client>();
+        private List<Server> _servers;
+
+        public CdnPool(ILogger<CdnPool> log, SteamClient client)
         {
+            _log = log;
             _client = client;
         }
 
@@ -33,30 +34,30 @@ namespace Meds.Watchdog.Steam
             _cellId = cellId;
             _servers = (await ContentServerDirectoryService.LoadAsync(_client.Configuration, _cellId, CancellationToken.None)
                                                           .ConfigureAwait(false)).OrderBy(x => x.WeightedLoad).ToList();
-            CDNClient.RequestTimeout = TimeSpan.FromSeconds(10);
+            Client.RequestTimeout = TimeSpan.FromSeconds(10);
             ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 100);
-            Log.Info($"Got {_servers.Count} CDN servers.");
+            _log.LogInformation($"Got {_servers.Count} CDN servers.");
         }
         
-        public CDNClient TakeClient()
+        public Client TakeClient()
         {
             if (_servers == null)
                 return null;
             
             if (!_clientBag.TryTake(out var client))
             {
-                client = new CDNClient(_client);
+                client = new Client(_client);
             }
             
             return client;
         }
 
-        public void ReturnClient(CDNClient client)
+        public void ReturnClient(Client client)
         {
             _clientBag.Add(client);
         }
 
-        public CDNClient.Server GetBestServer()
+        public Server GetBestServer()
         {
             return _servers[0];
         }

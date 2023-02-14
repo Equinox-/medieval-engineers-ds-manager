@@ -1,115 +1,160 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
+using Medieval.ObjectBuilders;
+using MedievalEngineersDedicated;
+using Microsoft.Extensions.DependencyInjection;
+using Sandbox;
 using Sandbox.Engine.Analytics;
 using Sandbox.Engine.Physics;
-using Steamworks;
+using VRage.Dedicated;
 using VRage.Logging;
 
 // ReSharper disable RedundantAssignment
 // ReSharper disable InconsistentNaming
 
-namespace Meds.Wrapper.Shim
+namespace Meds.Standalone.Shim
 {
     public static class Patches
     {
-        private static Harmony _harmony;
+        private static readonly Harmony _harmony = new Harmony("meds.wrapper.core");
 
-        public static void Patch()
+        public static void PatchAlways(bool late)
         {
-            _harmony = new Harmony("meds.wrapper.core");
-            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
-                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() == null)
-                .Do(type => _harmony.CreateClassProcessor(type).Patch());
+            foreach (var type in typeof(Patches).Assembly.GetTypes())
+            {
+                var attr = type.GetCustomAttribute<AlwaysPatch>();
+                if (attr == null || attr.Late != late) continue;
+                Patch(type);
+            }
+
+            if (!late && Entrypoint.Instance.Services.GetRequiredService<Configuration>().Install.ReplaceLogger)
+            {
+                Patch(typeof(PatchLogger1));
+                Patch(typeof(PatchLogger2));
+                Patch(typeof(PatchLogger3));
+                Patch(typeof(PatchLogger4));
+            }
         }
 
-        public static void PatchLate()
+        public static void PatchStartup()
         {
-            AccessTools.GetTypesFromAssembly(typeof(Patches).Assembly)
-                .Where(x => x.GetCustomAttribute<PatchLateAttribute>() != null)
-                .Do(type => _harmony.CreateClassProcessor(type).Patch());
+            Patch(typeof(PatchWaitForKey));
+            Patch(typeof(PatchConfigSetup));
+            Patch(typeof(PatchReplaceLogger));
         }
 
-        private static readonly NamedLogger LoggerLegacy = new NamedLogger("Legacy", NullLogger.Instance);
+        public static void Patch(Type type)
+        {
+            _harmony.CreateClassProcessor(type).Patch();
+        }
+
+        [HarmonyPatch(typeof(DedicatedServer<MyObjectBuilder_MedievalSessionSettings>), "RunInternal")]
+        public static class PatchWaitForKey
+        {
+            private static readonly FieldInfo IsConsoleVisible = AccessTools.Field(typeof(MySandboxGame), "IsConsoleVisible");
+
+            public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            {
+                foreach (var instruction in instructions)
+                {
+                    if (instruction.Is(OpCodes.Ldsfld, IsConsoleVisible))
+                    {
+                        yield return new CodeInstruction(OpCodes.Ldc_I4_0)
+                            .MoveBlocksFrom(instruction)
+                            .MoveLabelsFrom(instruction);
+                    }
+                    else
+                    {
+                        yield return instruction;
+                    }
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MyMedievalDedicatedCompatSystem), "Init")]
+        public static class PatchConfigSetup
+        {
+            public static void Postfix()
+            {
+                MySandboxGame.ConfigDedicated = new WorldChangingConfigReplacer(
+                    Entrypoint.Instance.Services.GetService<Configuration>(),
+                    MySandboxGame.ConfigDedicated);
+            }
+        }
+
+        [HarmonyPatch(typeof(MyLog), "Init")]
+        public static class PatchReplaceLogger
+        {
+            public static void Postfix(MyLog __instance)
+            {
+                Entrypoint.Instance.Services.GetService<ShimLog>().BindTo(__instance);
+            }
+        }
+
+        // No need to log process information since we track that with metrics.
+        [HarmonyPatch(typeof(MyLog), "WriteProcessInformation")]
+        [AlwaysPatch]
+        public static class DisableProcessInfoLogging
+        {
+            public static bool Prefix() => false;
+        }
+
+        // No need to log physics information since we track that with metrics.
+        [HarmonyPatch(typeof(MyPhysicsSandbox), "LogPhysics")]
+        [AlwaysPatch]
+        public static class DisablePhysicsLogging
+        {
+            public static bool Prefix() => false;
+        }
+
+        [HarmonyPatch(typeof(MyAnalyticsManager), nameof(MyAnalyticsManager.RegisterAnalyticsTracker))]
+        [AlwaysPatch]
+        public static class DisableAnalytics
+        {
+            public static bool Prefix() => false;
+        }
 
         [HarmonyPatch(typeof(MyLog), "Log", typeof(LogSeverity), typeof(StringBuilder))]
         public static class PatchLogger1
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, StringBuilder builder)
             {
-                __instance.Logger.Log(in LoggerLegacy, severity, builder);
+                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, builder);
                 return false;
             }
         }
-
+        
         [HarmonyPatch(typeof(MyLog), "Log", typeof(LogSeverity), typeof(string))]
         public static class PatchLogger2
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, string message)
             {
-                __instance.Logger.Log(in LoggerLegacy, severity, message);
+                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, message);
                 return false;
             }
         }
-
+        
         [HarmonyPatch(typeof(MyLog), "Log", typeof(LogSeverity), typeof(string), typeof(object[]))]
         public static class PatchLogger3
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, string format, object[] args)
             {
-                __instance.Logger.Log(in LoggerLegacy, severity, FormattableStringFactory.Create(format, args));
+                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, FormattableStringFactory.Create(format, args));
                 return false;
             }
         }
-
-        // No need to log process information since we track that with metrics.
-        [HarmonyPatch(typeof(MyLog), "WriteProcessInformation")]
+        
+        [HarmonyPatch(typeof(MyLog), "WriteLineAndConsole", typeof(string))]
         public static class PatchLogger4
         {
-            public static bool Prefix()
+            public static bool Prefix(MyLog __instance, string msg)
             {
-                return false;
-            }
-        }
-
-        // No need to log physics information since we track that with metrics.
-        [HarmonyPatch(typeof(MyPhysicsSandbox), "LogPhysics")]
-        public static class PatchPhysics
-        {
-            public static bool Prefix()
-            {
-                return false;
-            }
-        }
-
-        [HarmonyPatch]
-        public static class PatchWorkshopLocation
-        {
-            static IEnumerable<MethodBase> TargetMethods()
-            {
-                var type = Type.GetType("VRage.Steam.Steamworks.MySteamUgcGameServer, VRage.Steam") ??
-                           throw new NullReferenceException("Failed to find MySteamUgcGameServer");
-                yield return type.GetMethod("BInitWorkshopForGameServer", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public) ??
-                             throw new NullReferenceException("Failed to find BInitWorkshopForGameServer");
-            }
-
-            public static bool Prefix(DepotId_t unWorkshopDepotID, ref bool __result)
-            {
-                __result = SteamGameServerUGC.BInitWorkshopForGameServer(unWorkshopDepotID, Path.Combine(Program.Instance.RuntimeDirectory, "workshop"));
-                return false;
-            }
-        }
-
-        [HarmonyPatch(typeof(MyAnalyticsManager), nameof(MyAnalyticsManager.RegisterAnalyticsTracker))]
-        public static class DisableAnalytics
-        {
-            public static bool Prefix()
-            {
+                __instance.Logger.Log(in ShimLog.LoggerLegacy, LogSeverity.Info, msg);
                 return false;
             }
         }

@@ -1,0 +1,3 @@
+namespace Meds.Standalone.Shim
+{
+}

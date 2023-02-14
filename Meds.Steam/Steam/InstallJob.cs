@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Meds.Watchdog.Utils;
 using ProtoBuf;
 using SteamKit2;
+using SteamKit2.CDN;
 using FileInfo = Meds.Watchdog.Utils.FileInfo;
 
 namespace Meds.Watchdog.Steam
@@ -74,14 +75,11 @@ namespace Meds.Watchdog.Steam
 
                 var server = _downloader.CdnPool.GetBestServer();
                 var client = _downloader.CdnPool.TakeClient();
-                var cdnAuthToken = await _downloader.GetCdnAuthTokenAsync(_appId, _depotId, server.Host);
-
-                CDNClient.DepotChunk chunk;
 
                 try
                 {
                     // Don't need AuthenticateDepot because we're managing auth keys ourselves.
-                    chunk = await client.DownloadDepotChunkAsync(_depotId, workItem.ChunkData, server, cdnAuthToken, depotKey).ConfigureAwait(false);
+                    var chunk = await client.DownloadDepotChunkAsync(_depotId, workItem.ChunkData, server, depotKey).ConfigureAwait(false);
 
                     if (depotKey != null || CryptoHelper.AdlerHash(chunk.Data).SequenceEqual(chunk.ChunkInfo.Checksum))
                     {
@@ -155,7 +153,7 @@ namespace Meds.Watchdog.Steam
         {
             private readonly System.IO.FileInfo _destPath;
             private readonly DepotManifest.FileData _fileData;
-            private ConcurrentBag<CDNClient.DepotChunk> _completeChunks;
+            private ConcurrentBag<DepotChunk> _completeChunks;
             private DateTime _completionTime;
 
             private bool _started;
@@ -175,12 +173,12 @@ namespace Meds.Watchdog.Steam
             {
                 _fileData = fileData;
                 _destPath = new System.IO.FileInfo(Path.Combine(basePath, fileData.FileName));
-                _completeChunks = new ConcurrentBag<CDNClient.DepotChunk>();
+                _completeChunks = new ConcurrentBag<DepotChunk>();
 
                 IsComplete = false;
             }
 
-            public async Task SubmitAsync(CDNClient.DepotChunk chunk)
+            public async Task SubmitAsync(DepotChunk chunk)
             {
                 if (IsComplete)
                     throw new InvalidOperationException("The file is already complete.");

@@ -3,13 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Threading;
 using System.Threading.Tasks;
 using Meds.Watchdog.Utils;
-using NLog;
-using NLog.Fluent;
-using ProtoBuf;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SteamKit2;
 using SteamKit2.Internal;
 using static SteamKit2.SteamClient;
@@ -21,10 +18,18 @@ using Timer = System.Timers.Timer;
 
 namespace Meds.Watchdog.Steam
 {
+    public static class SteamDownloaderFactory
+    {
+        public static void AddSteamDownloader(this IServiceCollection collection, SteamConfiguration config)
+        {
+            collection.AddSingleton(svc => new SteamClient(config));
+            collection.AddSingleton<CdnPool>();
+            collection.AddSingleton<SteamDownloader>();
+        }
+    }
+
     public class SteamDownloader
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-
         internal const string CacheDir = ".sdcache";
         private const string LockFile = CacheDir + "\\lock";
 
@@ -32,6 +37,7 @@ namespace Meds.Watchdog.Steam
         private readonly SteamUser _user;
         private readonly SteamApps _apps;
         private readonly SteamCloud _cloud;
+        private readonly SteamContent _content;
         private readonly SteamUnifiedMessages _unifiedMessages;
         private readonly CallbackPump _callbacks;
         private readonly SteamUnifiedMessages.UnifiedService<IPublishedFile> _publishedFiles;
@@ -40,24 +46,25 @@ namespace Meds.Watchdog.Steam
 
         private readonly ConcurrentDictionary<uint, byte[]> _depotKeys = new ConcurrentDictionary<uint, byte[]>();
 
-        private readonly ConcurrentDictionary<string, CDNAuthTokenCallback> _cdnAuthTokens =
-            new ConcurrentDictionary<string, CDNAuthTokenCallback>();
-
         private readonly ConcurrentDictionary<uint, PICSProductInfo> _appInfos =
             new ConcurrentDictionary<uint, PICSProductInfo>();
+
+        private readonly ILogger<SteamDownloader> _log;
 
         private bool IsLoggedIn => _loginDetails != null;
         public CdnPool CdnPool { get; }
 
-        public SteamDownloader(SteamConfiguration configuration)
+        public SteamDownloader(ILogger<SteamDownloader> log, SteamClient client, CdnPool cdnPool)
         {
-            _client = new SteamClient(configuration);
+            _log = log;
+            _client = client;
             _user = _client.GetHandler<SteamUser>();
             _apps = _client.GetHandler<SteamApps>();
             _cloud = _client.GetHandler<SteamCloud>();
+            _content = _client.GetHandler<SteamContent>();
             _unifiedMessages = _client.GetHandler<SteamUnifiedMessages>();
             _publishedFiles = _unifiedMessages.CreateService<IPublishedFile>();
-            CdnPool = new CdnPool(_client);
+            CdnPool = cdnPool;
 
 
             _callbacks = new CallbackPump(_client);
@@ -69,21 +76,9 @@ namespace Meds.Watchdog.Steam
             if (_depotKeys.TryGetValue(depotId, out var depotKey))
                 return depotKey;
 
-            var depotKeyResult = await _apps.GetDepotDecryptionKey(depotId, appId).ToTask().ConfigureAwait(false);
+            var depotKeyResult = await _apps.GetDepotDecryptionKey(depotId, appId).ToTask();
             _depotKeys[depotId] = depotKeyResult.DepotKey;
             return depotKeyResult.DepotKey;
-        }
-
-        public async Task<string> GetCdnAuthTokenAsync(uint appId, uint depotId, string host)
-        {
-            var key = $"{depotId}:{host}";
-
-            if (_cdnAuthTokens.TryGetValue(key, out var token) && token.Expiration > DateTime.Now)
-                return token.Token;
-
-            var cdnAuthTokenResult = await _apps.GetCDNAuthToken(appId, depotId, host).ToTask().ConfigureAwait(false);
-            _cdnAuthTokens[key] = cdnAuthTokenResult;
-            return cdnAuthTokenResult.Token;
         }
 
         private async Task<PICSProductInfo> GetAppInfoAsync(uint appId)
@@ -91,7 +86,10 @@ namespace Meds.Watchdog.Steam
             if (_appInfos.TryGetValue(appId, out var appInfo))
                 return appInfo;
 
-            var productResult = await _apps.PICSGetProductInfo(appId, null, false).ToTask().ConfigureAwait(false);
+            var productResult = await _apps.PICSGetProductInfo(new PICSRequest
+            {
+                ID = appId
+            }, null);
             _appInfos[appId] = productResult.Results[0].Apps[appId];
             return _appInfos[appId];
         }
@@ -109,21 +107,19 @@ namespace Meds.Watchdog.Steam
 
         private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch)
         {
-            var appInfo = await GetAppInfoAsync(appId).ConfigureAwait(false);
+            var appInfo = await GetAppInfoAsync(appId);
             return appInfo.GetManifestId(depotId, branch);
         }
 
-        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId)
+        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPasswordHash)
         {
             if (!IsLoggedIn)
                 throw new InvalidOperationException("The Steam client is not logged in.");
 
-            var depotKey = await GetDepotKeyAsync(appId, depotId).ConfigureAwait(false);
+            var depotKey = await GetDepotKeyAsync(appId, depotId);
             var cdnClient = CdnPool.TakeClient();
-            var server = CdnPool.GetBestServer();
-            var cdnAuthToken = await GetCdnAuthTokenAsync(appId, depotId, server.Host).ConfigureAwait(false);
-            var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, server, cdnAuthToken, depotKey)
-                .ConfigureAwait(false);
+            var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch, branchPasswordHash);
+            var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, manifestRequestCode, CdnPool.GetBestServer(), depotKey);
 
             return manifest;
         }
@@ -145,8 +141,7 @@ namespace Meds.Watchdog.Steam
             _client.Connect();
 
             var connectResult = await _callbacks
-                .WaitForAsync(x => x is ConnectedCallback || x is DisconnectedCallback)
-                .ConfigureAwait(false);
+                .WaitForAsync(x => x is ConnectedCallback || x is DisconnectedCallback);
 
             if (connectResult is DisconnectedCallback)
                 throw new Exception("Failed to connect to Steam.");
@@ -156,7 +151,7 @@ namespace Meds.Watchdog.Steam
             else
                 _user.LogOn(details);
 
-            var loginResult = await _callbacks.WaitForAsync<LoggedOnCallback>().ConfigureAwait(false);
+            var loginResult = await _callbacks.WaitForAsync<LoggedOnCallback>();
             if (loginResult.Result != EResult.OK)
                 throw new Exception($"Failed to log into Steam: {loginResult.Result:G}");
 
@@ -176,7 +171,7 @@ namespace Meds.Watchdog.Steam
             _user.LogOff();
             _client.Disconnect();
 
-            await _callbacks.WaitForAsync<DisconnectedCallback>().ConfigureAwait(false);
+            await _callbacks.WaitForAsync<DisconnectedCallback>();
             OnDisconnect();
         }
 
@@ -187,22 +182,23 @@ namespace Meds.Watchdog.Steam
 
             _appInfos.Clear();
             _depotKeys.Clear();
-            _cdnAuthTokens.Clear();
         }
 
         #endregion
 
 
         public async Task InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
-            Predicate<string> installFilter, string debugName)
+            Predicate<string> installFilter, string debugName, string branchPasswordHash = null)
         {
             var manifestId = await GetManifestForBranch(appId, depotId, branch);
-            await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName);
+            await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
+                branch, branchPasswordHash);
         }
 
-        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId, string installPath,
-            int workerCount,
-            Predicate<string> installFilter, string debugName)
+        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId, 
+            string installPath, int workerCount,
+            Predicate<string> installFilter, string debugName,
+            string branch, string branchPasswordHash)
         {
             var localCache = new LocalFileCache();
             var localCacheFile = Path.Combine(installPath, CacheDir, depotId.ToString());
@@ -245,12 +241,12 @@ namespace Meds.Watchdog.Steam
                 using (File.Create(lockFile))
                 {
                     // Get installation details from Steam
-                    var manifest = await GetManifestAsync(appId, depotId, manifestId);
+                    var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPasswordHash);
 
                     var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter);
                     using (var timer = new Timer(3000) { AutoReset = true })
                     {
-                        timer.Elapsed += (sender, args) => Log.Info($"{debugName} progress: {job.ProgressRatio:0.00%}");
+                        timer.Elapsed += (sender, args) => _log.LogInformation($"{debugName} progress: {job.ProgressRatio:0.00%}");
                         timer.Start();
                         await job.Execute(this, workerCount);
                     }
@@ -277,11 +273,12 @@ namespace Meds.Watchdog.Steam
                 .ToDictionary(item => item.publishedfileid);
         }
 
-        public async Task<CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> InstallModAsync(uint appId, ulong modId, string installPath, int workerCount, Predicate<string> filter, string debugName)
+        public async Task<CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> InstallModAsync(uint appId, ulong modId, string installPath, int workerCount,
+            Predicate<string> filter, string debugName)
         {
             var appInfo = await GetAppInfoAsync(appId);
             var workshopDepot = appInfo.GetWorkshopDepot();
-            var req = new CPublishedFile_GetItemInfo_Request { app_id = appId };
+            var req = new CPublishedFile_GetItemInfo_Request { appid = appId };
             req.workshop_items.Add(new CPublishedFile_GetItemInfo_Request.WorkshopItem { published_file_id = modId });
             var response = await _publishedFiles.SendMessage(svc => svc.GetItemInfo(req));
             var responseDecoded = response.GetDeserializedResponse<CPublishedFile_GetItemInfo_Response>();
@@ -293,8 +290,8 @@ namespace Meds.Watchdog.Steam
                 throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName})");
 
             await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
-                debugName);
-            Log.Info($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
+                debugName, null, null);
+            _log.LogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
             return result;
         }
     }
