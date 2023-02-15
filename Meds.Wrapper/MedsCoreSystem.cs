@@ -63,10 +63,15 @@ namespace Meds.Wrapper
         [FixedUpdate]
         public void EveryTick()
         {
+            _args.HealthReporter.OnTick();
+        }
+
+        [Update(1000)]
+        public void UpdateMetrics(long dt)
+        {
             PhysicsMetrics.Update();
             if (Config.Metrics.Player)
                 PlayerMetrics.Update();
-            _args.HealthReporter.OnTick();
         }
     }
 }
