@@ -22,6 +22,18 @@ namespace Meds.Watchdog.Discord
             return $"<t:{((DateTimeOffset)timeUtc).ToUnixTimeSeconds()}:{(char)format}>";
         }
 
+        public static string FormatHumanDuration(this TimeSpan time)
+        {
+            if (time.TotalDays >= 2)
+                return $"{Math.Round(time.TotalDays)} days";
+            if (time.TotalHours >= 2)
+                return $"{Math.Round(time.TotalHours)} hours";
+            if (time.TotalMinutes >= 2)
+                return $"{Math.Round(time.TotalMinutes)} minutes";
+            var seconds = (int)Math.Round(time.TotalSeconds);
+            return $"{seconds} second{(seconds != 1 ? "s" : "")}";
+        }
+
         public static string RenderPlayerForDiscord(this PlayerResponse player)
         {
             var response = new StringBuilder();

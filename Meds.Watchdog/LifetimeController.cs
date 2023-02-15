@@ -32,6 +32,19 @@ namespace Meds.Watchdog
 
         public event DelStateChanged StateChanged;
 
+        public delegate void DelStartStop(StartStopEvent type, TimeSpan uptime);
+        public event DelStartStop StartStop;
+
+        public enum StartStopEvent
+        {
+            Starting,
+            Started,
+            Stopping,
+            Stopped,
+            Crashed,
+            Froze
+        }
+
         private LifetimeState _active = new LifetimeState(LifetimeStateCase.Running);
 
         public LifetimeState Active
@@ -252,6 +265,7 @@ namespace Meds.Watchdog
                 _log.LogError($"Server has been up for {uptime} and the process disappeared.  Restarting");
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Crashed");
+                StartStop?.Invoke(StartStopEvent.Crashed, uptime);
                 return true;
             }
 
@@ -263,6 +277,7 @@ namespace Meds.Watchdog
                     _healthTracker.Liveness.TimeInState);
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Crashed");
+                StartStop?.Invoke(StartStopEvent.Crashed, uptime);
                 return true;
             }
 
@@ -271,6 +286,7 @@ namespace Meds.Watchdog
                 _log.LogError("Server has been up for {Uptime:g} and has stopped reporting.  Restarting", uptime);
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
+                StartStop?.Invoke(StartStopEvent.Froze, uptime);
                 return true;
             }
 
@@ -282,6 +298,7 @@ namespace Meds.Watchdog
                     _healthTracker.Readiness.TimeInState);
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
+                StartStop?.Invoke(StartStopEvent.Froze, uptime);
                 return true;
             }
 
@@ -291,10 +308,15 @@ namespace Meds.Watchdog
         private async Task Stop(CancellationToken cancellationToken)
         {
             var process = _healthTracker.ActiveProcess;
-            if (process is { HasExited: false })
+            if (process == null || process.HasExited)
             {
-                _log.LogInformation("Requesting shutdown of {Process}", process.Id);
-                using var builder = _shutdownPublisher.Publish();
+                _startedAt = null;
+                return;
+            }
+            StartStop?.Invoke(StartStopEvent.Stopping, TimeSpan.Zero);
+            _log.LogInformation("Requesting shutdown of {Process}", process.Id);
+            using (var builder = _shutdownPublisher.Publish())
+            {
                 var request = ShutdownRequest.CreateShutdownRequest(builder.Builder, process.Id);
                 builder.Send(request);
             }
@@ -302,18 +324,18 @@ namespace Meds.Watchdog
             var start = DateTime.UtcNow;
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (process == null || process.HasExited)
-                {
-                    _startedAt = null;
-                    return;
-                }
+                if (process.HasExited)
+                    break;
 
                 if ((DateTime.UtcNow - start).TotalSeconds > _config.ShutdownTimeout)
+                {
+                    _log.LogError("Server has not shutdown in {Timeout:g}.  Killing it.", _config.ShutdownTimeout);
+                    process.Kill();
                     break;
+                }
                 await Task.Delay(PollInterval, cancellationToken);
             }
-
-            process.Kill();
+            StartStop?.Invoke(StartStopEvent.Stopped, DateTime.UtcNow - start);
             _startedAt = null;
         }
 
@@ -344,6 +366,7 @@ namespace Meds.Watchdog
                 throw new Exception($"Started process {started?.Id} is not the reported process {reportedProcess?.Id}");
             // Wait for process to startup and liveness report
             var start = DateTime.UtcNow;
+            StartStop?.Invoke(StartStopEvent.Starting, TimeSpan.Zero);
             _startedAt = start;
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -357,6 +380,7 @@ namespace Meds.Watchdog
 
                 if (_healthTracker.Liveness.State && _healthTracker.Readiness.State)
                 {
+                    StartStop?.Invoke(StartStopEvent.Started, uptime);
                     _log.LogInformation("Server came up after {Uptime:g}", uptime);
                     return true;
                 }

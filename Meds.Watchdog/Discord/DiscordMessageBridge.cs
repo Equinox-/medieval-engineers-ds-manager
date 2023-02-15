@@ -14,6 +14,9 @@ namespace Meds.Watchdog.Discord
     {
         public const string JoinLeaveEvents = "internal.playerJoinLeave";
         public const string FaultEvents = "internal.serverFaulted";
+        public const string StateChangeStarted = "internal.serverStateChange.Started";
+        public const string StateChangeFinished = "internal.serverStateChange.Finished";
+        public const string StateChangeError = "internal.serverStateChange.Error";
 
         private readonly ILogger<DiscordMessageBridge> _log;
         private readonly DiscordService _discord;
@@ -43,9 +46,23 @@ namespace Meds.Watchdog.Discord
                 }
         }
 
+        private bool TryGetToDiscordConfig(string eventChannel, out List<DiscordChannelSync> config)
+        {
+            var query = eventChannel;
+            while (true)
+            {
+                if (_toDiscord.TryGetValue(query, out config))
+                    return true;
+                var prevDot = query.LastIndexOf('.');
+                if (prevDot <= 0)
+                    return false;
+                query = query.Substring(0, prevDot);
+            }
+        }
+
         private async Task ToDiscord(string eventChannel, Action<DiscordMessageBuilder> message)
         {
-            if (!_toDiscord.TryGetValue(eventChannel, out var channels) || channels.Count == 0)
+            if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
                 return;
             foreach (var channel in channels)
             {
@@ -86,7 +103,7 @@ namespace Meds.Watchdog.Discord
                 builder => builder.Content = msg);
         }
 
-        private void HandleFaulted(LifetimeState prev, LifetimeState current)
+        private void HandleStateChanged(LifetimeState prev, LifetimeState current)
         {
             if (prev.State == LifetimeStateCase.Faulted || current.State != LifetimeStateCase.Faulted)
                 return;
@@ -94,19 +111,67 @@ namespace Meds.Watchdog.Discord
                 builder => builder.Content = "Server has faulted and likely won't come back up without manual intervention.");
         }
 
+        private TimeSpan? _shutdownDuration;
+
+        private void HandleStartStop(LifetimeController.StartStopEvent state, TimeSpan uptime)
+        {
+            var targetState = _lifetime.Active.State;
+            switch (state)
+            {
+                case LifetimeController.StartStopEvent.Starting:
+                    if (targetState != LifetimeStateCase.Restarting || !_shutdownDuration.HasValue)
+                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⏳ Server is starting...");
+                    break;
+                case LifetimeController.StartStopEvent.Started:
+                {
+                    if (targetState == LifetimeStateCase.Restarting && _shutdownDuration.HasValue)
+                        ToDiscordFork(StateChangeFinished,
+                            builder => builder.Content = $"🟩 Server restarted after {(uptime + _shutdownDuration.Value).FormatHumanDuration()}.");
+                    else
+                        ToDiscordFork(StateChangeFinished, builder => builder.Content = $"🟩 Server started after {uptime.FormatHumanDuration()}.");
+                    _shutdownDuration = null;
+                    break;
+                }
+                case LifetimeController.StartStopEvent.Stopping:
+                    if (targetState == LifetimeStateCase.Shutdown)
+                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⌛ Server is stopping...");
+                    else if (targetState == LifetimeStateCase.Restarting)
+                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⌛ Server is restarting...");
+                    break;
+                case LifetimeController.StartStopEvent.Stopped:
+                    if (targetState == LifetimeStateCase.Shutdown)
+                        ToDiscordFork(StateChangeFinished, builder => builder.Content = $"💤 Server stopped after {uptime.FormatHumanDuration()}.");
+                    else
+                        _shutdownDuration = uptime;
+                    break;
+                case LifetimeController.StartStopEvent.Crashed:
+                    ToDiscordFork(StateChangeError, builder => builder.Content = $"🪦 Server crashed after {uptime.FormatHumanDuration()}.");
+                    _shutdownDuration = null;
+                    break;
+                case LifetimeController.StartStopEvent.Froze:
+                    ToDiscordFork(StateChangeError, builder => builder.Content = $"🪦 Server froze after {uptime.FormatHumanDuration()}.");
+                    _shutdownDuration = null;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(state), state, null);
+            }
+        }
+
         private IDisposable _playerJoinedLeftSubscription;
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _playerJoinedLeftSubscription = _playerJoinedLeft.Subscribe(HandlePlayerJoinedLeft);
-            _lifetime.StateChanged += HandleFaulted;
+            _lifetime.StateChanged += HandleStateChanged;
+            _lifetime.StartStop += HandleStartStop;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _playerJoinedLeftSubscription.Dispose();
-            _lifetime.StateChanged -= HandleFaulted;
+            _lifetime.StateChanged -= HandleStateChanged;
+            _lifetime.StartStop -= HandleStartStop;
             return Task.CompletedTask;
         }
     }

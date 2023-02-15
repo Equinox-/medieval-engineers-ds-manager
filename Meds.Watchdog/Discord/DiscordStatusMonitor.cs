@@ -25,7 +25,7 @@ namespace Meds.Watchdog.Discord
             switch (request.State)
             {
                 case LifetimeStateCase.Running:
-                    return $"{request.Icon ?? (readiness ? "🟩" : "⏱")} | {request.Reason ?? (readiness ? "Running" : "Starting")}";
+                    return $"{request.Icon ?? (readiness ? "🟩" : "⏳")} | {request.Reason ?? (readiness ? "Running" : "Starting")}";
                 case LifetimeStateCase.Shutdown:
                     return $"{request.Icon ?? "💤"} | {request.Reason ?? "Shutdown"}";
                 case LifetimeStateCase.Restarting:
@@ -76,7 +76,7 @@ namespace Meds.Watchdog.Discord
                 case LifetimeStateCase.Running:
                     if (status.Readiness)
                         return (new DiscordActivity($"🚶 {status.Players} | 📈 {status.SimulationSpeed:F2}", ActivityType.Playing), UserStatus.Online, null);
-                    return (new DiscordActivity($"{request.Icon ?? "⏱"} | Starting", ActivityType.Watching), UserStatus.Idle, status.ReadinessChangedAt);
+                    return (new DiscordActivity($"{request.Icon ?? "⏳"} | Starting", ActivityType.Watching), UserStatus.Idle, status.ReadinessChangedAt);
                 case LifetimeStateCase.Shutdown:
                     return (new DiscordActivity(FormatStateRequest(request), ActivityType.Watching), UserStatus.DoNotDisturb, status.ReadinessChangedAt);
                 case LifetimeStateCase.Restarting:
@@ -88,7 +88,7 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private struct StatusArgs : IEquatable<StatusArgs>
+        public  struct StatusArgs : IEquatable<StatusArgs>
         {
             public int Pid;
             public LifetimeState RequestedState;
