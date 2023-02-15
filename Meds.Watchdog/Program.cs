@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using Meds.Shared;
 using Meds.Watchdog.Discord;
@@ -19,13 +21,15 @@ namespace Meds.Watchdog
                 return;
             }
 
-            if (args.Length < 1)
+            var configFile = args.Length > 0 ? args[0] : DiscoverConfigFile();
+
+            if (configFile == null)
             {
-                await Console.Error.WriteLineAsync("Usage: Meds.Watchdog.exe config.xml");
+                await Console.Error.WriteLineAsync("Either provide a configuration file as an argument, or place one in the same folder or parent folder of Meds.Watchdog.exe");
                 return;
             }
 
-            var cfg = Configuration.Read(args[0]);
+            var cfg = Configuration.Read(configFile);
             using var host = new HostBuilder()
                 .ConfigureServices(services =>
                 {
@@ -44,6 +48,22 @@ namespace Meds.Watchdog
                 })
                 .Build();
             await host.RunAsync();
+        }
+
+        private static string DiscoverConfigFile()
+        {
+            var assembly = Assembly.GetExecutingAssembly().Location;
+            var parent = Path.GetDirectoryName(assembly);
+            if (parent == null)
+                return null;
+            var candidate1 = Path.Combine(parent, "config.xml");
+            if (File.Exists(candidate1))
+                return candidate1;
+            var grandparent = Path.GetDirectoryName(parent);
+            if (grandparent == null)
+                return null;
+            var candidate2 = Path.Combine(grandparent, "config.xml");
+            return File.Exists(candidate2) ? candidate2 : null;
         }
     }
 }
