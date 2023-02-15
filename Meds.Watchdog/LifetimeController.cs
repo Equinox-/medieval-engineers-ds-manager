@@ -15,7 +15,7 @@ namespace Meds.Watchdog
     public class LifetimeController : BackgroundService
     {
         private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
-        private static readonly TimeSpan CronTabBuffer = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan CronTabBuffer = TimeSpan.FromSeconds(10);
 
         private readonly ILogger<LifetimeController> _log;
         private readonly HealthTracker _healthTracker;
