@@ -1,16 +1,15 @@
-using System;
 using Medieval;
 using MedievalEngineersDedicated;
-using Meds.Standalone.Metrics;
-using Meds.Standalone.Output.Prometheus;
-using Meds.Standalone.Shim;
+using Meds.Wrapper.Metrics;
+using Meds.Wrapper.Output.Prometheus;
+using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox.Engine.Multiplayer;
 using VRage.Components;
 using VRage.Engine;
 using VRage.Network;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public sealed class MedsCoreSystemArgs
     {

@@ -4,18 +4,17 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
-using Meds.Metrics;
 using Sandbox.Engine.Networking;
 using VRage.Components;
 using VRage.Engine;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRageMath;
-using Patches = Meds.Standalone.Shim.Patches;
+using Patches = Meds.Wrapper.Shim.Patches;
 
 #pragma warning disable 618
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class UpdateSchedulerMetrics
     {

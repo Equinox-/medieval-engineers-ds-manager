@@ -4,8 +4,7 @@ using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Medieval.GameSystems.Building;
 using Medieval.GameSystems.Tools;
-using Meds.Metrics;
-using Meds.Metrics.Group;
+using Meds.Wrapper.Group;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Planet;
@@ -18,9 +17,9 @@ using VRage.Game.Entity;
 using VRage.Library.Collections;
 using VRage.Network;
 using VRageMath;
-using Patches = Meds.Standalone.Shim.Patches;
+using Patches = Meds.Wrapper.Shim.Patches;
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class PlayerMetrics
     {

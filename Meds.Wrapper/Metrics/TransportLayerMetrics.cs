@@ -1,22 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
-using Meds.Metrics;
-using Meds.Metrics.Group;
-using Meds.Shared;
-using Sandbox.Game.Multiplayer;
-using VRage.Collections;
-using VRage.GameServices;
+using Meds.Wrapper.Group;
 using VRage.Library;
-using VRage.Library.Utils;
 using VRage.Network;
 using VRage.Steam;
-using Patches = Meds.Standalone.Shim.Patches;
+using Patches = Meds.Wrapper.Shim.Patches;
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class TransportLayerMetrics
     {

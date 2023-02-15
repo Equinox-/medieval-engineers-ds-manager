@@ -1,10 +1,9 @@
 using System;
 using Havok;
-using Meds.Metrics;
-using Meds.Metrics.Group;
+using Meds.Wrapper.Group;
 using Sandbox.Engine.Physics;
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class PhysicsMetrics
     {

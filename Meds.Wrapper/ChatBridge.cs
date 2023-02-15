@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Medieval.GameSystems.Factions;
@@ -13,10 +11,9 @@ using Sandbox.Game.GameSystems.Chat;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using VRage.Game;
-using VRage.Sync;
 using VRage.Utils;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public class ChatBridge : IHostedService
     {

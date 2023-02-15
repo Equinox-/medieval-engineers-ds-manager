@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Sandbox.Engine.Physics;
 using Sandbox.Game.Multiplayer;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public sealed class HealthReporter : BackgroundService
     {

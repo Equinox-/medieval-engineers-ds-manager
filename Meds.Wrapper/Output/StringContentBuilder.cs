@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using VRage.Library.Extensions;
 using VRageMath;
 
-namespace Meds.Standalone.Output
+namespace Meds.Wrapper.Output
 {
     public sealed class StringContentBuilder
     {

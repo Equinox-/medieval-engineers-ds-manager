@@ -17,7 +17,7 @@ using VRage.Logging;
 // ReSharper disable RedundantAssignment
 // ReSharper disable InconsistentNaming
 
-namespace Meds.Standalone.Shim
+namespace Meds.Wrapper.Shim
 {
     public static class Patches
     {

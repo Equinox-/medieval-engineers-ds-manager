@@ -3,7 +3,7 @@ using System.IO;
 using VRage.Game;
 using VRage.Game.ModAPI;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public class WorldChangingConfigReplacer : IMyConfigDedicated
     {

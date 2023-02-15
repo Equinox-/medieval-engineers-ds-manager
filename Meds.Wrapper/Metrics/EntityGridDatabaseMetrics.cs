@@ -4,14 +4,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using Medieval.World.Persistence;
-using Meds.Metrics;
-using Sandbox.Game.Gui;
 using Sandbox.Game.World;
 using VRage.Scene;
-using Patches = Meds.Standalone.Shim.Patches;
 
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class GridDatabaseMetrics
     {

@@ -1,7 +1,7 @@
 using System.IO;
 using Meds.Shared;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public class Configuration
     {

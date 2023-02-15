@@ -7,7 +7,7 @@ using VRage.Logging;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using LogSeverity = VRage.Logging.LogSeverity;
 
-namespace Meds.Standalone.Shim
+namespace Meds.Wrapper.Shim
 {
     public class ShimLog
     {

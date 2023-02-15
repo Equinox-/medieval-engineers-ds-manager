@@ -1,6 +1,6 @@
 using System;
 
-namespace Meds.Shared
+namespace Meds.Wrapper
 {
     public static class MiscUtils
     {

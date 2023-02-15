@@ -1,3 +1,3 @@
-namespace Meds.Standalone.Shim
+namespace Meds.Wrapper.Shim
 {
 }

@@ -1,14 +1,13 @@
 using System.Diagnostics;
 using Havok;
 using Medieval.GameSystems;
-using Meds.Metrics;
 using Sandbox.Game.Entities;
 using VRage.Components.Physics;
 using VRage.Physics;
 using VRageMath;
 using VRageMath.Spatial;
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class RegionMetrics
     {

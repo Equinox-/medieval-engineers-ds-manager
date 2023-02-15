@@ -1,11 +1,11 @@
 using System;
 using Meds.Shared;
-using Meds.Standalone.Shim;
+using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Patches = Meds.Standalone.Shim.Patches;
+using Patches = Meds.Wrapper.Shim.Patches;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public class Entrypoint
     {

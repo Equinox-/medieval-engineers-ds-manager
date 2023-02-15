@@ -1,6 +1,6 @@
 using System;
 
-namespace Meds.Standalone.Shim
+namespace Meds.Wrapper.Shim
 {
     public sealed class AlwaysPatch : Attribute
     {

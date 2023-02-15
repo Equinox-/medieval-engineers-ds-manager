@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sandbox;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public sealed class ServerService : IHostedService
     {

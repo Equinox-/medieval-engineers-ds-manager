@@ -13,7 +13,7 @@ using Sandbox.Game.Players;
 using Sandbox.Game.SessionComponents;
 using VRage.Library.Collections;
 
-namespace Meds.Standalone
+namespace Meds.Wrapper
 {
     public class PlayerReporter : IHostedService
     {

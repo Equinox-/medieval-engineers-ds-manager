@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using Medieval;
-using Meds.Metrics;
 using Sandbox;
 using Sandbox.Engine.Physics;
 using Sandbox.Game.AI;
@@ -9,7 +8,7 @@ using Sandbox.Game.Multiplayer;
 using Sandbox.Game.World;
 using VRage.Scene;
 
-namespace Meds.Standalone.Metrics
+namespace Meds.Wrapper.Metrics
 {
     public static class CoreMetrics
     {

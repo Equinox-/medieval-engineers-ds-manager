@@ -1,11 +1,9 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
-using Meds.Metrics;
-using Meds.Metrics.Group;
+using Meds.Wrapper.Group;
 
-namespace Meds.Standalone.Output.Prometheus
+namespace Meds.Wrapper.Output.Prometheus
 {
     public sealed class PrometheusMetricWriter : MetricWriter
     {

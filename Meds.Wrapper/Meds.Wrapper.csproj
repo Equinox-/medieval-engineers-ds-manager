@@ -140,6 +140,9 @@
       <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
       <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     </ItemGroup>
+    <ItemGroup>
+      <None Include="App.config" />
+    </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <Import Project="..\MetricRegistry\MetricRegistry.projitems" Label="Shared" />
     <Import Project="..\HdrHistogramShared\HdrHistogramShared.projitems" Label="Shared" />
