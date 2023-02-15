@@ -1,6 +1,7 @@
 using System;
 using Havok;
-using Meds.Wrapper.Group;
+using Meds.Metrics;
+using Meds.Metrics.Group;
 using Sandbox.Engine.Physics;
 
 namespace Meds.Wrapper.Metrics

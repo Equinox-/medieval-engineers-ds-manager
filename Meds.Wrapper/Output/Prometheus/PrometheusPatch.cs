@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Meds.Metrics;
 using VRage.Dedicated.RemoteAPI;
 
 namespace Meds.Wrapper.Output.Prometheus

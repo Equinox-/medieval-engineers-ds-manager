@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Havok;
 using Medieval.GameSystems;
+using Meds.Metrics;
 using Sandbox.Game.Entities;
 using VRage.Components.Physics;
 using VRage.Physics;

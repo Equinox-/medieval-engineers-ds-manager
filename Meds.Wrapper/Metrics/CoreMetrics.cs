@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using Medieval;
+using Meds.Metrics;
 using Sandbox;
 using Sandbox.Engine.Physics;
 using Sandbox.Game.AI;

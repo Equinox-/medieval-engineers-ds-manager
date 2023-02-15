@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Meds.Metrics;
 using Sandbox.Engine.Networking;
 using VRage.Components;
 using VRage.Engine;

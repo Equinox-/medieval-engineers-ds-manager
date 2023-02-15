@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using Medieval.World.Persistence;
+using Meds.Metrics;
 using Sandbox.Game.World;
 using VRage.Scene;
 

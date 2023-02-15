@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Meds.Wrapper.Group;
+using Meds.Metrics;
+using Meds.Metrics.Group;
 
 namespace Meds.Wrapper.Output.Prometheus
 {
