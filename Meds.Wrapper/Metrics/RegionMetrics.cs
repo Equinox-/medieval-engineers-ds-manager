@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Havok;
 using Medieval.GameSystems;
@@ -31,11 +32,28 @@ namespace Meds.Wrapper.Metrics
                 key3, value3);
         }
 
+        private struct NearbyData
+        {
+            public MyPlanet Planet;
+            public BoundingBoxD Box;
+            public MyPlanetAreasComponent Areas;
+        }
+
+        [ThreadStatic]
+        private static NearbyData _nearbyData;
+
         public static long? GetRegionId(Vector3D pt)
         {
-            var planet = MyGamePruningStructureSandbox.GetClosestPlanet(pt);
-            var areas = planet?.Get<MyPlanetAreasComponent>();
-            return areas?.GetRegion(pt - planet.GetPosition());
+            ref var nearby = ref _nearbyData;
+            if (nearby.Planet == null || nearby.Box.Contains(pt) == ContainmentType.Disjoint)
+            {
+                nearby.Planet = MyGamePruningStructureSandbox.GetClosestPlanet(pt);
+                nearby.Box = nearby.Planet?.PositionComp.WorldAABB ?? default;
+                nearby.Areas = nearby.Planet?.Get<MyPlanetAreasComponent>();
+            }
+            if (nearby.Planet == null || nearby.Areas == null)
+                return null;
+            return nearby.Areas.GetRegion(pt - nearby.Planet.GetPosition());
         }
 
         public static void RecordRegionUpdateTime(Vector3D pt, long dt)
