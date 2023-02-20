@@ -3,6 +3,7 @@ using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Patches = Meds.Wrapper.Shim.Patches;
 
 namespace Meds.Wrapper
@@ -10,6 +11,8 @@ namespace Meds.Wrapper
     public class Entrypoint
     {
         public static IHost Instance { get; private set; }
+
+        public static ILogger LoggerFor(Type type) => Instance.Services.GetRequiredService<ILoggerFactory>().CreateLogger(type);
 
         public static void Main(string[] args)
         {

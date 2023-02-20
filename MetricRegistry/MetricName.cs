@@ -69,11 +69,27 @@ namespace Meds.Metrics
             return new MetricName(series, Kv0, Kv1, Kv2, Kv3, Kv4);
         }
 
+        public MetricName WithTag(string key, string val)
+        {
+            if (!Kv0.Valid)
+                return new MetricName(Series, new MetricTag(key, val), Kv1, Kv2, Kv3, Kv4);
+            if (!Kv1.Valid)
+                return new MetricName(Series, Kv0, new MetricTag(key, val), Kv2, Kv3, Kv4);
+            if (!Kv2.Valid)
+                return new MetricName(Series, Kv0, Kv1, new MetricTag(key, val), Kv3, Kv4);
+            if (!Kv3.Valid)
+                return new MetricName(Series, Kv0, Kv1, Kv2, new MetricTag(key, val), Kv4);
+            if (!Kv4.Valid)
+                return new MetricName(Series, Kv0, Kv1, Kv2, Kv3, new MetricTag(key, val));
+            throw new Exception("Too many tags");
+        }
+
         public MetricName WithSuffix(string suffix) => WithSeries(Series + suffix);
 
         public bool Equals(MetricName other)
         {
-            return Series == other.Series && Kv0.Equals(other.Kv0) && Kv1.Equals(other.Kv1) && Kv2.Equals(other.Kv2) && Kv3.Equals(other.Kv3) && Kv4.Equals(other.Kv4);
+            return Series == other.Series && Kv0.Equals(other.Kv0) && Kv1.Equals(other.Kv1) && Kv2.Equals(other.Kv2) && Kv3.Equals(other.Kv3) &&
+                   Kv4.Equals(other.Kv4);
         }
 
         public override bool Equals(object obj)

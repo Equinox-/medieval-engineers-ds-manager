@@ -8,6 +8,8 @@ using Sandbox.Engine.Multiplayer;
 using VRage.Components;
 using VRage.Engine;
 using VRage.Network;
+using VRage.Session;
+using MySession = Sandbox.Game.World.MySession;
 
 namespace Meds.Wrapper
 {
@@ -53,6 +55,7 @@ namespace Meds.Wrapper
                 TransportLayerMetrics.Register();
             if (Config.Metrics.Player)
                 PlayerMetrics.Register();
+            CraftingMetrics.Register(Config.Metrics);
             UpdateSchedulerMetrics.Register(Config.Metrics.MethodProfiling, Config.Metrics.RegionProfiling);
             GridDatabaseMetrics.Register();
             CoreMetrics.Register();

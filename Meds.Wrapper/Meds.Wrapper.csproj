@@ -97,6 +97,7 @@
         <Compile Include="Configuration.cs" />
         <Compile Include="HealthReporter.cs" />
         <Compile Include="Metrics\CoreMetrics.cs" />
+        <Compile Include="Metrics\CraftingMetrics.cs" />
         <Compile Include="Metrics\EntityGridDatabaseMetrics.cs" />
         <Compile Include="Metrics\PhysicsMetrics.cs" />
         <Compile Include="Metrics\PlayerMetrics.cs" />

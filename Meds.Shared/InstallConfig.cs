@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Xml.Serialization;
 
 namespace Meds.Shared
@@ -42,5 +43,20 @@ namespace Meds.Shared
 
         [XmlElement]
         public bool Player = true;
+
+        [XmlElement]
+        public bool AllCraftingCategories = false;
+
+        [XmlElement("CraftingCategory")]
+        public List<string> CraftingCategories;
+
+        [XmlElement]
+        public bool AllCraftingComponents = false;
+
+        [XmlElement("CraftingComponents")]
+        public List<string> CraftingComponents;
+
+        [XmlElement]
+        public bool AuctionHouse = false;
     }
 }

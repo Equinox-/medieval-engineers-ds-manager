@@ -178,14 +178,14 @@ namespace Meds.Wrapper.Output.Prometheus
                 _writer.WriteLine(value);
             }
 
-            WriteQuantile("0", min);
+            // WriteQuantile("0", min);
             WriteQuantile("0.5", p50);
             WriteQuantile("0.75", p75);
             WriteQuantile("0.9", p90);
             WriteQuantile("0.95", p95);
-            WriteQuantile("0.98", p98);
+            // WriteQuantile("0.98", p98);
             WriteQuantile("0.99", p99);
-            WriteQuantile("0.999", p999);
+            // WriteQuantile("0.999", p999);
             WriteQuantile("1", max);
 
             void WriteHeader(string suffix)
