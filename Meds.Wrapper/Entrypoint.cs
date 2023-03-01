@@ -12,6 +12,8 @@ namespace Meds.Wrapper
     {
         public static IHost Instance { get; private set; }
 
+        public static Configuration Config => Instance.Services.GetRequiredService<Configuration>();
+
         public static ILogger LoggerFor(Type type) => Instance.Services.GetRequiredService<ILoggerFactory>().CreateLogger(type);
 
         public static void Main(string[] args)

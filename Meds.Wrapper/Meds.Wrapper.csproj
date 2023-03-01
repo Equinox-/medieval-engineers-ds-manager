@@ -67,6 +67,10 @@
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="VRage.Scripting">
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Scripting.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="VRage.Library">
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Library.dll</HintPath>
             <Private>false</Private>
@@ -107,11 +111,13 @@
         <Compile Include="MedsCoreSystem.cs" />
         <Compile Include="Entrypoint.cs" />
         <Compile Include="MiscUtils.cs" />
+        <Compile Include="MedsModApi.cs" />
         <Compile Include="Output\Prometheus\PrometheusMetricWriter.cs" />
         <Compile Include="Output\Prometheus\PrometheusPatch.cs" />
         <Compile Include="Output\StringContentBuilder.cs" />
         <Compile Include="PlayerReporter.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="SavingSystem.cs" />
         <Compile Include="ServerService.cs" />
         <Compile Include="Shim\AlwaysPatch.cs" />
         <Compile Include="Shim\MecPatches.cs" />

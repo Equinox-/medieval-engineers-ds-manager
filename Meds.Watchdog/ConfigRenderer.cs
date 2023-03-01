@@ -39,7 +39,8 @@ namespace Meds.Watchdog
             RuntimeDirectory = _config.RuntimeDirectory,
             Messaging = _config.Messaging,
             Metrics = _config.Metrics,
-            Audit = _config.Audit
+            Audit = _config.Audit,
+            Adjustments = _config.Adjustments,
         };
     }
 }

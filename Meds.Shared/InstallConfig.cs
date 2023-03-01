@@ -20,11 +20,23 @@ namespace Meds.Shared
         [XmlElement]
         public AuditConfig Audit;
 
+        [XmlElement]
+        public AdjustmentsConfig Adjustments;
+
         public bool ReplaceLogger;
     }
 
     public class AuditConfig
     {
+    }
+
+    public class AdjustmentsConfig
+    {
+        [XmlElement]
+        public int? SyncDistance;
+
+        [XmlElement]
+        public bool? ModDebug;
     }
 
     public class MetricConfig
@@ -53,7 +65,7 @@ namespace Meds.Shared
         [XmlElement]
         public bool AllCraftingComponents = false;
 
-        [XmlElement("CraftingComponents")]
+        [XmlElement("CraftingComponent")]
         public List<string> CraftingComponents;
 
         [XmlElement]

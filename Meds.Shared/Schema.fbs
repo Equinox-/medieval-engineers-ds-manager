@@ -64,6 +64,40 @@ table ChatMessage {
     sender: ulong;
 }
 
+table SaveRequest {
+    backup: string;
+}
+
+enum SaveResult : byte {
+    Success,
+    Failed,
+    TimedOut,
+}
+
+table SaveResponse {
+    result: SaveResult;
+}
+
+table ModEventField {
+    key: string;
+    value: string;
+    inline: bool;
+}
+
+table ModEventEmbed {
+    title: string;
+    description: string;
+    fields: [ModEventField];
+}
+
+table ModEventMessage {
+    source_name: string;
+    source_mod_id: uint64;
+    channel: string;
+    message: string;
+    embed: ModEventEmbed;
+}
+
 union Message {
     HealthState,
     ShutdownRequest,
@@ -71,6 +105,9 @@ union Message {
     PlayersRequest,
     PlayerJoinedLeft,
     ChatMessage,
+    SaveRequest,
+    SaveResponse,
+    ModEventMessage,
 }
 
 table Packet {

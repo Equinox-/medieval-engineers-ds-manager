@@ -120,6 +120,7 @@ namespace Meds.Shared
             Register<PlayersResponse>(Message.PlayersResponse);
             Register<PlayerJoinedLeft>(Message.PlayerJoinedLeft);
             Register<ChatMessage>(Message.ChatMessage);
+            Register<ModEventMessage>(Message.ModEventMessage);
         }
 
         private sealed class UdpMessageQueue<T> : ISubscriber<T>, IPublisher<T> where T : struct, IFlatbufferObject

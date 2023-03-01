@@ -47,12 +47,17 @@ namespace Meds.Wrapper
                        ?? throw new NullReferenceException("MyProgram is missing");
             var method = type.GetMethod("Main", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
                          ?? throw new NullReferenceException("MyProgram#Main is missing");
-            using (_shutdownSubscriber.Subscribe(HandleShutdownMessage))
+            try
             {
-                method.Invoke(null, new object[] { allArgs });
+                using (_shutdownSubscriber.Subscribe(HandleShutdownMessage))
+                {
+                    method.Invoke(null, new object[] { allArgs });
+                }
             }
-
-            _lifetime.StopApplication();
+            finally
+            {
+                _lifetime.StopApplication();
+            }
         }
 
         private void HandleShutdownMessage(ShutdownRequest msg)

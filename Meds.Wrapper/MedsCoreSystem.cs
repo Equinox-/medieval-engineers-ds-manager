@@ -1,3 +1,4 @@
+using System;
 using Medieval;
 using MedievalEngineersDedicated;
 using Meds.Wrapper.Metrics;
@@ -46,6 +47,7 @@ namespace Meds.Wrapper
         public void AfterMetadataInitialized()
         {
         }
+
         protected override void Start()
         {
             Patches.PatchAlways(true);
@@ -61,6 +63,7 @@ namespace Meds.Wrapper
             CoreMetrics.Register();
             MyMultiplayer.Static.ClientReady += id => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(true, id);
             MyMultiplayer.Static.ClientLeft += (id, _) => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(false, id);
+            MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);
         }
 
         [FixedUpdate]

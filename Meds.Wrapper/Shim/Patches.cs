@@ -7,12 +7,16 @@ using System.Text;
 using HarmonyLib;
 using Medieval.ObjectBuilders;
 using MedievalEngineersDedicated;
+using Meds.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox;
 using Sandbox.Engine.Analytics;
 using Sandbox.Engine.Physics;
 using VRage.Dedicated;
+using VRage.Game;
 using VRage.Logging;
+using VRage.Scripting;
+using VRage.Session;
 
 // ReSharper disable RedundantAssignment
 // ReSharper disable InconsistentNaming
@@ -51,6 +55,16 @@ namespace Meds.Wrapper.Shim
         public static void Patch(Type type)
         {
             _harmony.CreateClassProcessor(type).Patch();
+        }
+
+        public static IEnumerable<(MyModContext mod, Type type)> ModTypes(string typeName)
+        {
+            foreach (var kv in MySession.Static.ModManager.Assemblies)
+            {
+                var type = kv.Value.GetType(typeName);
+                if (type == null) continue;
+                yield return (kv.Key, type);
+            }
         }
 
         [HarmonyPatch(typeof(DedicatedServer<MyObjectBuilder_MedievalSessionSettings>), "RunInternal")]
@@ -155,6 +169,26 @@ namespace Meds.Wrapper.Shim
             public static bool Prefix(MyLog __instance, string msg)
             {
                 __instance.Logger.Log(in ShimLog.LoggerLegacy, LogSeverity.Info, msg);
+                return false;
+            }
+        }
+
+        [HarmonyPatch(typeof(MyScriptCompiler), MethodType.Constructor, typeof(MyScriptCompilerConfig))]
+        [AlwaysPatch(Late = false)]
+        public static class PatchScriptCompiler
+        {
+            public static bool Prefix(MyScriptCompiler __instance)
+            {
+                __instance.AddConditionalCompilationSymbols("MEDS_API");
+                __instance.AddReferencedAssemblies(typeof(PatchScriptCompiler).Assembly);
+                var debug = Entrypoint.Config.Install.Adjustments.ModDebug;
+                if (debug.HasValue)
+                    __instance.EnableDebugInformation = debug.Value;
+                using (var batch = __instance.Whitelist.OpenWhitelistBatch())
+                {
+                    batch.AddRecursiveNamespaceOfTypes(typeof(MetricRegistry));
+                    batch.AddTypes(typeof(MedsModApi));
+                }
                 return false;
             }
         }

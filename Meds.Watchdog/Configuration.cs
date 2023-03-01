@@ -31,7 +31,7 @@ namespace Meds.Watchdog
         /// Timeout for server shutdown, in seconds.
         /// </summary>
         [XmlElement]
-        public double ShutdownTimeout = 60 * 5;
+        public double ShutdownTimeout = 60 * 10;
 
         /// <summary>
         /// Timeout for server liveness after startup, in seconds.
@@ -59,6 +59,9 @@ namespace Meds.Watchdog
 
         [XmlElement]
         public MetricConfig Metrics = new MetricConfig();
+
+        [XmlElement]
+        public AdjustmentsConfig Adjustments = new AdjustmentsConfig();
 
         [XmlElement]
         public AuditConfig Audit = new AuditConfig();

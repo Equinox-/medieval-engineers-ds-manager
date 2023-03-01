@@ -20,6 +20,7 @@ namespace Meds.Wrapper.Metrics
     public static class UpdateSchedulerMetrics
     {
         private const string SeriesName = "me.profiler.scheduler";
+        private static readonly MetricName GameTickSeries = MetricName.Of("me.profiler.tick");
         private const string FixedScheduler = "fixed";
         private const string TimedScheduler = "timed";
         private const string LegacyScheduler = "legacy";
@@ -32,6 +33,7 @@ namespace Meds.Wrapper.Metrics
         {
             _methodProfiling = methods;
             _regionProfiling = regions;
+            Patches.Patch(typeof(GameTickProfiler));
 
             if (methods || regions)
             {
@@ -223,6 +225,26 @@ namespace Meds.Wrapper.Metrics
             public static void Postfix(long __state, MethodBase __originalMethod)
             {
                 Submit(MiscScheduler, __originalMethod, __state);
+            }
+        }
+
+        [HarmonyPatch]
+        private static class GameTickProfiler
+        {
+            public static IEnumerable<MethodBase> TargetMethods()
+            {
+                yield return RunSingleFrame;
+            }
+
+            public static void Prefix(out long __state)
+            {
+                __state = Stopwatch.GetTimestamp();
+            }
+
+            public static void Postfix(long __state)
+            {
+                var dt = Stopwatch.GetTimestamp() - __state;
+                MetricRegistry.Timer(in GameTickSeries).Record(dt);
             }
         }
     }

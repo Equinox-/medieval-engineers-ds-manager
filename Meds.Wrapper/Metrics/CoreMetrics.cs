@@ -14,6 +14,7 @@ namespace Meds.Wrapper.Metrics
     public static class CoreMetrics
     {
         private const string Prefix = "me.core";
+        private const string Gc = "me.core.gc";
         private const string VersionData = "me.core.version";
 
         public static void Register()
@@ -45,6 +46,13 @@ namespace Meds.Wrapper.Metrics
                 memoryGroup.Gauge("paged", () => process.PagedMemorySize64);
                 memoryGroup.Gauge("working_set", () => process.WorkingSet64);
                 memoryGroup.Gauge("virtual_memory", () => process.VirtualMemorySize64);
+            }
+
+            for (var i = 0; i <= GC.MaxGeneration; i++)
+            {
+                var gen = i;
+                var gcGroup = MetricRegistry.Group(MetricName.Of(Gc, "generation", ZeroGcStrings.ToString(gen)));
+                gcGroup.Gauge("count", () => GC.CollectionCount(gen));
             }
         }
     }

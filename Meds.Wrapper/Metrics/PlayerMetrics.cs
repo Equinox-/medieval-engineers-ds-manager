@@ -25,6 +25,7 @@ namespace Meds.Wrapper.Metrics
     public static class PlayerMetrics
     {
         private const string Players = "me.players";
+        private const string PlayerTags = "me.players.tags";
 
         private static readonly Dictionary<ulong, PlayerMetricHolder> Holders = new Dictionary<ulong, PlayerMetricHolder>();
 
@@ -182,6 +183,11 @@ namespace Meds.Wrapper.Metrics
 
             internal void Update(MyPlayer player)
             {
+                var name = player.Identity?.DisplayName;
+                if (!string.IsNullOrEmpty(name))
+                    MetricRegistry.Group(_group.Name.WithTag("name", name).WithSeries(PlayerTags))
+                        .Gauge("value", 1);
+                
                 ulong? entityId = null;
                 int? areaFace = null;
                 Vector2D? areaXy = null;

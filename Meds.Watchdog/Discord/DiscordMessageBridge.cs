@@ -18,16 +18,20 @@ namespace Meds.Watchdog.Discord
         public const string StateChangeFinished = "internal.serverStateChange.Finished";
         public const string StateChangeError = "internal.serverStateChange.Error";
 
+        public const string ModChannelPrefix = "mods.";
+
         private readonly ILogger<DiscordMessageBridge> _log;
         private readonly DiscordService _discord;
         private readonly ISubscriber<PlayerJoinedLeft> _playerJoinedLeft;
+        private readonly ISubscriber<ModEventMessage> _modEvents;
         private readonly Dictionary<string, List<DiscordChannelSync>> _toDiscord = new Dictionary<string, List<DiscordChannelSync>>();
         private readonly LifetimeController _lifetime;
 
         public DiscordMessageBridge(DiscordService discord, Configuration config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
-            ILogger<DiscordMessageBridge> log, LifetimeController lifetime)
+            ILogger<DiscordMessageBridge> log, LifetimeController lifetime, ISubscriber<ModEventMessage> modEvents)
         {
             _lifetime = lifetime;
+            _modEvents = modEvents;
             _discord = discord;
             _playerJoinedLeft = playerJoinedLeft;
             _log = log;
@@ -80,8 +84,10 @@ namespace Meds.Watchdog.Discord
                 }
                 catch (Exception err)
                 {
-                    _log.LogWarning(err, "Failed to dispatch discord message to channel {DiscordChannel} for event {EventChannel}", channel, eventChannel);
+                    _log.LogWarning(err, "Failed to dispatch discord message to channel {DiscordChannel} for event {EventChannel}", channel.DiscordChannel, eventChannel);
                 }
+                // Slight delay to prevent throttling.
+                await Task.Delay(TimeSpan.FromSeconds(5));
             }
         }
 
@@ -157,11 +163,53 @@ namespace Meds.Watchdog.Discord
             }
         }
 
+        private void HandleModEvent(ModEventMessage obj)
+        {
+            var channel = obj.Channel;
+            if (channel == null)
+                return;
+            var message = obj.Message;
+            var embedOpt = obj.Embed;
+            DiscordEmbed builtEmbed = null;
+            if (embedOpt.HasValue)
+            {
+                var embed = embedOpt.Value;
+                var embedBuilder = new DiscordEmbedBuilder()
+                    .WithTitle(embed.Title)
+                    .WithDescription(embed.Description);
+                for (var i = 0; i < embed.FieldsLength; i++)
+                {
+                    var field = embed.Fields(i);
+                    var fieldKey = field?.Key;
+                    var fieldValue = field?.Value;
+                    if (fieldKey != null && fieldValue != null)
+                    {
+                        embedBuilder.AddField(fieldKey, fieldValue, field.Value.Inline);
+                    }
+                }
+
+                if (obj.SourceName != null)
+                {
+                    embedBuilder.WithFooter(obj.SourceName);
+                }
+
+                builtEmbed = embedBuilder.Build();
+            }
+            ToDiscordFork(ModChannelPrefix + channel, msg =>
+            {
+                msg.Content = message;
+                if (builtEmbed != null)
+                    msg.AddEmbed(builtEmbed);
+            });
+        }
+
         private IDisposable _playerJoinedLeftSubscription;
+        private IDisposable _modEventsSubscription;
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _playerJoinedLeftSubscription = _playerJoinedLeft.Subscribe(HandlePlayerJoinedLeft);
+            _modEventsSubscription = _modEvents.Subscribe(HandleModEvent);
             _lifetime.StateChanged += HandleStateChanged;
             _lifetime.StartStop += HandleStartStop;
             return Task.CompletedTask;
@@ -170,6 +218,7 @@ namespace Meds.Watchdog.Discord
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _playerJoinedLeftSubscription.Dispose();
+            _modEventsSubscription.Dispose();
             _lifetime.StateChanged -= HandleStateChanged;
             _lifetime.StartStop -= HandleStartStop;
             return Task.CompletedTask;
