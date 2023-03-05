@@ -90,10 +90,8 @@ namespace Meds.Shared
         {
             _backing?.FormatUtf8(writer, options, jsonWriter);
             if (!options.EnableStructuredLogging) return;
-            jsonWriter.WritePropertyName(ExtraContextLogger.ThreadNameProp);
-            jsonWriter.WriteStringValue(_callingThread.Name);
-            jsonWriter.WritePropertyName(ExtraContextLogger.ThreadIdProp);
-            jsonWriter.WriteNumberValue(_callingThread.ManagedThreadId);
+            jsonWriter.WriteString(ExtraContextLogger.ThreadNameProp, _callingThread.Name);
+            jsonWriter.WriteNumber(ExtraContextLogger.ThreadIdProp, _callingThread.ManagedThreadId);
         }
 
         public void SwitchCasePayload<TPayload>(Action<IZLoggerEntry, TPayload, object> payloadCallback, object state)
@@ -128,7 +126,7 @@ namespace Meds.Shared
                         return;
                     Factory = field.GetValue(null) as Func<T, LogInfo, IZLoggerEntry>;
                 }
-                catch (Exception err)
+                catch (Exception)
                 {
                     // ignore
                 }

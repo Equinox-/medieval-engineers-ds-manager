@@ -6,14 +6,17 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Medieval.GameSystems;
+using Medieval.World.Persistence;
 using Meds.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox.Engine.Multiplayer;
+using Sandbox.Game.Players;
 using VRage.Library.Collections;
 using VRage.Logging;
 using VRage.Network;
 using ZLogger;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
+// ReSharper disable InconsistentNaming
 
 namespace Meds.Wrapper.Shim
 {
@@ -122,5 +125,22 @@ namespace Meds.Wrapper.Shim
     public static class PatchBannerLoading
     {
         public static bool Prefix() => false;
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=459
+    [HarmonyPatch(typeof(MyPersistenceViewers), "GetIdentity")]
+    [AlwaysPatch]
+    public static class PatchPersistenceViewerCleanup
+    {
+        // Save the identities of players so that we still know the identity once the player logs out.
+        private static readonly Dictionary<ulong, MyIdentity> IdentityCache = new Dictionary<ulong, MyIdentity>();
+
+        public static void Postfix(ref MyIdentity __result, ulong clientId)
+        {
+            if (__result != null)
+                IdentityCache[clientId] = __result;
+            else
+                __result = IdentityCache.GetValueOrDefault(clientId, null);
+        }
     }
 }

@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.Reflection;
+using System.Text;
 using HarmonyLib;
 using Medieval.World.Persistence;
-using Microsoft.Extensions.Logging;
-using VRage.Logging;
+using Meds.Wrapper.Utils;
+using VRage.Game.Entity;
 using ZLogger;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -13,18 +15,26 @@ namespace Meds.Wrapper.Shim
     {
         private static ILogger Log => Entrypoint.LoggerFor(typeof(ViewTracking));
 
+        public struct ViewHere
+        {
+            public string StackTrace;
+        }
+
         [HarmonyPatch(typeof(MyInfiniteWorldPersistence), "CreateView")]
         [AlwaysPatch(Late = false)]
         public static class ViewCreationPatch
         {
-            public static void Postfix(ref int __result, MyInfiniteWorldPersistence.View viewData)
+            public static void Postfix(MyInfiniteWorldPersistence __instance, ref int __result, MyInfiniteWorldPersistence.View viewData)
             {
                 var range = viewData.PerLodRanges != null ? viewData.PerLodRanges[viewData.PerLodRanges.Length - 1] : viewData.Range.HalfExtents.Length();
-                Log.ZLogInformation(
-                    new Exception("Created here"),
-                    "View={0} for Entity={1} with Range={2} created here",
+                MyEntity entity = null;
+                __instance.Session?.Scene?.TryGetEntity(viewData.Viewer, out entity);
+                Log.ZLogInformationWithPayload(
+                    new ViewHere { StackTrace = StackUtils.CaptureGameLogicStack() },
+                    "View={0} for Entity={1}({2}) with Range={3} created here",
                     __result,
                     viewData.Viewer,
+                    entity?.DefinitionId?.ToString(),
                     range);
             }
         }
@@ -35,8 +45,8 @@ namespace Meds.Wrapper.Shim
         {
             public static void Prefix(int viewId)
             {
-                Log.ZLogInformation(
-                    new Exception("Destroyed here"),
+                Log.ZLogInformationWithPayload(
+                    new ViewHere { StackTrace = StackUtils.CaptureGameLogicStack() },
                     "View={0} destroyed here",
                     viewId);
             }

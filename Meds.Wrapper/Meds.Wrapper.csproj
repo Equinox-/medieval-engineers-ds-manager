@@ -126,6 +126,7 @@
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
         <Compile Include="Shim\ViewTracking.cs" />
+        <Compile Include="Utils\StackUtils.cs" />
         <Compile Include="WorldChangingConfigReplacer.cs" />
     </ItemGroup>
     <ItemGroup>
