@@ -65,7 +65,8 @@ table ChatMessage {
 }
 
 table SaveRequest {
-    backup: string;
+    id: long;
+    backup_path: string;
 }
 
 enum SaveResult : byte {
@@ -75,6 +76,7 @@ enum SaveResult : byte {
 }
 
 table SaveResponse {
+    id: long;
     result: SaveResult;
 }
 

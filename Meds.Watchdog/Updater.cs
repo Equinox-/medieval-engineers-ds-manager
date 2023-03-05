@@ -7,9 +7,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Meds.Shared;
 using Meds.Watchdog.Steam;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Watchdog
 {
@@ -23,7 +25,7 @@ namespace Meds.Watchdog
         public const uint MedievalGameAppId = 333950;
 
 
-        public Updater(ILogger<Updater> log,Configuration config, SteamDownloader downloader)
+        public Updater(ILogger<Updater> log, Configuration config, SteamDownloader downloader)
         {
             _log = log;
             _config = config;
@@ -64,7 +66,7 @@ namespace Meds.Watchdog
             await Task.WhenAll(overlays.Select(overlay => Task.Run(overlay.CleanDeleted, cancellationToken)));
 
             // Update game files
-            _log.LogInformation("Updating Medieval Engineers");
+            _log.ZLogInformation("Updating Medieval Engineers");
             var overlayFiles =
                 new HashSet<string>(overlays.SelectMany(overlay =>
                     overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
@@ -83,9 +85,9 @@ namespace Meds.Watchdog
             private readonly string _localManifestFile;
             public LocalFileCache Remote { get; private set; }
             private LocalFileCache _local;
-            private readonly ILogger _log;
+            private readonly ILogger<Updater> _log;
 
-            public OverlayData(ILogger log, string globalInstallPath, Configuration.Overlay spec)
+            public OverlayData(ILogger<Updater> log, string globalInstallPath, Configuration.Overlay spec)
             {
                 _log = log;
                 OverlayInstallPath = Path.Combine(globalInstallPath, spec.Path);
@@ -113,7 +115,7 @@ namespace Meds.Watchdog
                 {
                     if (remoteStream == null)
                         throw new NullReferenceException($"No response stream for overlay {Spec.Uri}");
-                    Remote = (LocalFileCache) LocalFileCache.Serializer.Deserialize(remoteStream);
+                    Remote = (LocalFileCache)LocalFileCache.Serializer.Deserialize(remoteStream);
                 }
             }
 
@@ -128,7 +130,7 @@ namespace Meds.Watchdog
                 try
                 {
                     using (var stream = File.OpenRead(_localManifestFile))
-                        _local = (LocalFileCache) LocalFileCache.Serializer.Deserialize(stream);
+                        _local = (LocalFileCache)LocalFileCache.Serializer.Deserialize(stream);
                     foreach (var entry in _local.Files)
                         entry.RepairData(OverlayInstallPath);
                 }
@@ -154,14 +156,14 @@ namespace Meds.Watchdog
                 foreach (var file in _local.Files)
                     if (!Remote.TryGet(file.Path, out _))
                     {
-                        _log.LogDebug($"Deleting old overlay file {Spec.Path}/{file.Path}");
+                        _log.ZLogDebug("Deleting old overlay file {0}/{1}", Spec.Path, file.Path);
                         File.Delete(Path.Combine(OverlayInstallPath, file.Path));
                     }
             }
 
             public async Task ApplyOverlay()
             {
-                _log.LogInformation("Updating overlay {Uri} in {Path}", Spec.Uri, Spec.Path);
+                _log.ZLogInformation("Updating overlay {0} in {1}", Spec.Uri, Spec.Path);
                 await Task.WhenAll(Remote.Files.Select(async remoteFile =>
                 {
                     lock (_local)
@@ -177,10 +179,10 @@ namespace Meds.Watchdog
                     {
                         if (remoteStream == null)
                             throw new NullReferenceException($"No response stream for overlay file {remoteFileUri}");
-                        _log.LogInformation("Downloading overlay file {Uri}/{File}", Spec.Uri, remoteFile.Path);
+                        _log.ZLogInformation("Downloading overlay file {0}/{1}", Spec.Uri, remoteFile.Path);
                         using (var copyTarget = File.Open(Path.Combine(OverlayInstallPath, remoteFile.Path), FileMode.Create, FileAccess.Write))
                             await remoteStream.CopyToAsync(copyTarget);
-                        var fileInfo = new Utils.FileInfo {Path = remoteFile.Path};
+                        var fileInfo = new Utils.FileInfo { Path = remoteFile.Path };
                         fileInfo.RepairData(OverlayInstallPath);
                         lock (_local)
                         {

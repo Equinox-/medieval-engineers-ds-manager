@@ -5,12 +5,14 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Medieval.GameSystems;
+using Meds.Shared;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Sandbox.Engine.Multiplayer;
 using VRage.Library.Collections;
 using VRage.Logging;
 using VRage.Network;
+using ZLogger;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Meds.Wrapper.Shim
@@ -36,8 +38,14 @@ namespace Meds.Wrapper.Shim
         {
             var maxTransfer = reliable ? ReliableMaximumTransfer : UnreliableMaximumTransfer;
             if (stream != null && stream.BytePosition > maxTransfer)
-                MyLog.Default.Error(
-                    $"Event {id} {(reliable ? "[R]" : "[U]")} {stream.BytePosition} exceeds the maximum transfer limit {maxTransfer}.  It may not arrive: {new StackTrace(1)}");
+                Entrypoint.LoggerFor(typeof(PatchMtuWarning))
+                    .ZLogError(
+                        new Exception("MTU Exceeded"),
+                        "Event {0} [{1}] {2} exceeds the maximum transfer limit {3}",
+                        id,
+                        reliable ? "R" : "U",
+                        stream.BytePosition,
+                        maxTransfer);
         }
     }
 
@@ -99,13 +107,20 @@ namespace Meds.Wrapper.Shim
 
                 list.Insert(i, new CodeInstruction(OpCodes.Ldc_I4, 32));
                 list.Insert(i + 1, storeLoc);
-                Entrypoint.LoggerFor(typeof(PatchStateSyncOverflow)).LogInformation(
-                    "Patching SendStateSync to always flush on MTU overflow.  Local={StoreLocation}",
-                    storeLoc);
+                Entrypoint.LoggerFor(typeof(PatchStateSyncOverflow))
+                    .ZLogInformation("Patching SendStateSync to always flush on MTU overflow.  Local={0}", storeLoc);
                 return list;
             }
 
             return list;
         }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=103
+    [HarmonyPatch(typeof(MyBannerComponent), "OnSessionReady")]
+    [AlwaysPatch]
+    public static class PatchBannerLoading
+    {
+        public static bool Prefix() => false;
     }
 }

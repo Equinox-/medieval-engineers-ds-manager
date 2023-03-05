@@ -36,6 +36,7 @@ namespace Meds.Watchdog
 
         private RenderedInstallConfig RenderInstall() => new RenderedInstallConfig
         {
+            LogDirectory = _config.WrapperLogs,
             RuntimeDirectory = _config.RuntimeDirectory,
             Messaging = _config.Messaging,
             Metrics = _config.Metrics,

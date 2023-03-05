@@ -5,7 +5,9 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Meds.Shared;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 using SteamKit2;
 using SteamKit2.CDN;
 
@@ -19,7 +21,7 @@ namespace Meds.Watchdog.Steam
         private readonly ConcurrentBag<Client> _clientBag = new ConcurrentBag<Client>();
         private List<Server> _servers;
 
-        public CdnPool(ILogger<CdnPool> log, SteamClient client)
+        public CdnPool (ILogger<CdnPool> log, SteamClient client)
         {
             _log = log;
             _client = client;
@@ -36,7 +38,7 @@ namespace Meds.Watchdog.Steam
                                                           .ConfigureAwait(false)).OrderBy(x => x.WeightedLoad).ToList();
             Client.RequestTimeout = TimeSpan.FromSeconds(10);
             ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 100);
-            _log.LogInformation($"Got {_servers.Count} CDN servers.");
+            _log.ZLogInformation($"Got {_servers.Count} CDN servers.");
         }
         
         public Client TakeClient()

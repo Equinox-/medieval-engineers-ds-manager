@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Meds.Shared;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 using SteamKit2;
 using SteamKit2.Internal;
 using static SteamKit2.SteamClient;
@@ -195,7 +197,7 @@ namespace Meds.Watchdog.Steam
                 branch, branchPasswordHash);
         }
 
-        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId, 
+        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
             string installPath, int workerCount,
             Predicate<string> installFilter, string debugName,
             string branch, string branchPasswordHash)
@@ -246,7 +248,7 @@ namespace Meds.Watchdog.Steam
                     var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter);
                     using (var timer = new Timer(3000) { AutoReset = true })
                     {
-                        timer.Elapsed += (sender, args) => _log.LogInformation($"{debugName} progress: {job.ProgressRatio:0.00%}");
+                        timer.Elapsed += (sender, args) => _log.ZLogInformation($"{debugName} progress: {job.ProgressRatio:0.00%}");
                         timer.Start();
                         await job.Execute(this, workerCount);
                     }
@@ -291,7 +293,7 @@ namespace Meds.Watchdog.Steam
 
             await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
                 debugName, null, null);
-            _log.LogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
+            _log.ZLogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
             return result;
         }
     }

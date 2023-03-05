@@ -11,6 +11,7 @@ using Meds.Shared.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Shared
 {
@@ -120,6 +121,8 @@ namespace Meds.Shared
             Register<PlayersResponse>(Message.PlayersResponse);
             Register<PlayerJoinedLeft>(Message.PlayerJoinedLeft);
             Register<ChatMessage>(Message.ChatMessage);
+            Register<SaveRequest>(Message.SaveRequest);
+            Register<SaveResponse>(Message.SaveResponse);
             Register<ModEventMessage>(Message.ModEventMessage);
         }
 
@@ -214,11 +217,11 @@ namespace Meds.Shared
                         try
                         {
                             _sock.SendTo(seg.Array!, seg.Offset, seg.Count, SocketFlags.None, _endpoint);
-                            _log.LogDebug("Sent {Type} ({Bytes} bytes)", packet.MessageType, seg.Count);
+                            _log.ZLogDebug("Sent {0} ({1} bytes)", packet.MessageType, seg.Count);
                         }
                         catch (Exception err)
                         {
-                            _log.LogWarning(err, "Failed to publish message {Type}", packet.MessageType);
+                            _log.ZLogWarning(err, "Failed to publish message {0}", packet.MessageType);
                         }
                     }
                 }
@@ -282,7 +285,7 @@ namespace Meds.Shared
                             Array.Copy(_receiveBuffer, 0, bufferArray, buf.Length - bytes, bytes);
                             buf.Position = buf.Length - bytes;
                             var packet = Packet.GetRootAsPacket(buf);
-                            _log.LogDebug("Received {Type} ({Bytes} bytes)", packet.MessageType, bytes);
+                            _log.ZLogDebug("Received {0} ({1} bytes)", packet.MessageType, bytes);
                             var subscribers = _messageSubscriptions[(int)packet.MessageType];
                             var count = subscribers.Count;
                             for (var i = 0; i < count; i++)
@@ -295,7 +298,7 @@ namespace Meds.Shared
                     }
                     catch (Exception err)
                     {
-                        _log.LogWarning(err, "Failed to read message");
+                        _log.ZLogWarning(err, "Failed to read message");
                     }
                 }
             }

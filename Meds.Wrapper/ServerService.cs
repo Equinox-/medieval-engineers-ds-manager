@@ -8,6 +8,7 @@ using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sandbox;
+using ZLogger;
 
 namespace Meds.Wrapper
 {
@@ -66,7 +67,7 @@ namespace Meds.Wrapper
             if (msg.Pid == currentPid)
                 _lifetime.StopApplication();
             else
-                _log.LogInformation("Received shutdown request for different process {OtherPid}, this is {ThisPid}", msg.Pid, currentPid);
+                _log.ZLogInformation("Received shutdown request for different process {0}, this is {1}", msg.Pid, currentPid);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

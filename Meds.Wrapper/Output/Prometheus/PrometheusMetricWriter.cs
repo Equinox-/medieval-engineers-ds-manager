@@ -106,7 +106,7 @@ namespace Meds.Wrapper.Output.Prometheus
                 var kv = reader.Current;
                 var key = kv.Key;
                 var value = kv.Value;
-                var suffixBuffer = SuffixBuffer ?? (SuffixBuffer = new char[64]);
+                var suffixBuffer = SuffixBuffer ??= new char[64];
                 FillNameBuffer(key, "_", SuffixBuffer, out var suffixLength);
                 if (_firstEncounter.Add(new KeyValuePair<string, string>(name.Series, key)))
                 {

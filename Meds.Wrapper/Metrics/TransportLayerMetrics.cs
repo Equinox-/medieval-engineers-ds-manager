@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using Meds.Metrics;
 using Meds.Metrics.Group;
+using Meds.Wrapper.Shim;
 using VRage.Library;
 using VRage.Network;
+using VRage.Replication;
 using VRage.Steam;
-using Patches = Meds.Wrapper.Shim.Patches;
 
 namespace Meds.Wrapper.Metrics
 {
@@ -24,9 +26,9 @@ namespace Meds.Wrapper.Metrics
         {
             try
             {
-                Patches.Patch(typeof(SteamPeer2PeerSend));
-                Patches.Patch(typeof(SteamPeer2PeerReceive));
-                Patches.Patch(typeof(StateSync));
+                PatchHelper.Patch(typeof(SteamPeer2PeerSend));
+                PatchHelper.Patch(typeof(SteamPeer2PeerReceive));
+                PatchHelper.Patch(typeof(StateSync));
             }
             catch (Exception err)
             {
@@ -77,7 +79,8 @@ namespace Meds.Wrapper.Metrics
                 var group = ChannelMetric(channel);
                 group.Counter("messagesSent").Inc();
                 group.Counter("bytesSent").Inc(byteCount);
-                PlayerMetrics.ReportNetwork(remoteUser, bytesSent: byteCount);
+                if (PlayerMetrics.TryGetHolder(remoteUser, out var holder))
+                    holder.BytesSent.Inc(byteCount);
             }
         }
 
@@ -89,7 +92,8 @@ namespace Meds.Wrapper.Metrics
                 var group = ChannelMetric(channel);
                 group.Counter("messagesReceived").Inc();
                 group.Counter("bytesReceived").Inc(dataSize);
-                PlayerMetrics.ReportNetwork(remoteUser, bytesReceived: dataSize);
+                if (PlayerMetrics.TryGetHolder(remoteUser, out var holder))
+                    holder.BytesReceived.Inc(dataSize);
             }
         }
 
@@ -103,6 +107,8 @@ namespace Meds.Wrapper.Metrics
             private static readonly FieldInfo AwakeGroupsField = AccessTools.Field(ClientDataType, "AwakeGroupsQueue");
 
             private static readonly FieldInfo StateField = AccessTools.Field(ClientDataType, "State");
+
+            // private static readonly FieldInfo NetworkPing = AccessTools.Field(ClientDataType, "NetworkPing");
 
             private static readonly AccessTools.FieldRef<FastPriorityQueue<MyStateDataEntry>.Node, long> PriorityField =
                 AccessTools.FieldRefAccess<FastPriorityQueue<MyStateDataEntry>.Node, long>("Priority");
@@ -122,10 +128,16 @@ namespace Meds.Wrapper.Metrics
             {
                 var awakeGroups = (FastPriorityQueue<MyStateDataEntry>)AwakeGroupsField.GetValue(clientData);
                 var state = (MyClientStateBase)StateField.GetValue(clientData);
+                // var ping = (MyNetworkPing)NetworkPing.GetValue(clientData);
 
                 var groupCount = awakeGroups.Count;
                 var groupDelay = groupCount > 0 ? __instance.GetSyncFrameCounter() - PriorityField.Invoke(awakeGroups.First) : 0;
-                PlayerMetrics.ReportNetwork(state.EndpointId.Value, stateGroupCount: groupCount, stateGroupDelay: groupDelay);
+                if (PlayerMetrics.TryGetHolder(state.EndpointId.Value, out var holder))
+                {
+                    holder.StateGroupCount.SetValue(groupCount);
+                    holder.StateGroupDelay.SetValue(groupDelay);
+                    // holder.Ping.Record((long)(ping.ImmediatePingMs / 1000 * Stopwatch.Frequency));
+                }
             }
         }
     }

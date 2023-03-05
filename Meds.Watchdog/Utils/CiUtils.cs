@@ -4,7 +4,7 @@ using Meds.Watchdog.Steam;
 using Microsoft.Extensions.DependencyInjection;
 using SteamKit2;
 
-namespace Meds.Watchdog
+namespace Meds.Watchdog.Utils
 {
     public static class CiUtils
     {

@@ -9,6 +9,9 @@ namespace Meds.Shared
         public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(RenderedInstallConfig));
 
         [XmlElement]
+        public string LogDirectory;
+        
+        [XmlElement]
         public string RuntimeDirectory;
 
         [XmlElement]
@@ -22,8 +25,6 @@ namespace Meds.Shared
 
         [XmlElement]
         public AdjustmentsConfig Adjustments;
-
-        public bool ReplaceLogger;
     }
 
     public class AuditConfig
@@ -37,6 +38,9 @@ namespace Meds.Shared
 
         [XmlElement]
         public bool? ModDebug;
+
+        [XmlElement]
+        public bool? ReplaceLogger;
     }
 
     public class MetricConfig
@@ -67,8 +71,5 @@ namespace Meds.Shared
 
         [XmlElement("CraftingComponent")]
         public List<string> CraftingComponents;
-
-        [XmlElement]
-        public bool AuctionHouse = false;
     }
 }

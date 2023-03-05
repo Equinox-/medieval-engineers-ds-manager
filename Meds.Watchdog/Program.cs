@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Meds.Shared;
 using Meds.Watchdog.Discord;
 using Meds.Watchdog.Steam;
+using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SteamKit2;
@@ -45,8 +46,9 @@ namespace Meds.Watchdog
                     services.AddSingletonAndHost<DiscordService>();
                     services.AddSingletonAndHost<DiscordStatusMonitor>();
                     services.AddSingletonAndHost<DiscordMessageBridge>();
+                    services.AddSingleton<DiagnosticController>();
                 })
-                .Build();
+                .Build(cfg.WatchdogLogs);
             await host.RunAsync();
         }
 

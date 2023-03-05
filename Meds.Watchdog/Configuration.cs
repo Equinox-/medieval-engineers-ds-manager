@@ -27,6 +27,18 @@ namespace Meds.Watchdog
         [XmlIgnore]
         public string RuntimeDirectory => Path.Combine(Directory, "runtime");
 
+        [XmlIgnore]
+        public string WatchdogLogs => Path.Combine(Directory, "logs/watchdog");
+
+        [XmlIgnore]
+        public string WrapperLogs => Path.Combine(Directory, "logs/wrapper");
+
+        [XmlIgnore]
+        public string DiagnosticsDirectory => Path.Combine(RuntimeDirectory, "diagnostics");
+
+        [XmlIgnore]
+        public string NamedBackupsDirectory => Path.Combine(RuntimeDirectory, "world-backups");
+
         /// <summary>
         /// Timeout for server shutdown, in seconds.
         /// </summary>

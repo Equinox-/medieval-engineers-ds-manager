@@ -7,6 +7,7 @@ using Meds.Shared;
 using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Watchdog.Discord
 {
@@ -84,8 +85,10 @@ namespace Meds.Watchdog.Discord
                 }
                 catch (Exception err)
                 {
-                    _log.LogWarning(err, "Failed to dispatch discord message to channel {DiscordChannel} for event {EventChannel}", channel.DiscordChannel, eventChannel);
+                    _log.ZLogWarning(err, "Failed to dispatch discord message to channel {0} for event {1}",
+                        channel.DiscordChannel, eventChannel);
                 }
+
                 // Slight delay to prevent throttling.
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
@@ -195,6 +198,7 @@ namespace Meds.Watchdog.Discord
 
                 builtEmbed = embedBuilder.Build();
             }
+
             ToDiscordFork(ModChannelPrefix + channel, msg =>
             {
                 msg.Content = message;

@@ -37,7 +37,7 @@ namespace Meds.Wrapper
 
         protected override void Init()
         {
-            Patches.PatchAlways(false);
+            PatchHelper.PatchAlways(false);
 
             // https://communityedition.medievalengineers.com/mantis/view.php?id=432
             // Increase world download packet size to 512kB
@@ -50,9 +50,9 @@ namespace Meds.Wrapper
 
         protected override void Start()
         {
-            Patches.PatchAlways(true);
+            PatchHelper.PatchAlways(true);
             if (Config.Metrics.Prometheus)
-                Patches.Patch(typeof(PrometheusPatch));
+                PatchHelper.Patch(typeof(PrometheusPatch));
             if (Config.Metrics.Network)
                 TransportLayerMetrics.Register();
             if (Config.Metrics.Player)
@@ -61,6 +61,7 @@ namespace Meds.Wrapper
             UpdateSchedulerMetrics.Register(Config.Metrics.MethodProfiling, Config.Metrics.RegionProfiling);
             GridDatabaseMetrics.Register();
             CoreMetrics.Register();
+            PaxMetrics.Register(Config.Metrics);
             MyMultiplayer.Static.ClientReady += id => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(true, id);
             MyMultiplayer.Static.ClientLeft += (id, _) => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(false, id);
             MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);

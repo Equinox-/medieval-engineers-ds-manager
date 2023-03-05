@@ -1,15 +1,15 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Extensions.Logging;
-using ILogger = Serilog.ILogger;
+using ZLogger;
 
 namespace Meds.Shared
 {
@@ -25,19 +25,30 @@ namespace Meds.Shared
             return this;
         }
 
-        public IHost Build()
+        public IHost Build(string logDir = null)
         {
             _services.AddSingleton<IHostApplicationLifetime, ApplicationLifetime>();
             _services.AddSingleton<IHost, HostImpl>();
 
-            _services.AddSingleton<ILogger>(svc => new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Enrich.FromLogContext()
-                .WriteTo.Console()
-                .CreateLogger());
-            _services.AddSingleton<ILoggerProvider, SerilogLoggerProvider>(
-                svc => new SerilogLoggerProvider(svc.GetRequiredService<ILogger>()));
-            _services.AddLogging();
+            _services.AddSingleton<ILoggerFactory>(new ExtraContextLoggerFactory(LoggerFactory.Create(builder =>
+            {
+                builder.ClearProviders();
+                builder.SetMinimumLevel(LogLevel.Information);
+                builder.AddZLoggerConsole(opts =>
+                {
+                    opts.PrefixFormatter = (writer, info) => ZString.Utf8Format(writer, "{0} {1}> ", info.LogLevel, info.CategoryName);
+                });
+                if (logDir == null) return;
+                builder.AddZLoggerRollingFile(
+                    (dt, x) => $"{logDir}/{dt.ToLocalTime():yyyy-MM-dd}_{x:000}.log",
+                    x => x.ToLocalTime().Date, 1024,
+                    opts =>
+                    {
+                        opts.EnableStructuredLogging = true;
+                        opts.FlushRate = TimeSpan.FromSeconds(15);
+                    });
+            })));
+            _services.Add(new ServiceDescriptor(typeof(ILogger<>), typeof (Logger<>), ServiceLifetime.Singleton));
 
             var services = ServiceProviderFactory.CreateServiceProvider(ServiceProviderFactory.CreateBuilder(_services));
             return services.GetRequiredService<IHost>();
@@ -62,7 +73,7 @@ namespace Meds.Shared
 
             public async Task StartAsync(CancellationToken cancellationToken = default)
             {
-                _logger.LogInformation("Starting");
+                _logger.ZLogInformation("Starting");
 
                 using var combinedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
                     _applicationLifetime.ApplicationStopping);
@@ -81,7 +92,7 @@ namespace Meds.Shared
 
                 _applicationLifetime.NotifyStarted();
 
-                _logger.LogInformation("Started");
+                _logger.ZLogInformation("Started");
             }
 
             private async Task StopOnBackgroundTaskFailure(BackgroundService backgroundService)
@@ -99,14 +110,14 @@ namespace Meds.Shared
                     if (backgroundTask.IsCanceled && ex is OperationCanceledException)
                         return;
 
-                    _logger.LogError(ex, "Background service faulted, stopping host");
+                    _logger.ZLogError(ex, "Background service faulted, stopping host");
                     _applicationLifetime.StopApplication();
                 }
             }
 
             public async Task StopAsync(CancellationToken cancellationToken = default)
             {
-                _logger.LogInformation("Stopping");
+                _logger.ZLogInformation("Stopping");
 
                 _applicationLifetime.StopApplication();
 
@@ -131,11 +142,11 @@ namespace Meds.Shared
                 if (exceptions.Count > 0)
                 {
                     var ex = new AggregateException("One or more hosted services failed to stop.", exceptions);
-                    _logger.LogError(ex, "Stopped with errors");
+                    _logger.ZLogError(ex, "Stopped with errors");
                     throw ex;
                 }
 
-                _logger.LogInformation("Stopped");
+                _logger.ZLogInformation("Stopped");
             }
 
             public void Dispose()
@@ -153,7 +164,7 @@ namespace Meds.Shared
         private readonly CancellationTokenSource _stoppedSource = new CancellationTokenSource();
         private readonly ILogger<ApplicationLifetime> _logger;
 
-        public ApplicationLifetime(ILogger<ApplicationLifetime> logger)
+        public ApplicationLifetime (ILogger<ApplicationLifetime> logger)
         {
             _logger = logger;
 
@@ -161,7 +172,7 @@ namespace Meds.Shared
             EventHandler processExitHandler = (o, e) => StopApplication();
             ConsoleCancelEventHandler consoleCancelEventHandler = (o, e) => StopApplication();
             // ReSharper restore ConvertToLocalFunction
-            
+
             AppDomain.CurrentDomain.ProcessExit += processExitHandler;
             Console.CancelKeyPress += consoleCancelEventHandler;
 
@@ -204,12 +215,12 @@ namespace Meds.Shared
                 try
                 {
                     if (!_stoppingSource.IsCancellationRequested)
-                        _logger.LogInformation("Shutting down here:\n{Caller}", new StackTrace());
+                        _logger.ZLogInformation("Shutting down here:\n{0}", new StackTrace());
                     ExecuteHandlers(_stoppingSource);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "An error occurred stopping the application");
+                    _logger.ZLogError(ex, "An error occurred stopping the application");
                 }
             }
         }
@@ -225,7 +236,7 @@ namespace Meds.Shared
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred starting the application");
+                _logger.ZLogError(ex, "An error occurred starting the application");
             }
         }
 
@@ -240,7 +251,7 @@ namespace Meds.Shared
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred stopping the application");
+                _logger.ZLogError(ex, "An error occurred stopping the application");
             }
         }
 

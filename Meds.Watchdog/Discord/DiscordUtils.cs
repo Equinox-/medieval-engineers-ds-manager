@@ -22,6 +22,20 @@ namespace Meds.Watchdog.Discord
             return $"<t:{((DateTimeOffset)timeUtc).ToUnixTimeSeconds()}:{(char)format}>";
         }
 
+        public static string FormatHumanBytes(long bytes)
+        {
+            const long kibi = 1024;
+            const long mebi = kibi * 1024;
+            const long gibi = mebi * 1024;
+            if (bytes >= gibi)
+                return $"{bytes / (double)gibi:F1} GiB";
+            if (bytes >= mebi)
+                return $"{bytes / (double)mebi:F1} MiB";
+            if (bytes >= kibi)
+                return $"{bytes / (double)kibi:F1} KiB";
+            return $"{bytes} B";
+        }
+
         public static string FormatHumanDuration(this TimeSpan time)
         {
             if (time.TotalDays >= 2)

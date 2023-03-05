@@ -103,6 +103,7 @@
         <Compile Include="Metrics\CoreMetrics.cs" />
         <Compile Include="Metrics\CraftingMetrics.cs" />
         <Compile Include="Metrics\EntityGridDatabaseMetrics.cs" />
+        <Compile Include="Metrics\PaxMetrics.cs" />
         <Compile Include="Metrics\PhysicsMetrics.cs" />
         <Compile Include="Metrics\PlayerMetrics.cs" />
         <Compile Include="Metrics\RegionMetrics.cs" />
@@ -120,9 +121,11 @@
         <Compile Include="SavingSystem.cs" />
         <Compile Include="ServerService.cs" />
         <Compile Include="Shim\AlwaysPatch.cs" />
+        <Compile Include="Shim\LoggerPatches.cs" />
         <Compile Include="Shim\MecPatches.cs" />
-        <Compile Include="Shim\Patches.cs" />
+        <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
+        <Compile Include="Shim\ViewTracking.cs" />
         <Compile Include="WorldChangingConfigReplacer.cs" />
     </ItemGroup>
     <ItemGroup>
@@ -142,10 +145,12 @@
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
       <PackageReference Include="Microsoft.Extensions.Primitives" Version="6.0.0" />
       <PackageReference Include="System.Buffers" Version="4.5.1" />
+      <PackageReference Include="System.IO.Compression" Version="4.3.0" />
       <PackageReference Include="System.Memory" Version="4.5.5" />
       <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
       <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
       <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
+      <PackageReference Include="ZLogger" Version="1.7.0" />
     </ItemGroup>
     <ItemGroup>
       <None Include="App.config" />

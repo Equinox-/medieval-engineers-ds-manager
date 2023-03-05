@@ -7,6 +7,7 @@ using Meds.Shared;
 using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Watchdog
 {
@@ -24,7 +25,7 @@ namespace Meds.Watchdog
         public float SimulationSpeed { get; private set; }
 
         public HealthTracker(ISubscriber<HealthState> healthSubscriber, 
-            Configuration config, ILogger<HealthTracker> log)
+            Configuration config,  ILogger<HealthTracker> log)
         {
             _healthSubscriber = healthSubscriber;
             _config = config;
@@ -35,9 +36,19 @@ namespace Meds.Watchdog
 
         public IBoolState Readiness => _readiness;
 
-        public bool IsRunning => !(FindActiveProcess()?.HasExited ?? true);
+        private Process _lastProcess;
 
-        public Process ActiveProcess => FindActiveProcess();
+        public bool IsRunning => !(ActiveProcess?.HasExited ?? true);
+
+        public Process ActiveProcess
+        {
+            get
+            {
+                if (_lastProcess is { HasExited: false })
+                    return _lastProcess;
+                return _lastProcess = FindActiveProcess();
+            }
+        }
 
         public void Reset()
         {
@@ -118,9 +129,9 @@ namespace Meds.Watchdog
             _subscription = _healthSubscriber.Subscribe(msg =>
             {
                 if (_readiness.UpdateState(msg.Readiness))
-                    _log.LogInformation("Readiness changed from {Previous} to {Current}", !msg.Readiness, msg.Readiness);
+                    _log.ZLogInformation("Readiness changed from {0} to {1}", !msg.Readiness, msg.Readiness);
                 if (_liveness.UpdateState(msg.Liveness)) 
-                    _log.LogInformation("Liveness changed from {Previous} to {Current}", !msg.Liveness, msg.Liveness);
+                    _log.ZLogInformation("Liveness changed from {0} to {1}", !msg.Liveness, msg.Liveness);
 
                 PlayerCount = msg.Players;
                 SimulationSpeed = msg.SimSpeed;

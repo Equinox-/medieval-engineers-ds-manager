@@ -5,13 +5,13 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Meds.Metrics;
+using Meds.Wrapper.Shim;
 using Sandbox.Engine.Networking;
 using VRage.Components;
 using VRage.Engine;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRageMath;
-using Patches = Meds.Wrapper.Shim.Patches;
 
 #pragma warning disable 618
 
@@ -33,20 +33,20 @@ namespace Meds.Wrapper.Metrics
         {
             _methodProfiling = methods;
             _regionProfiling = regions;
-            Patches.Patch(typeof(GameTickProfiler));
+            PatchHelper.Patch(typeof(GameTickProfiler));
 
             if (methods || regions)
             {
-                Patches.Patch(typeof(FixedUpdatePatch));
-                Patches.Patch(typeof(TimedUpdatePatch));
+                PatchHelper.Patch(typeof(FixedUpdatePatch));
+                PatchHelper.Patch(typeof(TimedUpdatePatch));
             }
 
             if (methods)
             {
-                Patches.Patch(typeof(LegacyUpdateBefore));
-                Patches.Patch(typeof(LegacySimulate));
-                Patches.Patch(typeof(LegacyUpdateAfter));
-                Patches.Patch(typeof(MiscProfiler));
+                PatchHelper.Patch(typeof(LegacyUpdateBefore));
+                PatchHelper.Patch(typeof(LegacySimulate));
+                PatchHelper.Patch(typeof(LegacyUpdateAfter));
+                PatchHelper.Patch(typeof(MiscProfiler));
             }
         }
 
