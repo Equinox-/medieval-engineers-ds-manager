@@ -112,6 +112,11 @@ namespace Meds.Wrapper.Metrics
             private readonly Gauge _areaFace;
             private readonly Gauge _areaX;
             private readonly Gauge _areaY;
+
+            private readonly Gauge _latitude;
+            private readonly Gauge _longitude;
+            private readonly Gauge _elevation;
+
             private readonly Gauge _areaPermitted;
             internal readonly Counter BlocksPlaced;
             internal readonly Counter BlocksRemoved;
@@ -143,6 +148,11 @@ namespace Meds.Wrapper.Metrics
                 _areaFace = _group.Gauge("areaFace", double.NaN);
                 _areaX = _group.Gauge("areaX", double.NaN);
                 _areaY = _group.Gauge("areaY", double.NaN);
+
+                _latitude = _group.Gauge("posLatitude", double.NaN);
+                _longitude = _group.Gauge("posLongitude", double.NaN);
+                _elevation = _group.Gauge("posElevation", double.NaN);
+
                 _areaPermitted = _group.Gauge("areaPermitted", double.NaN);
                 BlocksPlaced = _group.Counter("blocksPlaced");
                 BlocksRemoved = _group.Counter("blocksRemoved");
@@ -179,6 +189,8 @@ namespace Meds.Wrapper.Metrics
                 Vector2D? areaXy = null;
                 bool? areaPermitted = null;
 
+                Vector3D? longLatAlt = null;
+
                 var entity = player.ControlledEntity;
                 if (entity != null)
                 {
@@ -189,9 +201,15 @@ namespace Meds.Wrapper.Metrics
                     if (areas != null)
                     {
                         var localPos = position - planet.GetPosition();
-                        MyEnvironmentCubemapHelper.ProjectToCube(ref localPos, out var face, out var texcoords);
+
+                        var elevation = localPos.Normalize() - planet.AverageRadius;
+                        var longitude = Math.Atan2(-localPos.X, -localPos.Z);
+                        var latitude = Math.Atan2(localPos.Y, Math.Sqrt(localPos.X * localPos.X + localPos.Z * localPos.Z));
+                        longLatAlt = new Vector3D(MathHelper.ToDegrees(longitude), MathHelper.ToDegrees(latitude), elevation);
+
+                        MyEnvironmentCubemapHelper.ProjectToCube(ref localPos, out var face, out var tex);
                         areaFace = face;
-                        var normXy = (texcoords + 1.0) * 0.5;
+                        var normXy = (tex + 1.0) * 0.5;
                         if (normXy.X >= 1.0)
                             normXy.X = 0.99999999;
                         if (normXy.Y >= 1.0)
@@ -213,6 +231,10 @@ namespace Meds.Wrapper.Metrics
                 _areaX.SetValue(areaXy?.X ?? double.NaN);
                 _areaY.SetValue(areaXy?.Y ?? double.NaN);
                 _areaPermitted.SetValue(Gauge.ConvertValue(areaPermitted));
+
+                _longitude.SetValue(longLatAlt?.X ?? double.NaN);
+                _latitude.SetValue(longLatAlt?.Y ?? double.NaN);
+                _elevation.SetValue(longLatAlt?.Z ?? double.NaN);
             }
 
             internal void Remove()

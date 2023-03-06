@@ -54,11 +54,15 @@ namespace Meds.Wrapper.Metrics
 
         private static bool ShouldTrack(MyCraftingComponent block)
         {
+            if (block == null)
+                return false;
             return _allCraftingComponents || Components.Contains(block.SubtypeId);
         }
 
         private static bool ShouldTrack(MyCraftingRecipeDefinition definition)
         {
+            if (definition == null)
+                return false;
             if (_allCraftingCategories)
                 return true;
             foreach (var category in definition.Categories)

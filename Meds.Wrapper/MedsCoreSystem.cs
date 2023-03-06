@@ -9,7 +9,6 @@ using Sandbox.Engine.Multiplayer;
 using VRage.Components;
 using VRage.Engine;
 using VRage.Network;
-using VRage.Session;
 using MySession = Sandbox.Game.World.MySession;
 
 namespace Meds.Wrapper

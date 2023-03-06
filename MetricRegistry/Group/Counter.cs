@@ -1,19 +1,22 @@
+using System;
 using System.Threading;
 
 namespace Meds.Metrics.Group
 {
     public sealed class Counter : LeafMetric
     {
+        private static readonly TimeSpan ReportingDelay = TimeSpan.FromMinutes(6);
+
         private readonly MetricGroup _group;
         private long _count;
-        private bool _hasBeenRead;
+        private DateTime? _startReportingAt;
 
         public Counter(MetricGroup group, string name) : base(name)
         {
             _group = group;
             _count = 0;
             _group.MarkChanged();
-            _hasBeenRead = false;
+            _startReportingAt = null;
         }
 
         public void Inc(long n = 1)
@@ -26,8 +29,9 @@ namespace Meds.Metrics.Group
         {
             get
             {
-                var value = _hasBeenRead ? _count : 0;
-                _hasBeenRead = true;
+                var now = DateTime.UtcNow;
+                var reportAt = _startReportingAt ??= now + ReportingDelay;
+                var value = reportAt < now ? _count : 0;
                 return LeafMetricValue.Counter(value);
             }
         }

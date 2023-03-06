@@ -20,13 +20,25 @@ namespace Meds.Metrics
             _time = 0;
         }
 
+        public PerTickTimer(in MetricName name, Histogram perTickCount, Timer perTickTime)
+            : base(in name, new MetricRoot[] { perTickCount, perTickTime })
+        {
+            _perTickCount = perTickCount;
+            _perTickTime = perTickTime;
+            _perRecordTime = null;
+
+            _count = 0;
+            _time = 0;
+        }
+
         public int UpdateRate
         {
             set
             {
                 _perTickCount.UpdateRate = value;
                 _perTickTime.UpdateRate = value;
-                _perRecordTime.UpdateRate = value;
+                if (_perRecordTime != null)
+                    _perRecordTime.UpdateRate = value;
             }
         }
 
@@ -41,9 +53,9 @@ namespace Meds.Metrics
         public void Record(long stopwatchTicks)
         {
             LastModification = MetricRegistry.GcCounter;
+            _perRecordTime?.Record(stopwatchTicks);
             using (StartWriting())
             {
-                _perRecordTime.Record(stopwatchTicks);
                 _count++;
                 _time += stopwatchTicks;
             }

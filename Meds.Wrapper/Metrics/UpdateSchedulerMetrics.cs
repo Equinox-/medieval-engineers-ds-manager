@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 using HarmonyLib;
 using Meds.Metrics;
 using Meds.Wrapper.Shim;
@@ -76,7 +77,8 @@ namespace Meds.Wrapper.Metrics
 
         private static void Submit(string scheduler, Type type, string method, long start, object target = null)
         {
-            var dt = Stopwatch.GetTimestamp() - start;
+            var now = Stopwatch.GetTimestamp();
+            var dt = now - start;
             if (_methodProfiling)
             {
                 var name = MetricName.Of(SeriesName,
@@ -85,6 +87,9 @@ namespace Meds.Wrapper.Metrics
                     "method", method);
                 MetricRegistry.PerTickTimer(in name).Record(dt);
             }
+
+            if (!_regionProfiling)
+                return;
 
             Vector3D? geoData = null;
             switch (target)
@@ -97,7 +102,7 @@ namespace Meds.Wrapper.Metrics
                     break;
             }
 
-            if (geoData != null && _regionProfiling)
+            if (geoData != null)
                 RegionMetrics.RecordRegionUpdateTime(geoData.Value, dt);
         }
 

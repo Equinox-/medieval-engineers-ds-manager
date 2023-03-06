@@ -52,7 +52,7 @@ namespace Meds.Shared
         public bool MethodProfiling = true;
 
         [XmlElement]
-        public bool RegionProfiling = true;
+        public bool RegionProfiling = false;
 
         [XmlElement]
         public bool Network = true;
