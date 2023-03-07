@@ -133,9 +133,10 @@ namespace Meds.Watchdog.Discord
                     break;
                 case LifetimeController.StartStopEvent.Started:
                 {
-                    if (targetState == LifetimeStateCase.Restarting && _shutdownDuration.HasValue)
+                    var shutdownDuration = _shutdownDuration;
+                    if (targetState == LifetimeStateCase.Restarting && shutdownDuration.HasValue)
                         ToDiscordFork(StateChangeFinished,
-                            builder => builder.Content = $"🟩 Server restarted after {(uptime + _shutdownDuration.Value).FormatHumanDuration()}.");
+                            builder => builder.Content = $"🟩 Server restarted after {(uptime + shutdownDuration.Value).FormatHumanDuration()}.");
                     else
                         ToDiscordFork(StateChangeFinished, builder => builder.Content = $"🟩 Server started after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
