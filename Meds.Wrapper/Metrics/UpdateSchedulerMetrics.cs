@@ -34,13 +34,10 @@ namespace Meds.Wrapper.Metrics
         {
             _methodProfiling = methods;
             _regionProfiling = regions;
-            PatchHelper.Patch(typeof(GameTickProfiler));
 
-            if (methods || regions)
-            {
-                PatchHelper.Patch(typeof(FixedUpdatePatch));
-                PatchHelper.Patch(typeof(TimedUpdatePatch));
-            }
+            PatchHelper.Patch(typeof(GameTickProfiler));
+            PatchHelper.Patch(typeof(TimedUpdatePatch));
+            PatchHelper.Patch(typeof(FixedUpdatePatch));
 
             if (methods)
             {
@@ -111,6 +108,15 @@ namespace Meds.Wrapper.Metrics
         {
             private static void Profile(MyFixedUpdate update)
             {
+                // MEC~460: Skip scheduled updates for unloaded entities due to multi-scheduling.
+                if (update.Target is MyEntityComponent ec && !(ec.Entity?.InScene ?? false))
+                    return;
+                if (!_methodProfiling)
+                {
+                    update();
+                    return;
+                }
+
                 // Don't double count legacy updates 
                 var method = update.Method;
                 if (method == DoSimulate || method == DoUpdateAfterSimulation || method == DoUpdateBeforeSimulation || method == RunSingleFrame)
@@ -134,6 +140,15 @@ namespace Meds.Wrapper.Metrics
         {
             private static void Profile(MyTimedUpdate update, long dt)
             {
+                // MEC~460: Skip scheduled updates for unloaded entities due to multi-scheduling.
+                if (update.Target is MyEntityComponent ec && !(ec.Entity?.InScene ?? false))
+                    return;
+                if (!_methodProfiling)
+                {
+                    update(dt);
+                    return;
+                }
+
                 var start = Stopwatch.GetTimestamp();
                 update(dt);
                 Submit(TimedScheduler, update.Method, start, update.Target);
