@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Medieval.Entities.Components.Crafting;
 using Medieval.GameSystems;
 using Medieval.World.Persistence;
 using Meds.Shared;
@@ -142,5 +143,13 @@ namespace Meds.Wrapper.Shim
             else
                 __result = IdentityCache.GetValueOrDefault(clientId, null);
         }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=461
+    [HarmonyPatch(typeof(MyCraftingComponent), "SimulatePassageOfTime")]
+    [AlwaysPatch]
+    public static class UnloadedCraftingBatchFix
+    {
+        public static bool Prefix(MyCraftingComponent __instance) => __instance.Entity?.InScene ?? false;
     }
 }
