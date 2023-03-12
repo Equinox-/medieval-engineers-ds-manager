@@ -46,7 +46,7 @@ namespace Meds.Shared
     public class MetricConfig
     {
         [XmlElement]
-        public bool Prometheus = true;
+        public string PrometheusKey;
 
         [XmlElement]
         public bool MethodProfiling = true;

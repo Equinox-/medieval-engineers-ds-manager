@@ -50,7 +50,7 @@ namespace Meds.Wrapper
         protected override void Start()
         {
             PatchHelper.PatchAlways(true);
-            if (Config.Metrics.Prometheus)
+            if (Config.Metrics.PrometheusKey != null)
                 PatchHelper.Patch(typeof(PrometheusPatch));
             if (Config.Metrics.Network)
                 TransportLayerMetrics.Register();
