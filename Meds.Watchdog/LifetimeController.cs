@@ -252,7 +252,7 @@ namespace Meds.Watchdog
             if (!_healthTracker.Liveness.State && _healthTracker.Liveness.TimeInState.TotalSeconds > _config.LivenessTimeout)
             {
                 _log.ZLogError(
-                    "Server has been up for {Uptime:g} and has not been not life for {TimeNotLive:g}.  Restarting",
+                    "Server has been up for {0:g} and has not been not life for {TimeNotLive:g}.  Restarting",
                     uptime,
                     _healthTracker.Liveness.TimeInState);
                 _healthTracker.Reset();
@@ -263,7 +263,7 @@ namespace Meds.Watchdog
 
             if ((!_healthTracker.Liveness.IsCurrent || !_healthTracker.Readiness.IsCurrent) && uptime.Ticks > HealthTracker.HealthTimeout.Ticks * 2)
             {
-                _log.ZLogError("Server has been up for {Uptime:g} and has stopped reporting.  Restarting", uptime);
+                _log.ZLogError("Server has been up for {0:g} and has stopped reporting.  Restarting", uptime);
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
                 StartStop?.Invoke(StartStopEvent.Froze, uptime);
@@ -273,7 +273,7 @@ namespace Meds.Watchdog
             if (!_healthTracker.Readiness.State && _healthTracker.Readiness.TimeInState.TotalSeconds > _config.ReadinessTimeout)
             {
                 _log.ZLogError(
-                    "Server has been up for {Uptime:g} and has not been ready for {TimeNotReady:g}.  Restarting",
+                    "Server has been up for {0:g} and has not been ready for {TimeNotReady:g}.  Restarting",
                     uptime,
                     _healthTracker.Readiness.TimeInState);
                 _healthTracker.Reset();

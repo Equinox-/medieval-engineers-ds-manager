@@ -91,6 +91,10 @@
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Steam.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="VRage.Render">
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Render.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="Steamworks.NET">
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Steamworks.NET.dll</HintPath>
             <Private>false</Private>
