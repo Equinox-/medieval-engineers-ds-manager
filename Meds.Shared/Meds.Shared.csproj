@@ -42,6 +42,7 @@
         <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="CustomLogFormat.cs" />
         <Compile Include="ExtraContextLogger.cs" />
         <Compile Include="HostBuilder.cs" />
         <Compile Include="FlatBufferPool.cs" />

@@ -39,7 +39,7 @@ namespace Meds.Wrapper.Shim
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, StringBuilder builder)
             {
-                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, builder);
+                __instance.Logger.Log(in ShimLog.ImpliedLoggerName, severity, builder);
                 return false;
             }
         }
@@ -49,7 +49,7 @@ namespace Meds.Wrapper.Shim
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, string message)
             {
-                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, message);
+                __instance.Logger.Log(in ShimLog.ImpliedLoggerName, severity, message);
                 return false;
             }
         }
@@ -59,7 +59,7 @@ namespace Meds.Wrapper.Shim
         {
             public static bool Prefix(MyLog __instance, LogSeverity severity, string format, object[] args)
             {
-                __instance.Logger.Log(in ShimLog.LoggerLegacy, severity, FormattableStringFactory.Create(format, args));
+                __instance.Logger.Log(in ShimLog.ImpliedLoggerName, severity, FormattableStringFactory.Create(format, args));
                 return false;
             }
         }
@@ -69,7 +69,7 @@ namespace Meds.Wrapper.Shim
         {
             public static bool Prefix(MyLog __instance, string msg)
             {
-                __instance.Logger.Log(in ShimLog.LoggerLegacy, LogSeverity.Info, msg);
+                __instance.Logger.Log(in ShimLog.ImpliedLoggerName, LogSeverity.Info, msg);
                 return false;
             }
         }

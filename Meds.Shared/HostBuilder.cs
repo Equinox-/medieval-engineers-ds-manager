@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,7 +48,8 @@ namespace Meds.Shared
                         opts.EnableStructuredLogging = true;
                         opts.FlushRate = TimeSpan.FromSeconds(15);
                         opts.JsonSerializerOptions.IncludeFields = true;
-                        opts.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                        opts.StructuredLoggingFormatter = CustomLogFormat.FormatHeader; 
+                        opts.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
                     });
             })));
             _services.Add(new ServiceDescriptor(typeof(ILogger<>), typeof (Logger<>), ServiceLifetime.Singleton));

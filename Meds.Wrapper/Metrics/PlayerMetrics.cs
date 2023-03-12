@@ -9,6 +9,7 @@ using Medieval.GameSystems.Tools;
 using Meds.Metrics;
 using Meds.Metrics.Group;
 using Meds.Wrapper.Shim;
+using Meds.Wrapper.Utils;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Planet;
@@ -185,56 +186,40 @@ namespace Meds.Wrapper.Metrics
                         .Gauge("value", 1);
                 
                 ulong? entityId = null;
-                int? areaFace = null;
-                Vector2D? areaXy = null;
-                bool? areaPermitted = null;
-
-                Vector3D? longLatAlt = null;
+                PositionPayload positionPayload = default;
+                var hasPositionPayload = false;
 
                 var entity = player.ControlledEntity;
                 if (entity != null)
                 {
                     entityId = entity.Id.Value;
-                    var position = entity.GetPosition();
-                    var planet = MyGamePruningStructureSandbox.GetClosestPlanet(position);
-                    var areas = planet?.Get<MyPlanetAreasComponent>();
-                    if (areas != null)
-                    {
-                        var localPos = position - planet.GetPosition();
-
-                        var elevation = localPos.Normalize() - planet.AverageRadius;
-                        var longitude = Math.Atan2(-localPos.X, -localPos.Z);
-                        var latitude = Math.Atan2(localPos.Y, Math.Sqrt(localPos.X * localPos.X + localPos.Z * localPos.Z));
-                        longLatAlt = new Vector3D(MathHelper.ToDegrees(longitude), MathHelper.ToDegrees(latitude), elevation);
-
-                        MyEnvironmentCubemapHelper.ProjectToCube(ref localPos, out var face, out var tex);
-                        areaFace = face;
-                        var normXy = (tex + 1.0) * 0.5;
-                        if (normXy.X >= 1.0)
-                            normXy.X = 0.99999999;
-                        if (normXy.Y >= 1.0)
-                            normXy.Y = 0.99999999;
-                        areaXy = normXy * areas.AreaCount;
-                        var ownership = planet.Get<MyPlanetAreaOwnershipComponent>();
-                        if (ownership != null)
-                        {
-                            var areaId = areas.GetArea(localPos);
-                            var accessor = ownership.GetAreaPermissions(areaId);
-                            areaPermitted = accessor.HasPermission(player.Identity.Id);
-                        }
-                    }
+                    hasPositionPayload = PositionPayload.TryCreate(player, out positionPayload);
                 }
 
 
                 _entityId.SetValue(entityId ?? double.NaN);
-                _areaFace.SetValue(areaFace ?? double.NaN);
-                _areaX.SetValue(areaXy?.X ?? double.NaN);
-                _areaY.SetValue(areaXy?.Y ?? double.NaN);
-                _areaPermitted.SetValue(Gauge.ConvertValue(areaPermitted));
+                if (hasPositionPayload)
+                {
+                    _areaFace.SetValue(positionPayload.Face);
+                    _areaX.SetValue(positionPayload.X);
+                    _areaY.SetValue(positionPayload.Y);
+                    _areaPermitted.SetValue(Gauge.ConvertValue(positionPayload.Permitted));
 
-                _longitude.SetValue(longLatAlt?.X ?? double.NaN);
-                _latitude.SetValue(longLatAlt?.Y ?? double.NaN);
-                _elevation.SetValue(longLatAlt?.Z ?? double.NaN);
+                    _longitude.SetValue(positionPayload.Lng);
+                    _latitude.SetValue(positionPayload.Lat);
+                    _elevation.SetValue(positionPayload.Elevation);
+                }
+                else
+                {
+                    _areaFace.SetValue(double.NaN);
+                    _areaX.SetValue(double.NaN);
+                    _areaY.SetValue(double.NaN);
+                    _areaPermitted.SetValue(double.NaN);
+
+                    _longitude.SetValue(double.NaN);
+                    _latitude.SetValue(double.NaN);
+                    _elevation.SetValue(double.NaN);
+                }
             }
 
             internal void Remove()

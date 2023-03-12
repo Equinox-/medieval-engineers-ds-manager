@@ -13,6 +13,8 @@ using VRage.Engine;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRageMath;
+using ZLogger;
+using Timer = Meds.Metrics.Timer;
 
 #pragma warning disable 618
 
@@ -251,6 +253,14 @@ namespace Meds.Wrapper.Metrics
         [HarmonyPatch]
         private static class GameTickProfiler
         {
+            private static readonly Timer TickTimer = MetricRegistry.Timer(in GameTickSeries);
+            private static readonly long SlowTickStartupDelay = Stopwatch.Frequency * 600; // 10 minutes
+            private static readonly long SlowTickSpacing = Stopwatch.Frequency * 300; // 5 minutes
+            private static readonly double MillisPerTick = 1000.0 / Stopwatch.Frequency;
+            private static readonly long MinSlowTickDuration = Stopwatch.Frequency * 5 / 1000; // 5ms
+
+            private static long? _nextSlowTickMessage;
+
             public static IEnumerable<MethodBase> TargetMethods()
             {
                 yield return RunSingleFrame;
@@ -263,8 +273,24 @@ namespace Meds.Wrapper.Metrics
 
             public static void Postfix(long __state)
             {
-                var dt = Stopwatch.GetTimestamp() - __state;
-                MetricRegistry.Timer(in GameTickSeries).Record(dt);
+                var now = Stopwatch.GetTimestamp();
+                var dt = now - __state;
+                TickTimer.Record(dt);
+                if (dt < MinSlowTickDuration)
+                    return;
+                var nextSlowTick = _nextSlowTickMessage ??= now + SlowTickStartupDelay;
+                if (now < nextSlowTick)
+                    return;
+                var p90 = TickTimer.Percentile(.9);
+                if (dt <= p90)
+                    return;
+                Entrypoint.LoggerFor(typeof(GameTickProfiler)).ZLogWarning(
+                    "Tick was slower than 90% of ticks (tick={0} ms, p90={1} ms, p95={2} ms, max={3} ms)",
+                    dt * MillisPerTick,
+                    p90 * MillisPerTick,
+                    TickTimer.Percentile(.95) * MillisPerTick,
+                    TickTimer.Percentile(1) * MillisPerTick);
+                _nextSlowTickMessage = now + SlowTickSpacing;
             }
         }
     }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
 using VRage.Collections;
 using VRage.Components;
@@ -24,7 +25,7 @@ namespace Meds.Wrapper.Shim
         private readonly ThreadLocal<Dictionary<string, EnrichedLogger>> _perThreadLogCache =
             new ThreadLocal<Dictionary<string, EnrichedLogger>>(() => new Dictionary<string, EnrichedLogger>());
 
-        public static readonly NamedLogger LoggerLegacy = new NamedLogger("Legacy", NullLogger.Instance);
+        public static readonly NamedLogger ImpliedLoggerName = new NamedLogger("ImpliedDefault", NullLogger.Instance);
 
         public ShimLog(ILoggerFactory rootLogger)
         {
@@ -40,10 +41,10 @@ namespace Meds.Wrapper.Shim
             loggerProp.SetValue(logger, replacement);
         }
 
-        private EnrichedLogger LoggerFor(string sourceName)
+        private EnrichedLogger LoggerFor(string sourceName, string defaultName)
         {
-            if (string.IsNullOrEmpty(sourceName))
-                sourceName = LoggerLegacy.Name;
+            if (string.IsNullOrEmpty(sourceName) || sourceName == ImpliedLoggerName.Name)
+                sourceName = defaultName;
             var cache = _perThreadLogCache.Value;
             if (!cache.TryGetValue(sourceName, out var logger))
                 cache.Add(sourceName, logger = new EnrichedLogger(_rootLogger, sourceName));
@@ -73,13 +74,22 @@ namespace Meds.Wrapper.Shim
         private sealed class SerilogLogger : TextLogger
         {
             private readonly ShimLog _owner;
+            private readonly string _defaultName;
 
             public SerilogLogger(string pathName, ShimLog owner) : base(pathName, new ThrowingStream())
             {
                 _owner = owner;
+                _defaultName = "Legacy";
+                var fileName = Path.GetFileName(pathName);
+                // ReSharper disable StringLiteralTypo
+                if (fileName.StartsWith("Watchlog", StringComparison.OrdinalIgnoreCase))
+                    _defaultName = "Watchdog";
+                else if (fileName.StartsWith("Chatlog", StringComparison.OrdinalIgnoreCase))
+                    _defaultName = "Chat";
+                // ReSharper restore StringLiteralTypo
             }
 
-            private EnrichedLogger LoggerFor(in NamedLogger source) => _owner.LoggerFor(source.Name);
+            private EnrichedLogger LoggerFor(in NamedLogger source) => _owner.LoggerFor(source.Name, _defaultName);
 
             private static LogLevel MapLogLevel(LogSeverity severity)
             {
@@ -100,100 +110,6 @@ namespace Meds.Wrapper.Shim
                         return LogLevel.Critical;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(severity), severity, null);
-                }
-            }
-
-            private static readonly ConcurrentDictionary<Assembly, IApplicationPackage> _packageForAssembly =
-                new ConcurrentDictionary<Assembly, IApplicationPackage>();
-
-            private static IApplicationPackage PackageForAssembly(Assembly asm)
-            {
-                var mods = MySession.Static?.ModManager?.Assemblies ?? DictionaryReader<MyModContext, Assembly>.Empty;
-                if (asm == null || mods.Count == 0)
-                    return MyModContext.BaseGame;
-                return _packageForAssembly.GetOrAdd(asm, asmVal =>
-                {
-                    foreach (var mod in mods)
-                        if (mod.Value == asmVal)
-                            return mod.Key;
-                    return MyModContext.BaseGame;
-                });
-            }
-
-            private struct PackagePayload
-            {
-                public string Name;
-                public ulong? ModId;
-
-                public PackagePayload(IApplicationPackage package)
-                {
-                    Name = package.Name;
-                    ModId = (package as MyModContext)?.WorkshopItem?.Id;
-                }
-
-                public PackagePayload(Type type) : this(PackageForAssembly(type?.Assembly))
-                {
-                }
-            }
-
-            private struct MemberPayload
-            {
-                public PackagePayload Package;
-                public string Type;
-                public string Member;
-
-                public MemberPayload(MemberInfo member)
-                {
-                    Package = new PackagePayload(member.DeclaringType);
-                    Type = member.DeclaringType?.Name;
-                    Member = member.Name;
-                }
-            }
-
-            private struct DefinitionPayload
-            {
-                public PackagePayload Package;
-                public string Type;
-                public string Subtype;
-
-                public DefinitionPayload(MyObjectBuilder_DefinitionBase ob)
-                {
-                    Package = new PackagePayload(ob.Package);
-                    Type = ob.Id.TypeIdString;
-                    Subtype = ob.SubtypeName;
-                }
-
-                public DefinitionPayload(MyDefinitionBase ob)
-                {
-                    Package = new PackagePayload(ob.Package);
-                    Type = ob.Id.TypeId.ShortName;
-                    Subtype = ob.Id.SubtypeName;
-                }
-            }
-
-            private struct ComponentPayload
-            {
-                public PackagePayload Package;
-                public string Type;
-
-                public ComponentPayload(IComponent comp)
-                {
-                    Package = new PackagePayload(comp.GetType());
-                    Type = comp.GetType().Name;
-                }
-            }
-
-            private struct EntityComponentPayload
-            {
-                public PackagePayload Package;
-                public string Type;
-                public long? EntityId;
-
-                public EntityComponentPayload(MyEntityComponent comp)
-                {
-                    Package = new PackagePayload(comp.GetType());
-                    Type = comp.GetType().Name;
-                    EntityId = comp.Entity?.EntityId;
                 }
             }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
@@ -34,16 +35,19 @@ namespace Meds.Wrapper
 
         private void Run()
         {
-            var allArgs = new[]
+            var allArgs = new List<string>
             {
                 "-console",
                 "-ignorelastsession",
-                "--unique-log-names",
                 "--data-path",
                 _config.Install.RuntimeDirectory,
                 "--system",
                 $"{typeof(MedsCoreSystem).Assembly.FullName}:{typeof(MedsCoreSystem).FullName}",
             };
+            // Don't use unique log names with the replacement logger is used.
+            if (_config.Install.Adjustments.ReplaceLogger != true)
+                allArgs.Add("--unique-log-names");
+
             var type = Type.GetType("MedievalEngineersDedicated.MyProgram, MedievalEngineersDedicated")
                        ?? throw new NullReferenceException("MyProgram is missing");
             var method = type.GetMethod("Main", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
@@ -52,7 +56,7 @@ namespace Meds.Wrapper
             {
                 using (_shutdownSubscriber.Subscribe(HandleShutdownMessage))
                 {
-                    method.Invoke(null, new object[] { allArgs });
+                    method.Invoke(null, new object[] { allArgs.ToArray() });
                 }
             }
             finally

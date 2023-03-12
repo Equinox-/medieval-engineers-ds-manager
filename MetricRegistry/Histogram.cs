@@ -20,6 +20,8 @@ namespace Meds.Metrics
             _scale = scale;
             UpdateRate = 5;
         }
+        
+        public long Percentile(double percentile) => _histogram.GetValueAtPercentile(percentile * 100);
 
         public void Record(long stopwatchTicks)
         {

@@ -35,6 +35,19 @@ namespace Meds.Wrapper.Shim
             }
         }
 
+        [HarmonyPatch(typeof(MyInfiniteWorldPersistence), "UpdateView")]
+        [AlwaysPatch(Late = false)]
+        public static class ViewUpdatePatch
+        {
+            public static void Postfix(int viewId)
+            {
+                if (viewId == -1)
+                    Log.ZLogErrorWithPayload(
+                        new ViewHere { StackTrace = StackUtils.CaptureGameLogicStack() },
+                    "Invalid view updated here");
+            }
+        }
+
         [HarmonyPatch(typeof(MyInfiniteWorldPersistence), "DestroyView")]
         [AlwaysPatch(Late = false)]
         public static class ViewDestroyPatch

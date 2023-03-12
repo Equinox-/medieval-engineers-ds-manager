@@ -88,7 +88,8 @@ namespace Meds.Shared
             ZLoggerOptions options,
             Utf8JsonWriter jsonWriter)
         {
-            _backing?.FormatUtf8(writer, options, jsonWriter);
+            if (_backing == null) return;
+            _backing.FormatUtf8(writer, options, jsonWriter);
             if (!options.EnableStructuredLogging) return;
             jsonWriter.WriteString(ExtraContextLogger.ThreadNameProp, _callingThread.Name);
             jsonWriter.WriteNumber(ExtraContextLogger.ThreadIdProp, _callingThread.ManagedThreadId);
