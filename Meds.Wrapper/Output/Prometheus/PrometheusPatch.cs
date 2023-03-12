@@ -16,14 +16,19 @@ namespace Meds.Wrapper.Output.Prometheus
         public static bool Prefix(HttpListenerContext context)
         {
             if (context.Request.RawUrl != "/vrageremote/metrics") return true;
-            var auth = context.Request.Headers["Authorization"];
-            if (auth == null
-                || !auth.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase)
-                || !auth.AsSpan().Slice(BearerPrefix.Length).Trim().SequenceEqual(Entrypoint.Config.Metrics.PrometheusKey.AsSpan()))
+            var requiredAuth = Entrypoint.Config.Metrics.PrometheusKey;
+            if (requiredAuth != "")
             {
-                context.Response.StatusCode = 401;
-                return false;
+                var auth = context.Request.Headers["Authorization"];
+                if (auth == null
+                    || !auth.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase)
+                    || !auth.AsSpan().Slice(BearerPrefix.Length).Trim().SequenceEqual(requiredAuth.AsSpan()))
+                {
+                    context.Response.StatusCode = 401;
+                    return false;
+                }
             }
+
             context.Response.StatusCode = 200;
             context.Response.ContentType = "text/plain; version=0.0.4";
             context.Response.AddHeader("Content-Encoding", "gzip");
