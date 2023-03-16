@@ -13,12 +13,11 @@ using ZLogger;
 
 namespace Meds.Wrapper
 {
-    public sealed class ServerService : IHostedService
+    public sealed class ServerService : BackgroundService
     {
         private readonly Configuration _config;
         private readonly ISubscriber<ShutdownRequest> _shutdownSubscriber;
         private Task _runTask;
-        private CancellationTokenSource _stoppingCts;
         private readonly IHostApplicationLifetime _lifetime;
         private readonly ILogger<ServerService> _log;
 
@@ -43,6 +42,7 @@ namespace Meds.Wrapper
                 _config.Install.RuntimeDirectory,
                 "--system",
                 $"{typeof(MedsCoreSystem).Assembly.FullName}:{typeof(MedsCoreSystem).FullName}",
+                "--error-report-no-report"
             };
             // Don't use unique log names with the replacement logger is used.
             if (_config.Install.Adjustments.ReplaceLogger != true)
@@ -59,10 +59,22 @@ namespace Meds.Wrapper
                     method.Invoke(null, new object[] { allArgs.ToArray() });
                 }
             }
+            catch (TargetInvocationException err)
+            {
+                var unwrapped = err.InnerException ?? err;
+                _log.ZLogError(unwrapped, "Server crashed");
+                throw unwrapped;
+            }
             finally
             {
                 _lifetime.StopApplication();
             }
+        }
+
+        protected override Task ExecuteAsync(CancellationToken ct)
+        {
+            ct.Register(MySandboxGame.ExitThreadSafe);
+            return Task.Run(Run, ct);
         }
 
         private void HandleShutdownMessage(ShutdownRequest msg)
@@ -74,20 +86,10 @@ namespace Meds.Wrapper
                 _log.ZLogInformation("Received shutdown request for different process {0}, this is {1}", msg.Pid, currentPid);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public override Task StopAsync(CancellationToken cancellationToken)
         {
-            _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _stoppingCts.Token.Register(MySandboxGame.ExitThreadSafe);
-
-            _runTask = Task.Run(Run, _stoppingCts.Token);
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _stoppingCts.Cancel();
             MySandboxGame.ExitThreadSafe();
-            return _runTask;
+            return base.StopAsync(cancellationToken);
         }
     }
 }

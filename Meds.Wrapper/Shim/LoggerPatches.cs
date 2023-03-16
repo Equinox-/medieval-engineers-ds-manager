@@ -1,9 +1,14 @@
+using System;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
+using Meds.Wrapper.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox.Engine.Physics;
+using VRage.Components;
+using VRage.Game.Components;
 using VRage.Logging;
+using ZLogger;
 
 namespace Meds.Wrapper.Shim
 {
@@ -43,7 +48,7 @@ namespace Meds.Wrapper.Shim
                 return false;
             }
         }
-        
+
         [HarmonyPatch(typeof(MyLog), "Log", typeof(LogSeverity), typeof(string))]
         public static class PatchLogger2
         {
@@ -53,7 +58,7 @@ namespace Meds.Wrapper.Shim
                 return false;
             }
         }
-        
+
         [HarmonyPatch(typeof(MyLog), "Log", typeof(LogSeverity), typeof(string), typeof(object[]))]
         public static class PatchLogger3
         {
@@ -63,7 +68,7 @@ namespace Meds.Wrapper.Shim
                 return false;
             }
         }
-        
+
         [HarmonyPatch(typeof(MyLog), "WriteLineAndConsole", typeof(string))]
         public static class PatchLogger4
         {
@@ -71,6 +76,33 @@ namespace Meds.Wrapper.Shim
             {
                 __instance.Logger.Log(in ShimLog.ImpliedLoggerName, LogSeverity.Info, msg);
                 return false;
+            }
+        }
+
+        [HarmonyPatch(typeof(MyUpdateScheduler), "ReportError")]
+        public static class UpdateSchedulerError
+        {
+            public static void Prefix(Delegate action, Exception error)
+            {
+                void Report<T>(T payload)
+                {
+                    Entrypoint
+                        .LoggerFor(action.Method.DeclaringType ?? typeof(UpdateSchedulerError))
+                        .ZLogErrorWithPayload(error, payload, "Update method failed: {0} on {1}", action.Method.FullDescription(), action.Target ?? "null");
+                }
+
+                switch (action.Target)
+                {
+                    case MyEntityComponent ec:
+                        Report(new EntityComponentPayload(ec, action.Method.Name));
+                        return;
+                    case IComponent c:
+                        Report(new ComponentPayload(c, action.Method.Name));
+                        return;
+                    default:
+                        Report(new MemberPayload(action.Method));
+                        return;
+                }
             }
         }
     }

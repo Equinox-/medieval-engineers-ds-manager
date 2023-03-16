@@ -111,11 +111,13 @@
         <Compile Include="Metrics\PaxMetrics.cs" />
         <Compile Include="Metrics\PhysicsMetrics.cs" />
         <Compile Include="Metrics\PlayerMetrics.cs" />
+        <Compile Include="Metrics\ProfilingMetrics.cs" />
         <Compile Include="Metrics\RegionMetrics.cs" />
         <Compile Include="Metrics\TransportLayerMetrics.cs" />
         <Compile Include="Metrics\UpdateSchedulerMetrics.cs" />
         <Compile Include="MedsCoreSystem.cs" />
         <Compile Include="Entrypoint.cs" />
+        <Compile Include="Metrics\VoxelMetrics.cs" />
         <Compile Include="MiscUtils.cs" />
         <Compile Include="MedsModApi.cs" />
         <Compile Include="Output\Prometheus\PrometheusMetricWriter.cs" />
@@ -130,7 +132,6 @@
         <Compile Include="Shim\MecPatches.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
-        <Compile Include="Shim\ViewTracking.cs" />
         <Compile Include="Utils\LoggingPayloads.cs" />
         <Compile Include="Utils\StackUtils.cs" />
         <Compile Include="WorldChangingConfigReplacer.cs" />

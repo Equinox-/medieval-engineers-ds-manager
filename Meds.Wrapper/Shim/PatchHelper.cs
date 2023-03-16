@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -7,6 +8,7 @@ using Medieval.ObjectBuilders;
 using MedievalEngineersDedicated;
 using Meds.Metrics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Sandbox;
 using Sandbox.Engine.Analytics;
 using VRage.Dedicated;
@@ -14,6 +16,7 @@ using VRage.Game;
 using VRage.Scripting;
 using VRage.Session;
 using VRage.Utils;
+using ZLogger;
 
 // ReSharper disable RedundantAssignment
 // ReSharper disable InconsistentNaming
@@ -24,6 +27,10 @@ namespace Meds.Wrapper.Shim
     {
         private static readonly Harmony _harmony = new Harmony("meds.wrapper.core");
         private static bool ReplaceLogger;
+
+        static PatchHelper()
+        {
+        }
 
         public static void PatchAlways(bool late)
         {
@@ -40,6 +47,7 @@ namespace Meds.Wrapper.Shim
                 Patch(typeof(LoggerPatches.PatchLogger2));
                 Patch(typeof(LoggerPatches.PatchLogger3));
                 Patch(typeof(LoggerPatches.PatchLogger4));
+                Patch(typeof(LoggerPatches.UpdateSchedulerError));
             }
         }
 
@@ -54,6 +62,8 @@ namespace Meds.Wrapper.Shim
 
         public static void Patch(Type type)
         {
+            Entrypoint.Instance?.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(typeof(PatchHelper)).ZLogInformation("Applying patch {0}", type.FullName);
             _harmony.CreateClassProcessor(type).Patch();
         }
 

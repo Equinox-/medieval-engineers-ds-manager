@@ -23,7 +23,6 @@ namespace Meds.Wrapper.Metrics
     public static class UpdateSchedulerMetrics
     {
         private const string SeriesName = "me.profiler.scheduler";
-        private static readonly MetricName GameTickSeries = MetricName.Of("me.profiler.tick");
         private const string FixedScheduler = "fixed";
         private const string TimedScheduler = "timed";
         private const string LegacyScheduler = "legacy";
@@ -37,7 +36,6 @@ namespace Meds.Wrapper.Metrics
             _methodProfiling = methods;
             _regionProfiling = regions;
 
-            PatchHelper.Patch(typeof(GameTickProfiler));
             PatchHelper.Patch(typeof(TimedUpdatePatch));
             PatchHelper.Patch(typeof(FixedUpdatePatch));
 
@@ -121,7 +119,7 @@ namespace Meds.Wrapper.Metrics
 
                 // Don't double count legacy updates 
                 var method = update.Method;
-                if (method == DoSimulate || method == DoUpdateAfterSimulation || method == DoUpdateBeforeSimulation || method == RunSingleFrame)
+                if (method == DoSimulate || method == DoUpdateAfterSimulation || method == DoUpdateBeforeSimulation || method == ProfilingMetrics.RunSingleFrame)
                 {
                     update();
                     return;
@@ -168,7 +166,6 @@ namespace Meds.Wrapper.Metrics
         private static readonly MethodBase DoUpdateBeforeSimulation = AccessTools.Method(LegacySchedulerType, "DoUpdateBeforeSimulation");
         private static readonly MethodBase DoSimulate = AccessTools.Method(LegacySchedulerType, "DoSimulate");
         private static readonly MethodBase DoUpdateAfterSimulation = AccessTools.Method(LegacySchedulerType, "DoUpdateAfterSimulation");
-        private static readonly MethodBase RunSingleFrame = AccessTools.Method(typeof(Sandbox.Engine.Platform.Game), "RunSingleFrame");
 
         [HarmonyPatch]
         private static class LegacyUpdateBefore
@@ -247,50 +244,6 @@ namespace Meds.Wrapper.Metrics
             public static void Postfix(long __state, MethodBase __originalMethod)
             {
                 Submit(MiscScheduler, __originalMethod, __state);
-            }
-        }
-
-        [HarmonyPatch]
-        private static class GameTickProfiler
-        {
-            private static readonly Timer TickTimer = MetricRegistry.Timer(in GameTickSeries);
-            private static readonly long SlowTickStartupDelay = Stopwatch.Frequency * 600; // 10 minutes
-            private static readonly long SlowTickSpacing = Stopwatch.Frequency * 300; // 5 minutes
-            private static readonly double MillisPerTick = 1000.0 / Stopwatch.Frequency;
-            private static readonly long MinSlowTickDuration = Stopwatch.Frequency * 5 / 1000; // 5ms
-
-            private static long? _nextSlowTickMessage;
-
-            public static IEnumerable<MethodBase> TargetMethods()
-            {
-                yield return RunSingleFrame;
-            }
-
-            public static void Prefix(out long __state)
-            {
-                __state = Stopwatch.GetTimestamp();
-            }
-
-            public static void Postfix(long __state)
-            {
-                var now = Stopwatch.GetTimestamp();
-                var dt = now - __state;
-                TickTimer.Record(dt);
-                if (dt < MinSlowTickDuration)
-                    return;
-                var nextSlowTick = _nextSlowTickMessage ??= now + SlowTickStartupDelay;
-                if (now < nextSlowTick)
-                    return;
-                var p90 = TickTimer.Percentile(.9);
-                if (dt <= p90)
-                    return;
-                Entrypoint.LoggerFor(typeof(GameTickProfiler)).ZLogWarning(
-                    "Tick was slower than 90% of ticks (tick={0} ms, p90={1} ms, p95={2} ms, max={3} ms)",
-                    dt * MillisPerTick,
-                    p90 * MillisPerTick,
-                    TickTimer.Percentile(.95) * MillisPerTick,
-                    TickTimer.Percentile(1) * MillisPerTick);
-                _nextSlowTickMessage = now + SlowTickSpacing;
             }
         }
     }

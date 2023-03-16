@@ -89,11 +89,13 @@ namespace Meds.Wrapper.Utils
     {
         public PackagePayload Package;
         public string Type;
+        public string Method;
 
-        public ComponentPayload(IComponent comp)
+        public ComponentPayload(IComponent comp, string method = null)
         {
             Package = new PackagePayload(comp.GetType());
             Type = comp.GetType().Name;
+            Method = method;
         }
     }
 
@@ -101,13 +103,17 @@ namespace Meds.Wrapper.Utils
     {
         public PackagePayload Package;
         public string Type;
+        public string Method;
         public long? EntityId;
+        public string EntitySubtype;
 
-        public EntityComponentPayload(MyEntityComponent comp)
+        public EntityComponentPayload(MyEntityComponent comp, string method = null)
         {
             Package = new PackagePayload(comp.GetType());
             Type = comp.GetType().Name;
             EntityId = comp.Entity?.EntityId;
+            Method = method;
+            EntitySubtype = comp.Entity?.DefinitionId?.SubtypeName;
         }
     }
 

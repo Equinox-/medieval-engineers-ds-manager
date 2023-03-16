@@ -31,7 +31,7 @@ namespace Meds.Shared
             _services.AddSingleton<IHostApplicationLifetime, ApplicationLifetime>();
             _services.AddSingleton<IHost, HostImpl>();
 
-            _services.AddSingleton<ILoggerFactory>(new ExtraContextLoggerFactory(LoggerFactory.Create(builder =>
+            _services.AddSingleton<ILoggerFactory>(svc => new ExtraContextLoggerFactory(LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
                 builder.SetMinimumLevel(LogLevel.Information);
