@@ -12,6 +12,7 @@ using Sandbox.Game.AI;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.World;
 using VRage.Scene;
+using ZLogger;
 
 namespace Meds.Wrapper.Metrics
 {
@@ -50,7 +51,6 @@ namespace Meds.Wrapper.Metrics
                 memoryGroup.Gauge("paged", () => process.PagedMemorySize64);
                 memoryGroup.Gauge("working_set", () => process.WorkingSet64);
                 memoryGroup.Gauge("virtual_memory", () => process.VirtualMemorySize64);
-                _havokHeapUsage = memoryGroup.Gauge("physics", double.NaN);
             }
 
             for (var i = 0; i <= GC.MaxGeneration; i++)
@@ -59,51 +59,6 @@ namespace Meds.Wrapper.Metrics
                 var gcGroup = MetricRegistry.Group(MetricName.Of(Gc, "generation", ZeroGcStrings.ToString(gen)));
                 gcGroup.Gauge("count", () => GC.CollectionCount(gen));
             }
-        }
-
-        private static Gauge _havokHeapUsage;
-
-        public static void UpdateHavokHeapUsage()
-        {
-            if (_havokHeapUsage == null)
-                return;
-            if (TryGetHavokHeapUsage(out var usage))
-                _havokHeapUsage.SetValue(usage);
-            else
-                _havokHeapUsage.SetValue(double.NaN);
-        }
-
-        private const string HeapUsageTag = " used in main heap";
-        private static readonly StringBuilder TempPhysicsStats = new StringBuilder();
-        private static char[] _tempPhysicsStatsArray;
-
-        private static bool TryGetHavokHeapUsage(out long usage)
-        {
-            TempPhysicsStats.Clear();
-            HkBaseSystem.GetMemoryStatistics(TempPhysicsStats);
-            var len = TempPhysicsStats.Length;
-            if (_tempPhysicsStatsArray == null || _tempPhysicsStatsArray.Length < len)
-                Array.Resize(ref _tempPhysicsStatsArray, len);
-            TempPhysicsStats.CopyTo(0, _tempPhysicsStatsArray, 0, len);
-            var span = new ReadOnlySpan<char>(_tempPhysicsStatsArray, 0, len);
-            var usedInMainHeapTag = span.IndexOf(HeapUsageTag.AsSpan(), StringComparison.Ordinal);
-            usage = 0;
-            if (usedInMainHeapTag <= 0) return false;
-            span = span.Slice(0, usedInMainHeapTag);
-            var lastNewLine = span.LastIndexOf('\n');
-            if (lastNewLine < 0) return false;
-            span = span.Slice(lastNewLine).Trim();
-            // long.TryParse(span) isn't in .NET 4.7
-            var good = false;
-            foreach (var c in span)
-            {
-                if (c < '0' || c > '9')
-                    break;
-                usage = usage * 10 + (c - '0');
-                good = true;
-            }
-
-            return good;
         }
     }
 }

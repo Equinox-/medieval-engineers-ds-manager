@@ -1,8 +1,10 @@
 using System;
+using System.Text;
 using Havok;
 using Meds.Metrics;
 using Meds.Metrics.Group;
 using Sandbox.Engine.Physics;
+using ZLogger;
 
 namespace Meds.Wrapper.Metrics
 {
@@ -10,6 +12,7 @@ namespace Meds.Wrapper.Metrics
     {
         private const string Prefix = "me.physics.";
         private const string WorldPrefix = Prefix + "world.";
+        private const string Memory = "me.physics.memory";
         private static readonly Gauge Worlds;
 
         private static readonly PerWorldMetric RigidBodies;
@@ -17,6 +20,9 @@ namespace Meds.Wrapper.Metrics
         private static readonly PerWorldMetric CharacterRigidBodies;
         private static readonly PerWorldMetric ActiveIslands;
         private static readonly PerWorldMetric Constraints;
+
+        private static readonly Gauge HeapUsage;
+        private static readonly Gauge HeapAllocated;
 
         static PhysicsMetrics()
         {
@@ -28,10 +34,25 @@ namespace Meds.Wrapper.Metrics
             CharacterRigidBodies = new PerWorldMetric("rigid_bodies.character", group);
             ActiveIslands = new PerWorldMetric("islands.active", group);
             Constraints = new PerWorldMetric("constraints.total", group);
+
+            var memory = MetricRegistry.Group(MetricName.Of(Memory));
+            HeapUsage = memory.Gauge("heap.used", double.NaN);
+            HeapAllocated = memory.Gauge("heap.allocated", double.NaN);
         }
 
         public static void Update()
         {
+            var heapInfo = GetHavokMemoryInfo().Span;
+            TryGetHavokLine(heapInfo, " used in main heap", out var heapUsage);
+            TryGetHavokLine(heapInfo, "allocated by heap", out var heapAllocated);
+            HeapUsage.SetValue(heapUsage ?? double.NaN);
+            HeapAllocated.SetValue(heapAllocated ?? double.NaN);
+            if (heapUsage > _lastHavokPeak) {
+                if (_lastHavokPeak / HavokHeapInfoInterval != heapUsage.Value / HavokHeapInfoInterval)
+                    Entrypoint.LoggerFor(typeof(PhysicsMetrics)).ZLogInformation("Havok memory state: {0}", heapInfo.ToString());
+                _lastHavokPeak = heapUsage.Value;
+            }
+
             try
             {
                 var clustersOpt = MyPhysicsSandbox.GetClusterList();
@@ -60,6 +81,46 @@ namespace Meds.Wrapper.Metrics
             {
                 // ignored
             }
+        }
+
+        private static long _lastHavokPeak;
+        private const long HavokHeapInfoInterval = 1024 * 1024;
+
+        private static readonly StringBuilder TempPhysicsStats = new StringBuilder();
+        private static char[] _tempPhysicsStatsArray;
+
+        private static ReadOnlyMemory<char> GetHavokMemoryInfo()
+        {
+            TempPhysicsStats.Clear();
+            HkBaseSystem.GetMemoryStatistics(TempPhysicsStats);
+            var len = TempPhysicsStats.Length;
+            if (_tempPhysicsStatsArray == null || _tempPhysicsStatsArray.Length < len)
+                Array.Resize(ref _tempPhysicsStatsArray, len);
+            TempPhysicsStats.CopyTo(0, _tempPhysicsStatsArray, 0, len);
+            return new ReadOnlyMemory<char>(_tempPhysicsStatsArray, 0, len);
+        }
+
+        private static void TryGetHavokLine(ReadOnlySpan<char> span, string tag, out long? parsed)
+        {
+            var usedInMainHeapTag = span.IndexOf(tag.AsSpan(), StringComparison.Ordinal);
+            parsed = null;
+            if (usedInMainHeapTag <= 0) return;
+            span = span.Slice(0, usedInMainHeapTag);
+            var lastNewLine = span.LastIndexOf('\n');
+            if (lastNewLine < 0) return;
+            span = span.Slice(lastNewLine).Trim();
+            // long.TryParse(span) isn't in .NET 4.7
+            var good = false;
+            var usage = 0;
+            foreach (var c in span)
+            {
+                if (c < '0' || c > '9')
+                    break;
+                usage = usage * 10 + (c - '0');
+                good = true;
+            }
+
+            parsed = good ? (long?) usage : null;
         }
 
         private sealed class PerWorldMetric
