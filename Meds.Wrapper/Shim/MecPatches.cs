@@ -15,6 +15,8 @@ using VRage.Components;
 using VRage.Game.Entity;
 using VRage.Library.Collections;
 using VRage.Network;
+using VRage.ParallelWorkers;
+using VRage.Session;
 using VRageRender;
 using VRageRender.Messages;
 using ZLogger;
@@ -261,6 +263,7 @@ namespace Meds.Wrapper.Shim
         public static bool Prefix() => false;
     }
 
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=465
     [HarmonyPatch]
     [AlwaysPatch]
     public static class UpdateSchedulerFixedUpdatesAllocations
@@ -393,6 +396,21 @@ namespace Meds.Wrapper.Shim
 
                 yield return instruction;
             }
+        }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=469
+    [HarmonyPatch(typeof(MySessionPersistence), "Apply")]
+    [AlwaysPatch]
+    public static class WaitForPersistCompletion
+    {
+        private static readonly Func<MySessionPersistence, RecurringWork> PersistWorkGetter = AccessTools.Field(typeof(MySessionPersistence), "m_persistWork")
+            .CreateGetter<MySessionPersistence, RecurringWork>();
+
+        // Before applying the session snapshot make sure background persistence finishes.
+        public static void Prefix(MySessionPersistence __instance)
+        {
+            PersistWorkGetter(__instance).Wait();
         }
     }
 }
