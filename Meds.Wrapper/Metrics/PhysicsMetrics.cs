@@ -84,7 +84,7 @@ namespace Meds.Wrapper.Metrics
         }
 
         private static long _lastHavokPeak;
-        private const long HavokHeapInfoInterval = 1024 * 1024;
+        private const long HavokHeapInfoInterval = 16 * 1024 * 1024;
 
         private static readonly StringBuilder TempPhysicsStats = new StringBuilder();
         private static char[] _tempPhysicsStatsArray;

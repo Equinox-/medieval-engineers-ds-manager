@@ -75,6 +75,7 @@ namespace Meds.Wrapper
         [Update(1000)]
         public void UpdateMetrics(long dt)
         {
+            WorkerMetrics.Update();
             PhysicsMetrics.Update();
             if (Config.Metrics.Player)
                 PlayerMetrics.Update();

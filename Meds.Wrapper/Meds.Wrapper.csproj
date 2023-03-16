@@ -118,6 +118,7 @@
         <Compile Include="MedsCoreSystem.cs" />
         <Compile Include="Entrypoint.cs" />
         <Compile Include="Metrics\VoxelMetrics.cs" />
+        <Compile Include="Metrics\WorkerMetrics.cs" />
         <Compile Include="MiscUtils.cs" />
         <Compile Include="MedsModApi.cs" />
         <Compile Include="Output\Prometheus\PrometheusMetricWriter.cs" />
