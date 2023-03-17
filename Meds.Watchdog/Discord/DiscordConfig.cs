@@ -49,6 +49,12 @@ namespace Meds.Watchdog.Discord
         public ulong DiscordChannel;
 
         [XmlAttribute]
+        public ulong DmGuild;
+
+        [XmlAttribute]
+        public ulong DmUser;
+
+        [XmlAttribute]
         public bool ToDiscord;
 
         [XmlAttribute]

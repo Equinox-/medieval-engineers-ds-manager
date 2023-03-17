@@ -43,7 +43,7 @@ namespace Meds.Watchdog.Discord
             if (syncs != null)
                 foreach (var sync in syncs)
                 {
-                    if (sync.DiscordChannel == 0 || string.IsNullOrEmpty(sync.EventChannel))
+                    if ((sync.DiscordChannel == 0 && (sync.DmUser == 0 || sync.DmGuild == 0)) || string.IsNullOrEmpty(sync.EventChannel))
                         continue;
                     if (sync.ToDiscord)
                     {
@@ -74,26 +74,69 @@ namespace Meds.Watchdog.Discord
                 return;
             foreach (var channel in channels)
             {
-                try
+                if (channel.DiscordChannel != 0)
                 {
-                    var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
-                    await _discord.Client.SendMessageAsync(channelObj, builder =>
-                    {
-                        sender(channel, builder);
-                        if (channel.MentionRole != 0)
-                            builder.Content += $" <@&{channel.MentionRole}>";
-                        if (channel.MentionUser != 0)
-                            builder.Content += $" <@{channel.MentionUser}>";
-                    });
-                }
-                catch (Exception err)
-                {
-                    _log.ZLogWarning(err, "Failed to dispatch discord message to channel {0} for event {1}",
-                        channel.DiscordChannel, eventChannel);
+                    await SendToChannel(eventChannel, channel, sender);
+                    // Slight delay to prevent throttling.
+                    await Task.Delay(TimeSpan.FromSeconds(5));
                 }
 
-                // Slight delay to prevent throttling.
-                await Task.Delay(TimeSpan.FromSeconds(5));
+                if (channel.DmGuild != 0 && channel.DmUser != 0)
+                {
+                    await SendToUser(eventChannel, channel, sender);
+                    // Slight delay to prevent throttling.
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
+            }
+        }
+
+        private async Task SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        {
+            try
+            {
+                var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
+                await _discord.Client.SendMessageAsync(channelObj, builder =>
+                {
+                    sender(channel, builder);
+                    if (channel.MentionRole != 0)
+                        builder.Content += $" <@&{channel.MentionRole}>";
+                    if (channel.MentionUser != 0)
+                        builder.Content += $" <@{channel.MentionUser}>";
+                });
+            }
+            catch (Exception err)
+            {
+                _log.ZLogWarning(err, "Failed to dispatch discord message to channel {0} for event {1}",
+                    channel.DiscordChannel, eventChannel);
+            }
+        }
+
+        private async Task SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        {
+            try
+            {
+                var guild = await _discord.Client.GetGuildAsync(channel.DmGuild, false);
+                if (guild == null)
+                {
+                    _log.ZLogWarning("Failed to find discord guild {0} when processing event {1}", channel.DmGuild, eventChannel);
+                    return;
+                }
+
+                var member = await guild.GetMemberAsync(channel.DmUser, true);
+                if (member == null)
+                {
+                    _log.ZLogWarning("Failed to find discord user {0} in guild {1} when processing event {2}", channel.DmUser, channel.DmGuild, eventChannel);
+                    return;
+                }
+
+                var builder = new DiscordMessageBuilder();
+                sender(channel, builder);
+                await member.SendMessageAsync(builder);
+            }
+            catch (Exception err)
+            {
+                _log.ZLogWarning(err, "Failed to dispatch discord message to user {0} via guild {1} for event {2}",
+                    channel.DmUser, channel.DmGuild, eventChannel);
             }
         }
 
@@ -268,12 +311,14 @@ namespace Meds.Watchdog.Discord
                     msg.Content = $"{senderName}: {message}";
                     return;
                 }
+
                 // Simple format for channel group matches
                 if (sync.EventChannel == channelGroupPrefix)
                 {
                     msg.Content = $"<{channelName}> {senderName}: {message}";
                     return;
                 }
+
                 // Verbose format for broad matches
                 var embed = new DiscordEmbedBuilder();
                 embed.AddField("Sender", senderName, true);
