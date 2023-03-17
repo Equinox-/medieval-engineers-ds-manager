@@ -25,7 +25,7 @@ namespace Meds.Wrapper.Metrics
             {
                 var holder = Holders[Index(Mode.Write, dataToWrite)];
                 var dt = Stopwatch.GetTimestamp() - __state;
-                var volume = (voxelRangeMax - voxelRangeMin).Volume();
+                var volume = (voxelRangeMax - voxelRangeMin + 1).Volume();
                 holder.Time.Record(dt);
                 holder.Volume.Record(volume);
             }
@@ -42,7 +42,7 @@ namespace Meds.Wrapper.Metrics
             {
                 var holder = Holders[Index(Mode.Read, dataToRead)];
                 var dt = Stopwatch.GetTimestamp() - __state;
-                var volume = (lodVoxelCoordEnd - lodVoxelCoordStart).Volume();
+                var volume = (lodVoxelCoordEnd - lodVoxelCoordStart + 1).Volume();
                 holder.Time.Record(dt);
                 holder.Volume.Record(volume);
             }
