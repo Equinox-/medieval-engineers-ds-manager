@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading;
 using HdrHistogram;
 using Meds.Metrics.Group;
 
@@ -11,6 +12,7 @@ namespace Meds.Metrics
         public static readonly int NumberOfSignificantValueDigits = 3;
 
         private long _countAccumulator;
+        private long _sumAccumulator;
         private readonly HistogramBase _histogram;
         private readonly double _scale;
 
@@ -23,23 +25,41 @@ namespace Meds.Metrics
         
         public long Percentile(double percentile) => _histogram.GetValueAtPercentile(percentile * 100);
 
-        public void Record(long stopwatchTicks)
+        public void Record(long value)
         {
-            _histogram.RecordValue(stopwatchTicks);
+            _histogram.RecordValue(value);
+            Interlocked.Add(ref _sumAccumulator, value);
             LastModification = MetricRegistry.GcCounter;
+        }
+
+        private static long HandleReset(ref long value)
+        {
+            var val = Interlocked.Read(ref value);
+            while (val < 0)
+            {
+                var newVal = val - long.MinValue;
+                var replaced = Interlocked.CompareExchange(ref value, newVal, val);
+                if (replaced == newVal)
+                    break;
+                val = replaced;
+            }
+
+            return val;
         }
 
         public override void WriteTo(MetricWriter writer)
         {
             HistogramReader reader;
+            long sum;
+            long count;
             lock (this)
             {
                 reader = HistogramReader.Read(_histogram);
                 if (reader.SampleCount <= 0)
                     return;
-                _countAccumulator += reader.SampleCount;
-                if (_countAccumulator < 0)
-                    _countAccumulator -= long.MinValue;
+                Interlocked.Add(ref _countAccumulator, reader.SampleCount);
+                count = HandleReset(ref _countAccumulator);
+                sum = HandleReset(ref _sumAccumulator);
             }
 
             // ReSharper disable ArgumentsStyleNamedExpression
@@ -56,7 +76,8 @@ namespace Meds.Metrics
                 p999: reader.P999 * _scale,
                 max: reader.Max * _scale,
                 stdDev: reader.StdDev * _scale,
-                count: _countAccumulator);
+                count: count,
+                sum: sum * _scale);
         }
     }
 

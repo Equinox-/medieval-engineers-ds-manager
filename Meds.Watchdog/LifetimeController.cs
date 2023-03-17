@@ -29,6 +29,7 @@ namespace Meds.Watchdog
         private readonly Updater _updater;
         private readonly ConfigRenderer _configRenderer;
         private readonly List<(CrontabSchedule schedule, bool utc, LifetimeState target)> _scheduled = new List<(CrontabSchedule, bool, LifetimeState)>();
+        private readonly DiagnosticController _diagnostics;
 
         public delegate void DelStateChanged(LifetimeState previousState, LifetimeState currentState);
 
@@ -93,7 +94,7 @@ namespace Meds.Watchdog
             Configuration config,
             IPublisher<ShutdownRequest> shutdownPublisher,
             Updater updater,
-            ConfigRenderer configRenderer, IPublisher<ChatMessage> sendChatMessagePublisher)
+            ConfigRenderer configRenderer, IPublisher<ChatMessage> sendChatMessagePublisher, DiagnosticController diagnostics)
         {
             _log = logger;
             _healthTracker = health;
@@ -102,6 +103,7 @@ namespace Meds.Watchdog
             _shutdownPublisher = shutdownPublisher;
             _configRenderer = configRenderer;
             _sendChatMessagePublisher = sendChatMessagePublisher;
+            _diagnostics = diagnostics;
 
             if (config.ScheduledTasks != null)
                 foreach (var task in config.ScheduledTasks)
@@ -178,8 +180,14 @@ namespace Meds.Watchdog
                 case LifetimeStateCase.Running:
                 case LifetimeStateCase.Restarting:
                 {
-                    if (desiredState == LifetimeStateCase.Restarting || NeedsRestart())
+                    var frozen = false;
+                    if (desiredState == LifetimeStateCase.Restarting || NeedsRestart(out frozen))
                     {
+                        if (frozen)
+                        {
+                            _log.ZLogError("Taking a core dump from a frozen process");
+                            await _diagnostics.CaptureCoreDump(DateTime.UtcNow, "frozen", stoppingToken);
+                        }
                         await Stop(stoppingToken);
                         if (stoppingToken.IsCancellationRequested)
                             break;
@@ -228,8 +236,9 @@ namespace Meds.Watchdog
             await Stop(cancellationToken);
         }
 
-        private bool NeedsRestart()
+        private bool NeedsRestart(out bool frozen)
         {
+            frozen = false;
             var isRunning = _healthTracker.IsRunning;
             if (isRunning && _startedAt == null)
             {
@@ -264,6 +273,7 @@ namespace Meds.Watchdog
             if ((!_healthTracker.Liveness.IsCurrent || !_healthTracker.Readiness.IsCurrent) && uptime.Ticks > HealthTracker.HealthTimeout.Ticks * 2)
             {
                 _log.ZLogError("Server has been up for {0:g} and has stopped reporting.  Restarting", uptime);
+                frozen = true;
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
                 StartStop?.Invoke(StartStopEvent.Froze, uptime);
@@ -276,6 +286,7 @@ namespace Meds.Watchdog
                     "Server has been up for {0:g} and has not been ready for {TimeNotReady:g}.  Restarting",
                     uptime,
                     _healthTracker.Readiness.TimeInState);
+                frozen = true;
                 _healthTracker.Reset();
                 Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
                 StartStop?.Invoke(StartStopEvent.Froze, uptime);

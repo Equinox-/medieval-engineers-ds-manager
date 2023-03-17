@@ -148,7 +148,7 @@ namespace Meds.Wrapper.Output.Prometheus
         }
 
         public void WriteHistogram(in MetricName name, double min, double mean, double p50, double p75, double p90, double p95, double p98, double p99,
-            double p999, double max, double stdDev, long count)
+            double p999, double max, double stdDev, long count, double sum)
         {
             var preparedName = new PreparedName(in name);
             if (_firstEncounter.Add(new KeyValuePair<string, string>(name.Series, "")))
@@ -200,7 +200,7 @@ namespace Meds.Wrapper.Output.Prometheus
             _writer.WriteLine(count);
 
             WriteHeader("_sum");
-            _writer.WriteLine(count * mean);
+            _writer.WriteLine(sum);
         }
     }
 }

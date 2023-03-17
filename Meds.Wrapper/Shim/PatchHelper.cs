@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -62,9 +63,13 @@ namespace Meds.Wrapper.Shim
 
         public static void Patch(Type type)
         {
-            Entrypoint.Instance?.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger(typeof(PatchHelper)).ZLogInformation("Applying patch {0}", type.FullName);
-            _harmony.CreateClassProcessor(type).Patch();
+            var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null).ToList();
+            if (results.Count > 0)
+            {
+                Entrypoint.Instance?.Services.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(PatchHelper))
+                    .ZLogInformationWithPayload(results, "Applied patch {0} ", type.FullName);
+            }
         }
 
         public static IEnumerable<(MyModContext mod, Type type)> ModTypes(string typeName)

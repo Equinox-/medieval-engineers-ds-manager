@@ -4,7 +4,6 @@ using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ZLogger;
 
 namespace Meds.Wrapper
 {

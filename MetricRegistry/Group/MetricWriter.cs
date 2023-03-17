@@ -22,7 +22,8 @@ namespace Meds.Metrics.Group
             double p999,
             double max,
             double stdDev,
-            long count);
+            long count,
+            double sum);
     }
 
     public enum LeafMetricType : byte
