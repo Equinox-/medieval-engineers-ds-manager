@@ -18,6 +18,7 @@ namespace Meds.Watchdog.Discord
         public const string StateChangeStarted = "internal.serverStateChange.Started";
         public const string StateChangeFinished = "internal.serverStateChange.Finished";
         public const string StateChangeError = "internal.serverStateChange.Error";
+        public const string ChatPrefix = "chat.";
 
         public const string ModChannelPrefix = "mods.";
 
@@ -25,17 +26,19 @@ namespace Meds.Watchdog.Discord
         private readonly DiscordService _discord;
         private readonly ISubscriber<PlayerJoinedLeft> _playerJoinedLeft;
         private readonly ISubscriber<ModEventMessage> _modEvents;
+        private readonly ISubscriber<ChatMessage> _chat;
         private readonly Dictionary<string, List<DiscordChannelSync>> _toDiscord = new Dictionary<string, List<DiscordChannelSync>>();
         private readonly LifetimeController _lifetime;
 
         public DiscordMessageBridge(DiscordService discord, Configuration config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
-            ILogger<DiscordMessageBridge> log, LifetimeController lifetime, ISubscriber<ModEventMessage> modEvents)
+            ILogger<DiscordMessageBridge> log, LifetimeController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat)
         {
             _lifetime = lifetime;
             _modEvents = modEvents;
             _discord = discord;
             _playerJoinedLeft = playerJoinedLeft;
             _log = log;
+            _chat = chat;
             var syncs = config.Discord.ChannelSyncs;
             if (syncs != null)
                 foreach (var sync in syncs)
@@ -65,7 +68,7 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private async Task ToDiscord(string eventChannel, Action<DiscordMessageBuilder> message)
+        private async Task ToDiscord(string eventChannel, DiscordMessageSender sender)
         {
             if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
                 return;
@@ -76,7 +79,7 @@ namespace Meds.Watchdog.Discord
                     var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
                     await _discord.Client.SendMessageAsync(channelObj, builder =>
                     {
-                        message(builder);
+                        sender(channel, builder);
                         if (channel.MentionRole != 0)
                             builder.Content += $" <@&{channel.MentionRole}>";
                         if (channel.MentionUser != 0)
@@ -94,10 +97,13 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private void ToDiscordFork(string eventChannel, Action<DiscordMessageBuilder> message)
+
+        private delegate void DiscordMessageSender(DiscordChannelSync matched, DiscordMessageBuilder message);
+
+        private void ToDiscordFork(string eventChannel, DiscordMessageSender sender)
         {
 #pragma warning disable CS4014
-            ToDiscord(eventChannel, message);
+            ToDiscord(eventChannel, sender);
 #pragma warning restore CS4014
         }
 
@@ -109,7 +115,7 @@ namespace Meds.Watchdog.Discord
             var msg = $"{obj.Player.Value.RenderPlayerForDiscord()} {(obj.Joined ? "joined" : "left")}." +
                       $"  There {(plural ? "are" : "is")} now {obj.Players} player{(plural ? "s" : "")} online.";
             ToDiscordFork(JoinLeaveEvents,
-                builder => builder.Content = msg);
+                (_, builder) => builder.Content = msg);
         }
 
         private void HandleStateChanged(LifetimeState prev, LifetimeState current)
@@ -117,7 +123,7 @@ namespace Meds.Watchdog.Discord
             if (prev.State == LifetimeStateCase.Faulted || current.State != LifetimeStateCase.Faulted)
                 return;
             ToDiscordFork(FaultEvents,
-                builder => builder.Content = "Server has faulted and likely won't come back up without manual intervention.");
+                (_, builder) => builder.Content = "Server has faulted and likely won't come back up without manual intervention.");
         }
 
         private TimeSpan? _shutdownDuration;
@@ -129,37 +135,37 @@ namespace Meds.Watchdog.Discord
             {
                 case LifetimeController.StartStopEvent.Starting:
                     if (targetState != LifetimeStateCase.Restarting || !_shutdownDuration.HasValue)
-                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⏳ Server is starting...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⏳ Server is starting...");
                     break;
                 case LifetimeController.StartStopEvent.Started:
                 {
                     var shutdownDuration = _shutdownDuration;
                     if (targetState == LifetimeStateCase.Restarting && shutdownDuration.HasValue)
                         ToDiscordFork(StateChangeFinished,
-                            builder => builder.Content = $"🟩 Server restarted after {(uptime + shutdownDuration.Value).FormatHumanDuration()}.");
+                            (_, builder) => builder.Content = $"🟩 Server restarted after {(uptime + shutdownDuration.Value).FormatHumanDuration()}.");
                     else
-                        ToDiscordFork(StateChangeFinished, builder => builder.Content = $"🟩 Server started after {uptime.FormatHumanDuration()}.");
+                        ToDiscordFork(StateChangeFinished, (_, builder) => builder.Content = $"🟩 Server started after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
                     break;
                 }
                 case LifetimeController.StartStopEvent.Stopping:
                     if (targetState == LifetimeStateCase.Shutdown)
-                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⌛ Server is stopping...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is stopping...");
                     else if (targetState == LifetimeStateCase.Restarting)
-                        ToDiscordFork(StateChangeStarted, builder => builder.Content = "⌛ Server is restarting...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is restarting...");
                     break;
                 case LifetimeController.StartStopEvent.Stopped:
                     if (targetState == LifetimeStateCase.Shutdown)
-                        ToDiscordFork(StateChangeFinished, builder => builder.Content = $"💤 Server stopped after {uptime.FormatHumanDuration()}.");
+                        ToDiscordFork(StateChangeFinished, (_, builder) => builder.Content = $"💤 Server stopped after {uptime.FormatHumanDuration()}.");
                     else
                         _shutdownDuration = uptime;
                     break;
                 case LifetimeController.StartStopEvent.Crashed:
-                    ToDiscordFork(StateChangeError, builder => builder.Content = $"🪦 Server crashed after {uptime.FormatHumanDuration()}.");
+                    ToDiscordFork(StateChangeError, (_, builder) => builder.Content = $"🪦 Server crashed after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
                     break;
                 case LifetimeController.StartStopEvent.Froze:
-                    ToDiscordFork(StateChangeError, builder => builder.Content = $"🪦 Server froze after {uptime.FormatHumanDuration()}.");
+                    ToDiscordFork(StateChangeError, (_, builder) => builder.Content = $"🪦 Server froze after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
                     break;
                 default:
@@ -200,21 +206,96 @@ namespace Meds.Watchdog.Discord
                 builtEmbed = embedBuilder.Build();
             }
 
-            ToDiscordFork(ModChannelPrefix + channel, msg =>
+            ToDiscordFork(ModChannelPrefix + channel, (_, builder) =>
             {
-                msg.Content = message;
+                builder.Content = message;
                 if (builtEmbed != null)
-                    msg.AddEmbed(builtEmbed);
+                    builder.AddEmbed(builtEmbed);
+            });
+        }
+
+        private void HandleChat(ChatMessage obj)
+        {
+            string channelGroupPrefix;
+            string channelName;
+            string targetHouseName = null;
+            string targetPlayerName = null;
+            switch (obj.ChannelType)
+            {
+                case ChatChannel.NONE:
+                    return;
+                case ChatChannel.HouseChatChannel:
+                {
+                    var house = obj.Channel<HouseChatChannel>();
+                    if (!house.HasValue)
+                        return;
+                    targetHouseName = house.Value.HouseName;
+                    channelName = house.Value.Channel;
+                    channelGroupPrefix = $"{ChatPrefix}house.{house.Value.House}";
+                    break;
+                }
+                case ChatChannel.PlayerChatChannel:
+                {
+                    var player = obj.Channel<PlayerChatChannel>();
+                    if (!player.HasValue)
+                        return;
+                    targetPlayerName = player.Value.PlayerName;
+                    channelName = player.Value.Channel;
+                    channelGroupPrefix = $"{ChatPrefix}player.{player.Value.Player}";
+                    break;
+                }
+                case ChatChannel.GenericChatChannel:
+                {
+                    var generic = obj.Channel<GenericChatChannel>();
+                    if (!generic.HasValue)
+                        return;
+                    channelName = generic.Value.Channel;
+                    channelGroupPrefix = $"{ChatPrefix}generic";
+                    break;
+                }
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            var channelExact = $"{channelGroupPrefix}.{channelName.ToLowerInvariant()}";
+            var senderName = obj.SenderName;
+            var message = obj.Message;
+            ToDiscordFork(channelExact, (sync, msg) =>
+            {
+                // Simple format for exact matches
+                if (sync.EventChannel == channelExact)
+                {
+                    msg.Content = $"{senderName}: {message}";
+                    return;
+                }
+                // Simple format for channel group matches
+                if (sync.EventChannel == channelGroupPrefix)
+                {
+                    msg.Content = $"<{channelName}> {senderName}: {message}";
+                    return;
+                }
+                // Verbose format for broad matches
+                var embed = new DiscordEmbedBuilder();
+                embed.AddField("Sender", senderName, true);
+                embed.AddField("Message", message, true);
+                embed.AddField("Channel", channelName, true);
+                if (targetHouseName != null)
+                    embed.AddField("House", targetHouseName, true);
+                if (targetPlayerName != null)
+                    embed.AddField("Direct", targetPlayerName, true);
+                msg.Embed = embed.Build();
             });
         }
 
         private IDisposable _playerJoinedLeftSubscription;
         private IDisposable _modEventsSubscription;
+        private IDisposable _chatSubscription;
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _playerJoinedLeftSubscription = _playerJoinedLeft.Subscribe(HandlePlayerJoinedLeft);
             _modEventsSubscription = _modEvents.Subscribe(HandleModEvent);
+            _chatSubscription = _chat.Subscribe(HandleChat);
             _lifetime.StateChanged += HandleStateChanged;
             _lifetime.StartStop += HandleStartStop;
             return Task.CompletedTask;
@@ -224,6 +305,7 @@ namespace Meds.Watchdog.Discord
         {
             _playerJoinedLeftSubscription.Dispose();
             _modEventsSubscription.Dispose();
+            _chatSubscription.Dispose();
             _lifetime.StateChanged -= HandleStateChanged;
             _lifetime.StartStop -= HandleStartStop;
             return Task.CompletedTask;

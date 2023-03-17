@@ -40,7 +40,7 @@ namespace Meds.Watchdog.Discord
         public ulong Channel;
     }
 
-    public struct DiscordChannelSync
+    public class DiscordChannelSync
     {
         [XmlAttribute]
         public string EventChannel;

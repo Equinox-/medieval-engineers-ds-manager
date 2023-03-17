@@ -41,11 +41,13 @@ table PlayersRequest {
 table HouseChatChannel {
     house: long;
     channel: string;
+    house_name: string;
 }
 
 table PlayerChatChannel {
     player: ulong;
     channel: string;
+    player_name: string;
 }
 
 table GenericChatChannel {
@@ -62,6 +64,7 @@ table ChatMessage {
     channel: ChatChannel;
     message: string;
     sender: ulong;
+    sender_name: string;
 }
 
 table SaveRequest {
