@@ -49,7 +49,7 @@ jobs:
     # Wrapper
     - name: Generate ME cache key
       id: me_cache_key
-      run: powershell -Command Add-Content -Path "$GITHUB_OUTPUT" -Value "key=me-cache-v1-$(Get-Date -Format yyyy-MM)"
+      run: powershell -Command echo "key=me-cache-v1-$(Get-Date -Format yyyy-MM)" >> $env:GITHUB_OUTPUT
     - name: Cache ME
       uses: actions/cache@v3
       with:
