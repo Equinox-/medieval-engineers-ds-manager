@@ -13,16 +13,16 @@
         <!-- Authorization token for discord -->
         <!-- <Token>DiscordBotTokenHere</Token> -->
         <!-- Grant bot read permissions to anyone addressing the bot in a specific channel -->
-        <Grant Perm="Read" Channel="channelId" />
+        <!-- <Grant Perm="Read" Channel="channelId" /> -->
         <!-- Grant bot admin permission to the user with the provided ID -->
-        <Grant Perm="Admin" User="userId" />
+        <!-- <Grant Perm="Admin" User="userId" /> -->
         <!-- Grant bot admin permission to any user in the provided role -->
-        <Grant Perm="Admin" Role="roleId" />
+        <!-- <Grant Perm="Admin" Role="roleId" /> -->
         <!-- Post messages from the player join/leave event channel into the provided discord channel -->
-        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.playerJoinLeave" />
+        <!-- <ChannelSync DiscordChannel="channelId" EventChannel="internal.playerJoinLeave" /> -->
         <!-- Post messages about non-recoverable server faults to the provided discord channel and mention a user -->
-        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.serverFaulted" MentionUser="discordUserId" />
-        <!-- Send messages about server state changes to provided user's DMs via the listed discord server the bot and user share -->  
-        <ChannelSync DmGuild="524428347657289728" DmUser="264898794045440001" EventChannel="internal.serverStateChange" />
+        <!-- <ChannelSync DiscordChannel="channelId" EventChannel="internal.serverFaulted" MentionUser="userId" /> -->
+        <!-- Send messages about server state changes to provided user's DMs via the listed discord server the bot and user share -->
+        <!-- <ChannelSync DmGuild="serverId" DmUser="userId" EventChannel="internal.serverStateChange" /> -->
     </Discord>
 </Configuration>
