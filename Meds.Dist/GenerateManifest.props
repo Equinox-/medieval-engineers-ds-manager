@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <UsingTask TaskName="GenerateManifest" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+        <ParameterGroup>
+            <Path ParameterType="System.String" Required="true" />
+        </ParameterGroup>
+        <Task>
+            <Reference Include="System.Xml" />
+            <Using Namespace="System" />
+            <Using Namespace="System.IO" />
+            <Using Namespace="System.Security.Cryptography" />
+            <Code Type="Fragment" Language="cs">
+                <![CDATA[
+var sha1 = SHA1.Create();
+using (var writer = File.CreateText(System.IO.Path.Combine(Path, "manifest.xml"))) {
+    writer.WriteLine("<?xml version=\"1.0\"?>");
+    writer.WriteLine("<FileCache xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
+    foreach (var realPath in Directory.GetFiles(Path).Where(x => x.StartsWith(Path) && !x.EndsWith(".xml"))) {
+        var fileLength = new System.IO.FileInfo(realPath).Length;
+        var fileName = realPath.Substring(Path.Length);
+        using (var stream = File.OpenRead(realPath))
+        {
+            writer.WriteLine("<File Path=\"" + fileName + "\" Hash=\"" + Convert.ToBase64String(sha1.ComputeHash(stream)) + "\" Size=\"" + fileLength + "\"/>");
+        }
+    }
+    writer.WriteLine("</FileCache>");
+}
+]]>
+            </Code>
+        </Task>
+    </UsingTask>
+</Project>

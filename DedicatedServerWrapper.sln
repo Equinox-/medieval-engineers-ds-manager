@@ -8,9 +8,11 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "HdrHistogramShared", "HdrHi
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "MetricRegistry", "MetricRegistry\MetricRegistry.shproj", "{074997DD-F175-4FDD-89FE-2495639204FE}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Meds.Steam", "Meds.Steam\Meds.Steam.shproj", "{113186BD-F34A-46CA-899A-3884AAA62430}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Watchdog", "Meds.Watchdog\Meds.Watchdog.csproj", "{906F8E49-1148-48C8-933D-A34A85DF8BE5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Bootstrap", "Meds.Bootstrap\Meds.Bootstrap.csproj", "{12B952FD-26DA-480E-BB9F-96404D34386E}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Meds.Dist", "Meds.Dist\Meds.Dist.shproj", "{75E63F26-3A84-4C7B-B6EB-78C192857D5F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,5 +32,9 @@ Global
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Debug|x64.Build.0 = Debug|x64
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Release|x64.ActiveCfg = Release|x64
 		{5F9A07A6-379A-424B-9887-6E2E8C253E22}.Release|x64.Build.0 = Release|x64
+		{12B952FD-26DA-480E-BB9F-96404D34386E}.Release|x64.ActiveCfg = Release|x64
+		{12B952FD-26DA-480E-BB9F-96404D34386E}.Release|x64.Build.0 = Release|x64
+		{12B952FD-26DA-480E-BB9F-96404D34386E}.Debug|x64.ActiveCfg = Debug|x64
+		{12B952FD-26DA-480E-BB9F-96404D34386E}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 EndGlobal

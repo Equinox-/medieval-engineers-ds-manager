@@ -17,7 +17,6 @@ namespace Meds.Wrapper
     {
         private readonly Configuration _config;
         private readonly ISubscriber<ShutdownRequest> _shutdownSubscriber;
-        private Task _runTask;
         private readonly IHostApplicationLifetime _lifetime;
         private readonly ILogger<ServerService> _log;
 

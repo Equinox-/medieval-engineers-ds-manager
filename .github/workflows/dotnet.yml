@@ -25,15 +25,31 @@ jobs:
         path: ~/.nuget/packages
     - name: Restore dependencies
       run: msbuild /p:Configuration=Release -t:restore DedicatedServerWrapper.sln
+    # Bootstrap
+    - name: Build Bootstrap
+      run: msbuild /p:Configuration=Release Meds.Bootstrap/Meds.Bootstrap.csproj
+    - name: Package Bootstrap
+      run: |
+        mkdir Meds.Wrapper/bin/package/
+        cp Meds.Bootstrap/bin/Release/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
+        cp Meds.Bootstrap/config.example.xml Meds.Wrapper/bin/package/config.xml
+    - name: Upload Bootstrap
+      uses: actions/upload-artifact@v3
+      with:
+        name: meds-bootstrap
+        path: Meds.Wrapper/bin/package/
+    # Shared
     - name: Build FlatBuffers
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj /t:FlatcCompile
     - name: Build Shared
       run: msbuild /p:Configuration=Release Meds.Shared/Meds.Shared.csproj
-    - name: Build Manager
+    # Watchdog
+    - name: Build Watchdog
       run: msbuild /p:Configuration=Release Meds.Watchdog/Meds.Watchdog.csproj
+    # Wrapper
     - name: Generate ME cache key
       id: me_cache_key
-      run: powershell -Command Write-Host "::set-output name=key::me-cache-v1-$(Get-Date -Format yyyy-MM)"
+      run: powershell -Command Add-Content -Path "$GITHUB_OUTPUT" "key=me-cache-v1-$(Get-Date -Format yyyy-MM)"
     - name: Cache ME
       uses: actions/cache@v3
       with:
@@ -45,16 +61,7 @@ jobs:
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameInstall/ communityedition
     - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
-    - name: Upload Watchdog
-      uses: actions/upload-artifact@v2
-      with:
-        name: meds-watchdog
-        path: Meds.Watchdog/bin/Release
-    - name: Upload Wrapper
-      uses: actions/upload-artifact@v2
-      with:
-        name: meds-wrapper
-        path: Meds.Wrapper/bin/Release
+    # Publish to GCS
     - name: Log into gcloud
       id: auth
       if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -68,4 +75,11 @@ jobs:
       with:
         path: Meds.Wrapper/bin/Release
         destination: "meds-dist/${{github.ref}}/wrapper"
+        parent: false
+    - name: Upload Watchdog Release
+      uses: 'google-github-actions/upload-cloud-storage@v1'
+      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      with:
+        path: Meds.Watchdog/bin/Release
+        destination: "meds-dist/${{github.ref}}/watchdog"
         parent: false

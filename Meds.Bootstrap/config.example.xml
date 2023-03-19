@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+    <!-- Location watchdog files are stored at -->
+    <Watchdog Uri="https://storage.googleapis.com/meds-dist/refs/heads/main/watchdog" />
+    
+    <!-- Location wrapper files are stored at -->
+    <Wrapper Path="DedicatedServer64" Uri="https://storage.googleapis.com/meds-dist/refs/heads/main/wrapper" />
+
+    <!-- Restart wrapper every day at midnight UTC -->
+    <!-- <ScheduledTask Cron="0 0 * * *" Utc="true" Reason="Scheduled" Restart="true"/> -->
+
+    <Discord>
+        <!-- Authorization token for discord -->
+        <!-- <Token>DiscordBotTokenHere</Token> -->
+        <!-- Grant bot read permissions to anyone addressing the bot in a specific channel -->
+        <Grant Perm="Read" Channel="channelId" />
+        <!-- Grant bot admin permission to the user with the provided ID -->
+        <Grant Perm="Admin" User="userId" />
+        <!-- Grant bot admin permission to any user in the provided role -->
+        <Grant Perm="Admin" Role="roleId" />
+        <!-- Post messages from the player join/leave event channel into the provided discord channel -->
+        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.playerJoinLeave" />
+        <!-- Post messages about non-recoverable server faults to the provided discord channel and mention a user -->
+        <ChannelSync DiscordChannel="656363426716581888" EventChannel="internal.serverFaulted" MentionUser="discordUserId" />
+        <!-- Send messages about server state changes to provided user's DMs via the listed discord server the bot and user share -->  
+        <ChannelSync DmGuild="524428347657289728" DmUser="264898794045440001" EventChannel="internal.serverStateChange" />
+    </Discord>
+</Configuration>

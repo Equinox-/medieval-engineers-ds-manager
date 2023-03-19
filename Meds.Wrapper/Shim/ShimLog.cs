@@ -37,7 +37,7 @@ namespace Meds.Wrapper.Shim
             var loggerProp = typeof(MyLog).GetProperty("Logger") ?? throw new NullReferenceException("Failed to find logger property");
 
             var existing = logger.Logger;
-            var replacement = new SerilogLogger(existing.FilePath, this);
+            var replacement = new LoggerViaZ(existing.FilePath, this);
             loggerProp.SetValue(logger, replacement);
         }
 
@@ -71,12 +71,12 @@ namespace Meds.Wrapper.Shim
             public IDisposable BeginScope<TState>(TState state) => _delegate.BeginScope(state);
         }
 
-        private sealed class SerilogLogger : TextLogger
+        private sealed class LoggerViaZ : TextLogger
         {
             private readonly ShimLog _owner;
             private readonly string _defaultName;
 
-            public SerilogLogger(string pathName, ShimLog owner) : base(pathName, new ThrowingStream())
+            public LoggerViaZ(string pathName, ShimLog owner) : base(pathName, new ThrowingStream())
             {
                 _owner = owner;
                 _defaultName = "Legacy";

@@ -45,12 +45,9 @@ namespace Meds.Watchdog.Discord
                 {
                     if ((sync.DiscordChannel == 0 && (sync.DmUser == 0 || sync.DmGuild == 0)) || string.IsNullOrEmpty(sync.EventChannel))
                         continue;
-                    if (sync.ToDiscord)
-                    {
-                        if (!_toDiscord.TryGetValue(sync.EventChannel, out var group))
-                            _toDiscord.Add(sync.EventChannel, group = new List<DiscordChannelSync>());
-                        group.Add(sync);
-                    }
+                    if (!_toDiscord.TryGetValue(sync.EventChannel, out var group))
+                        _toDiscord.Add(sync.EventChannel, group = new List<DiscordChannelSync>());
+                    group.Add(sync);
                 }
         }
 

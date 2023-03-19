@@ -58,7 +58,7 @@ namespace Meds.Watchdog
 
         private Process FindActiveProcess()
         {
-            var expectedPath = Path.GetFullPath(Path.Combine(_config.InstallDirectory, _config.EntryPoint));
+            var expectedPath = Path.GetFullPath(Path.Combine(_config.InstallDirectory, _config.WrapperEntryPoint));
             var processName = Path.GetFileNameWithoutExtension(expectedPath);
             var processes = Process.GetProcessesByName(processName);
             foreach (var proc in processes)

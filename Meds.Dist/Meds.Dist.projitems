@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>7C1373F7-E7B5-44F0-8ED6-AEA11F9457C4</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Meds.Dist</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)BootstrapConfiguration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DistFileCache.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DistUtils.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OverlayData.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)GenerateManifest.props" />
+  </ItemGroup>
+</Project>

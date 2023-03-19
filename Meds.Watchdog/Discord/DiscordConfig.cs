@@ -55,9 +55,6 @@ namespace Meds.Watchdog.Discord
         public ulong DmUser;
 
         [XmlAttribute]
-        public bool ToDiscord;
-
-        [XmlAttribute]
         public ulong MentionRole;
 
         [XmlAttribute]

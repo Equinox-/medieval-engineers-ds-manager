@@ -6,11 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Meds.Dist;
 using Meds.Watchdog.Utils;
 using ProtoBuf;
 using SteamKit2;
 using SteamKit2.CDN;
-using FileInfo = Meds.Watchdog.Utils.FileInfo;
 
 namespace Meds.Watchdog.Steam
 {
@@ -24,7 +24,7 @@ namespace Meds.Watchdog.Steam
         private uint _appId;
         private uint _depotId;
         private string _basePath;
-        private LocalFileCache _cache;
+        private DistFileCache _cache;
         private SteamDownloader _downloader;
 
         public float ProgressRatio => Interlocked.Read(ref _finishedChunks) / (float) _totalChunks;
@@ -55,7 +55,7 @@ namespace Meds.Watchdog.Steam
             foreach (var newFile in _fileParts.Values)
             {
                 var (relPath, hash, totalSize, _) = newFile.GetCacheDetails();
-                _cache.Add(new FileInfo
+                _cache.Add(new DistFileInfo
                 {
                     Path = relPath,
                     Hash = hash,
@@ -100,7 +100,7 @@ namespace Meds.Watchdog.Steam
             }
         }
 
-        public static InstallJob Upgrade(uint appId, uint depotId, string installPath, LocalFileCache localFiles, DepotManifest remoteFiles,
+        public static InstallJob Upgrade(uint appId, uint depotId, string installPath, DistFileCache localFiles, DepotManifest remoteFiles,
             Predicate<string> installFilter)
         {
             var job = new InstallJob

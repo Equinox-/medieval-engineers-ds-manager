@@ -2,24 +2,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 using DSharpPlus.Entities;
+using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Discord;
 
 namespace Meds.Watchdog
 {
     [XmlRoot]
-    public class Configuration
+    public class Configuration : BootstrapConfiguration
     {
         public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(Configuration));
+        
+        [XmlElement("Wrapper")]
+        public List<OverlaySpec> WrapperLayers = new List<OverlaySpec>();
 
-        [XmlElement("Overlay")]
-        public List<Overlay> Overlays = new List<Overlay>();
+        [XmlElement("WrapperEntryPoint")]
+        public string WrapperEntryPoint = "DedicatedServer64\\Meds.Wrapper.exe";
 
-        [XmlElement]
-        public string EntryPoint;
-
-        [XmlElement]
-        public string Directory;
+        [XmlIgnore]
+        public string BootstrapEntryPoint => Path.Combine(Directory, "Meds.Bootstrap.exe");
 
         [XmlIgnore]
         public string InstallDirectory => Path.Combine(Directory, "install");
@@ -135,22 +136,12 @@ namespace Meds.Watchdog
             public string Branch = "communityedition";
         }
 
-        public class Overlay
-        {
-            [XmlAttribute("Uri")]
-            public string Uri;
-
-            [XmlAttribute("Path")]
-            public string Path = "";
-        }
-
         public static Configuration Read(string path)
         {
             using (var stream = File.OpenRead(path))
             {
                 var cfg = (Configuration)Serializer.Deserialize(stream);
-
-                cfg.Directory ??= Path.GetDirectoryName(path);
+                cfg.OnLoaded(path);
 
                 // Assign ephemeral ports if needed.
                 const int ephemeralStart = 49152;

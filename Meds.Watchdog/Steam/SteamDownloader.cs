@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,6 @@ using static SteamKit2.SteamClient;
 using static SteamKit2.SteamUser;
 using static SteamKit2.SteamApps;
 using static SteamKit2.SteamApps.PICSProductInfoCallback;
-using FileInfo = Meds.Watchdog.Utils.FileInfo;
 using Timer = System.Timers.Timer;
 
 namespace Meds.Watchdog.Steam
@@ -32,8 +32,7 @@ namespace Meds.Watchdog.Steam
 
     public class SteamDownloader
     {
-        internal const string CacheDir = ".sdcache";
-        private const string LockFile = CacheDir + "\\lock";
+        private const string LockFile = DistFileCache.CacheDir + "\\lock";
 
         private readonly SteamClient _client;
         private readonly SteamUser _user;
@@ -202,15 +201,15 @@ namespace Meds.Watchdog.Steam
             Predicate<string> installFilter, string debugName,
             string branch, string branchPasswordHash)
         {
-            var localCache = new LocalFileCache();
-            var localCacheFile = Path.Combine(installPath, CacheDir, depotId.ToString());
+            var localCache = new DistFileCache();
+            var localCacheFile = Path.Combine(installPath, DistFileCache.CacheDir, depotId.ToString());
 
             if (File.Exists(localCacheFile))
             {
                 try
                 {
                     using (var fs = File.OpenRead(localCacheFile))
-                        localCache = (LocalFileCache)LocalFileCache.Serializer.Deserialize(fs);
+                        localCache = (DistFileCache)DistFileCache.Serializer.Deserialize(fs);
                 }
                 catch
                 {
@@ -224,10 +223,10 @@ namespace Meds.Watchdog.Steam
                 foreach (var filePath in Directory.GetFiles(installPath, "*", SearchOption.AllDirectories)
                              .Where(x => !Directory.Exists(x))
                              .Select(x => x.Substring(installPath.Length).TrimStart('/', '\\'))
-                             .Where(x => !x.StartsWith(CacheDir) && installFilter(x)))
+                             .Where(x => !x.StartsWith(DistFileCache.CacheDir) && installFilter(x)))
                 {
                     if (!localCache.TryGet(filePath, out var metadata))
-                        localCache.Add(metadata = new FileInfo { Path = filePath });
+                        localCache.Add(metadata = new DistFileInfo { Path = filePath });
                     metadata.RepairData(installPath);
                 }
 
@@ -235,7 +234,7 @@ namespace Meds.Watchdog.Steam
                 file.RepairData(installPath);
 
             Directory.CreateDirectory(installPath);
-            Directory.CreateDirectory(Path.Combine(installPath, CacheDir));
+            Directory.CreateDirectory(Path.Combine(installPath, DistFileCache.CacheDir));
 
             var lockFile = Path.Combine(installPath, LockFile);
             try
@@ -255,7 +254,7 @@ namespace Meds.Watchdog.Steam
 
 
                     using (var fs = File.Create(localCacheFile))
-                        LocalFileCache.Serializer.Serialize(fs, localCache);
+                        DistFileCache.Serializer.Serialize(fs, localCache);
                 }
             }
             catch

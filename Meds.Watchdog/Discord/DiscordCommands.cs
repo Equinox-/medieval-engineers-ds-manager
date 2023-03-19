@@ -10,6 +10,9 @@ using DSharpPlus.Entities;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Watchdog.Utils;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Watchdog.Discord
 {
@@ -23,10 +26,12 @@ namespace Meds.Watchdog.Discord
         private readonly IPublisher<SaveRequest> _saveRequest;
         private readonly DiagnosticController _diagnostic;
         private readonly Configuration _configuration;
+        private readonly ILogger<DiscordCommands> _log;
+        private readonly IHostApplicationLifetime _lifetime;
 
         public DiscordCommands(LifetimeController lifetimeController, ISubscriber<PlayersResponse> playersSubscriber, IPublisher<PlayersRequest> playersRequest,
             HealthTracker healthTracker, DiagnosticController diagnostic, ISubscriber<SaveResponse> saveResponse, IPublisher<SaveRequest> saveRequest,
-            Configuration configuration)
+            Configuration configuration, ILogger<DiscordCommands> log, IHostApplicationLifetime lifetime)
         {
             _lifetimeController = lifetimeController;
             _playersSubscriber = playersSubscriber;
@@ -36,12 +41,14 @@ namespace Meds.Watchdog.Discord
             _saveResponse = saveResponse;
             _saveRequest = saveRequest;
             _configuration = configuration;
+            _log = log;
+            _lifetime = lifetime;
         }
 
         #region Lifecycle Control
 
         [Command("restart")]
-        [Description("Restarts the server")]
+        [Description("Restarts and updates the server")]
         [RequirePermission(DiscordPermission.Admin)]
         public Task RestartCommand(CommandContext context,
             [Description("Delay before restart, optional.")]
@@ -50,6 +57,61 @@ namespace Meds.Watchdog.Discord
             string reason = null)
         {
             return ChangeState(context, new LifetimeState(LifetimeStateCase.Restarting, reason), delay);
+        }
+
+        [Command("restart-watchdog")]
+        [Description("Restarts and updates the watchdog")]
+        [RequirePermission(DiscordPermission.Admin)]
+        public async Task RestartWatchdogCommand(CommandContext context)
+        {
+            var bootstrapPath = _configuration.BootstrapEntryPoint;
+            if (!File.Exists(bootstrapPath))
+            {
+                await context.RespondAsync("Bootstrap binary is missing, watchdog can't be safely restarted");
+                return;
+            }
+
+            var configFile = _configuration.ConfigFile;
+            if (!File.Exists(configFile))
+            {
+                await context.RespondAsync("Configuration file is missing, watchdog can't be safely restarted");
+                return;
+            }
+
+            try
+            {
+                Configuration.Read(configFile);
+            }
+            catch (Exception err)
+            {
+                _log.ZLogError(err, "Invalid config file");
+                await context.RespondAsync("Configuration file is invalid, watchdog can't be safely restarted");
+                return;
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = bootstrapPath,
+                WorkingDirectory = _configuration.Directory,
+                Arguments = $"\"{configFile}\" {Process.GetCurrentProcess().Id} true"
+            };
+            _log.ZLogInformation("Launching bootstrap: {0} {1}", psi.FileName, psi.Arguments);
+            var process = Process.Start(psi);
+            if (process == null)
+            {
+                await context.RespondAsync("Failed to launch bootstrap");
+                return;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            if (process.HasExited)
+            {
+                _log.ZLogError("Bootstrap exited without waiting for watchdog");
+                await context.RespondAsync("Bootstrap exited prematurely");
+                return;
+            }
+
+            await context.RespondAsync("Watchdog restarting");
+            _lifetime.StopApplication();
         }
 
         [Command("shutdown")]

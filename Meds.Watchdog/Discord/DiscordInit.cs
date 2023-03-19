@@ -4,11 +4,9 @@ using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Converters;
-using Meds.Shared;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZLogger;
-using Serilog.Extensions.Logging;
 
 namespace Meds.Watchdog.Discord
 {

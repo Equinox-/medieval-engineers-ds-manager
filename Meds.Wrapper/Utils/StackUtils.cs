@@ -10,6 +10,8 @@ namespace Meds.Wrapper.Utils
 {
     public static class StackUtils
     {
+        public static StackTracePayload CaptureGameLogicStackPayload() => new StackTracePayload { StackTrace = CaptureGameLogicStack() };
+
         public static string CaptureGameLogicStack()
         {
             var stack = new StackTrace(1);
@@ -56,6 +58,11 @@ namespace Meds.Wrapper.Utils
             }
 
             return sb.ToString();
+        }
+
+        public struct StackTracePayload
+        {
+            public string StackTrace;
         }
     }
 }

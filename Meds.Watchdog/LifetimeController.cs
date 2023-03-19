@@ -233,7 +233,6 @@ namespace Meds.Watchdog
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             await base.StopAsync(cancellationToken);
-            await Stop(cancellationToken);
         }
 
         private bool NeedsRestart(out bool frozen)
@@ -356,7 +355,7 @@ namespace Meds.Watchdog
             {
                 WorkingDirectory = _config.InstallDirectory,
                 Arguments = $"\"{renderedConfig.InstallConfigPath}\"",
-                FileName = Path.Combine(_config.InstallDirectory, _config.EntryPoint)
+                FileName = Path.Combine(_config.InstallDirectory, _config.WrapperEntryPoint)
             };
             var started = Process.Start(startInfo);
             if (started == null)

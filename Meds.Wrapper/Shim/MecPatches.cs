@@ -7,6 +7,7 @@ using HarmonyLib;
 using Medieval.Entities.Components.Crafting;
 using Medieval.GameSystems;
 using Medieval.World.Persistence;
+using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
 using Sandbox.Engine.Multiplayer;
 using Sandbox.Game.Entities.Character;
@@ -146,6 +147,20 @@ namespace Meds.Wrapper.Shim
                 IdentityCache[clientId] = __result;
             else
                 __result = IdentityCache.GetValueOrDefault(clientId, null);
+        }
+    }
+
+    [HarmonyPatch(typeof(MyInfiniteWorldPersistence), nameof(MyInfiniteWorldPersistence.DestroyView))]
+    [AlwaysPatch]
+    public static class PatchPersistenceViewerDestroy
+    {
+        public static bool Prefix(int viewId)
+        {
+            if (viewId != -1)
+                return true;
+            Entrypoint.LoggerFor(typeof(PatchPersistenceViewerDestroy))
+                .ZLogWarningWithPayload(StackUtils.CaptureGameLogicStackPayload(), "Destroyed persistence viewer with invalid ID");
+            return false;
         }
     }
 

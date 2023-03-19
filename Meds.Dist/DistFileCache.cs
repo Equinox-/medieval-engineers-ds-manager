@@ -6,27 +6,29 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Xml.Serialization;
 
-namespace Meds.Watchdog.Utils
+namespace Meds.Dist
 {
     [XmlRoot("FileCache")]
-    public sealed class LocalFileCache
+    public sealed class DistFileCache
     {
-        public static XmlSerializer Serializer = new XmlSerializer(typeof(LocalFileCache));
+        public const string CacheDir = ".sdcache";
+
+        public static XmlSerializer Serializer = new XmlSerializer(typeof(DistFileCache));
 
         [XmlIgnore]
-        private readonly Dictionary<string, FileInfo> _files = new Dictionary<string, FileInfo>();
+        private readonly Dictionary<string, DistFileInfo> _files = new Dictionary<string, DistFileInfo>();
 
         public void Remove(string path) => _files.Remove(path);
 
-        public void Add(FileInfo file) => _files[file.Path] = file;
+        public void Add(DistFileInfo file) => _files[file.Path] = file;
 
-        public bool TryGet(string path, out FileInfo info) => _files.TryGetValue(path, out info);
+        public bool TryGet(string path, out DistFileInfo info) => _files.TryGetValue(path, out info);
 
         [XmlIgnore]
-        public ICollection<FileInfo> Files => _files.Values;
-        
+        public ICollection<DistFileInfo> Files => _files.Values;
+
         [XmlElement("File")]
-        public FileInfo[] FilesSerialized
+        public DistFileInfo[] FilesSerialized
         {
             get => _files.Values.ToArray();
             set
@@ -38,10 +40,10 @@ namespace Meds.Watchdog.Utils
         }
     }
 
-    public sealed class FileInfo
+    public sealed class DistFileInfo
     {
-        public static readonly ThreadLocal<SHA1> SHA1 = new ThreadLocal<SHA1>(System.Security.Cryptography.SHA1.Create);
-        
+        private static readonly ThreadLocal<SHA1> Sha1 = new ThreadLocal<SHA1>(SHA1.Create);
+
         [XmlAttribute("Path")]
         public string Path { get; set; }
 
@@ -67,12 +69,13 @@ namespace Meds.Watchdog.Utils
                 Hash = Array.Empty<byte>();
                 return;
             }
-            var fileLength = new System.IO.FileInfo(realPath).Length;
+
+            var fileLength = new FileInfo(realPath).Length;
             if (Size == fileLength)
                 return;
             using (var stream = File.OpenRead(realPath))
             {
-                Hash = SHA1.Value.ComputeHash(stream);
+                Hash = Sha1.Value.ComputeHash(stream);
                 Size = fileLength;
             }
         }
