@@ -27,12 +27,13 @@ namespace Meds.Watchdog
 
             if (configFile == null)
             {
-                await Console.Error.WriteLineAsync("Either provide a configuration file as an argument, or place one in the same folder or parent folder of Meds.Watchdog.exe");
+                await Console.Error.WriteLineAsync(
+                    "Either provide a configuration file as an argument, or place one in the same folder or parent folder of Meds.Watchdog.exe");
                 return;
             }
 
             var cfg = Configuration.Read(configFile);
-            using var host = new HostBuilder()
+            var host = new HostBuilder()
                 .ConfigureServices(services =>
                 {
                     services.AddSingleton(cfg);
@@ -50,7 +51,12 @@ namespace Meds.Watchdog
                     services.AddSingleton<DiagnosticController>();
                 })
                 .Build(cfg.WatchdogLogs);
-            await host.RunAsync();
+            using (host)
+            {
+                await host.RunAsync();
+            }
+            // Force exit in case a background thread is frozen.
+            Environment.Exit(0);
         }
     }
 }

@@ -4,10 +4,11 @@ using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using VRage.ParallelWorkers;
 
 namespace Meds.Wrapper
 {
-    public class Entrypoint
+    public static class Entrypoint
     {
         public static IHost Instance { get; private set; }
 
@@ -41,6 +42,10 @@ namespace Meds.Wrapper
             Instance = instance;
             Instance.Run();
             Instance = null;
+            // Give workers a chance to exit.
+            Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
+            // Force exit in case a background thread is frozen.
+            Environment.Exit(0);
         }
     }
 }

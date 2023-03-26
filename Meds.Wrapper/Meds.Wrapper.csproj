@@ -87,6 +87,10 @@
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Math.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="netstandard">
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\netstandard.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="VRage.Steam">
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\VRage.Steam.dll</HintPath>
             <Private>false</Private>

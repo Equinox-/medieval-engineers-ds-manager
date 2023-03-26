@@ -105,15 +105,19 @@ namespace Meds.Wrapper.Utils
         public string Type;
         public string Method;
         public long? EntityId;
+        public long? EntityRootId;
         public string EntitySubtype;
 
-        public EntityComponentPayload(MyEntityComponent comp, string method = null)
+        public EntityComponentPayload(MyEntityComponent comp, string method = null,
+            MyEntityComponentContainer container = null)
         {
+            container ??= comp.Container;
             Package = new PackagePayload(comp.GetType());
             Type = comp.GetType().Name;
-            EntityId = comp.Entity?.EntityId;
             Method = method;
-            EntitySubtype = comp.Entity?.DefinitionId?.SubtypeName;
+            EntityId = container?.Entity?.EntityId;
+            EntityRootId = container?.Entity?.GetTopMostParent()?.EntityId;
+            EntitySubtype = container?.Entity?.DefinitionId?.SubtypeName;
         }
     }
 

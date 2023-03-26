@@ -35,7 +35,7 @@ namespace Meds.Watchdog
         public string WrapperLogs => Path.Combine(Directory, "logs/wrapper");
 
         [XmlIgnore]
-        public string DiagnosticsDirectory => Path.Combine(RuntimeDirectory, "diagnostics");
+        public string DiagnosticsDirectory => Path.Combine(Directory, "diagnostics");
 
         [XmlIgnore]
         public string NamedBackupsDirectory => Path.Combine(RuntimeDirectory, "world-backups");

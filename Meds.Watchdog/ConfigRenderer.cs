@@ -15,7 +15,10 @@ namespace Meds.Watchdog
         public RenderResult Render()
         {
             var installConfig = RenderInstall();
-            var installConfigPath = Path.Combine(_config.RuntimeDirectory, "install.xml");
+            var configDir = _config.RuntimeDirectory;
+            if (!Directory.Exists(configDir))
+                Directory.CreateDirectory(configDir);
+            var installConfigPath = Path.Combine(configDir, "install.xml");
             using (var stream = File.Create(installConfigPath))
             {
                 RenderedInstallConfig.Serializer.Serialize(stream, installConfig);
