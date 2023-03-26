@@ -9,10 +9,12 @@ using Microsoft.Extensions.Logging;
 using Sandbox.Game.EntityComponents.Character;
 using VRage.Collections;
 using VRage.Components;
+using VRage.Definitions;
 using VRage.Engine;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Logging;
+using VRage.Meta;
 using VRage.Session;
 using ZLogger;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -185,37 +187,45 @@ namespace Meds.Wrapper.Shim
                     }
                 }
 
-                if (message is ContextualLogMessage contextual)
+                switch (message)
                 {
-                    message = contextual.UserMessage;
-                    switch (message)
-                    {
-                        case MyObjectBuilder_DefinitionBase ctx:
-                            SendWithPayload(new DefinitionPayload(ctx), message);
-                            break;
-                        case MyDefinitionBase ctx:
-                            SendWithPayload(new DefinitionPayload(ctx), message);
-                            break;
-                        case MyEntityComponent ctx:
-                            SendWithPayload(new EntityComponentPayload(ctx), message);
-                            break;
-                        case MyHandItemBehaviorBase hib:
-                            SendWithPayload(new HandItemBehaviorPayload(hib), message);
-                            return;
-                        case IComponent ctx:
-                            SendWithPayload(new ComponentPayload(ctx), message);
-                            break;
-                        case MemberInfo ctx:
-                            SendWithPayload(new MemberPayload(ctx), ctx);
-                            break;
-                        default:
-                            SendWithPayload(contextual.Context?.ToString(), message);
-                            break;
-                    }
-                }
-                else
-                {
-                    SendWithPayload<object>(null, message);
+                    case MyDefinitionLoader.LogMessage definitionMessage:
+                        SendWithPayload(new DefinitionLoadingPayload(definitionMessage), definitionMessage.UserMessage);
+                        break;
+                    case MyMetadataSystem.LogMessage metadataMessage:
+                        SendWithPayload(new MemberPayload(metadataMessage.Member), metadataMessage.UserMessage);
+                        break;
+                    case ContextualLogMessage contextual:
+                        message = contextual.UserMessage;
+                        switch (message)
+                        {
+                            case MyObjectBuilder_DefinitionBase ctx:
+                                SendWithPayload(new DefinitionPayload(ctx), message);
+                                break;
+                            case MyDefinitionBase ctx:
+                                SendWithPayload(new DefinitionPayload(ctx), message);
+                                break;
+                            case MyEntityComponent ctx:
+                                SendWithPayload(new EntityComponentPayload(ctx), message);
+                                break;
+                            case MyHandItemBehaviorBase hib:
+                                SendWithPayload(new HandItemBehaviorPayload(hib), message);
+                                return;
+                            case IComponent ctx:
+                                SendWithPayload(new ComponentPayload(ctx), message);
+                                break;
+                            case MemberInfo ctx:
+                                SendWithPayload(new MemberPayload(ctx), ctx);
+                                break;
+                            default:
+                                SendWithPayload(contextual.Context?.ToString(), message);
+                                break;
+                        }
+
+                        break;
+                    default:
+                        SendWithPayload<object>(null, message);
+                        break;
                 }
             }
 

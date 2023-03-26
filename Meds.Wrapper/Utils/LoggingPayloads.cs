@@ -11,6 +11,7 @@ using Sandbox.Game.Players;
 using Sandbox.Game.World;
 using VRage.Collections;
 using VRage.Components;
+using VRage.Definitions;
 using VRage.Engine;
 using VRage.Game;
 using VRage.Game.Components;
@@ -84,6 +85,22 @@ namespace Meds.Wrapper.Utils
             Package = new PackagePayload(ob.Package);
             Type = ob.Id.TypeId.ShortName;
             Subtype = ob.Id.SubtypeName;
+        }
+    }
+
+    public struct DefinitionLoadingPayload
+    {
+        public PackagePayload Package;
+        public string Type;
+        public string Subtype;
+        public string Path;
+
+        public DefinitionLoadingPayload(MyDefinitionLoader.LogMessage ob)
+        {
+            Package = new PackagePayload(ob.Package);
+            Type = ob.Id.TypeIdString;
+            Subtype = ob.Id.SubtypeName;
+            Path = ob.DefinitionPath;
         }
     }
 
