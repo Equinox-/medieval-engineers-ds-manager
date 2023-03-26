@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.ExceptionServices;
 using HarmonyLib;
 using Medieval.ObjectBuilders;
 using MedievalEngineersDedicated;
@@ -16,6 +17,7 @@ using VRage.Dedicated;
 using VRage.Game;
 using VRage.Scripting;
 using VRage.Session;
+using VRage.Systems;
 using VRage.Utils;
 using ZLogger;
 
@@ -55,6 +57,7 @@ namespace Meds.Wrapper.Shim
         {
             Patch(typeof(PatchWaitForKey));
             Patch(typeof(PatchConfigSetup));
+            Patch(typeof(PatchMinidump));
             ReplaceLogger = replaceLogger;
             if (replaceLogger)
                 Patch(typeof(LoggerPatches.PatchReplaceLogger));
@@ -62,7 +65,8 @@ namespace Meds.Wrapper.Shim
 
         public static void Patch(Type type)
         {
-            var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null).ToList();
+            var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null)
+                .ToList();
             if (results.Count > 0)
             {
                 Entrypoint.Instance?.Services.GetRequiredService<ILoggerFactory>()
@@ -84,7 +88,8 @@ namespace Meds.Wrapper.Shim
         [HarmonyPatch(typeof(DedicatedServer<MyObjectBuilder_MedievalSessionSettings>), "RunInternal")]
         public static class PatchWaitForKey
         {
-            private static readonly FieldInfo IsConsoleVisible = AccessTools.Field(typeof(MySandboxGame), "IsConsoleVisible");
+            private static readonly FieldInfo IsConsoleVisible =
+                AccessTools.Field(typeof(MySandboxGame), "IsConsoleVisible");
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -112,6 +117,49 @@ namespace Meds.Wrapper.Shim
                 MySandboxGame.ConfigDedicated = new WorldChangingConfigReplacer(
                     Entrypoint.Instance.Services.GetService<Configuration>(),
                     MySandboxGame.ConfigDedicated);
+            }
+        }
+
+        [HarmonyPatch(typeof(MinidumpSystem), nameof(MinidumpSystem.Init), typeof(MinidumpSystem.Params))]
+        public static class PatchMinidump
+        {
+            private const string AccessViolation = "exception.accessViolation";
+
+            static PatchMinidump()
+            {
+                AppDomain.CurrentDomain.FirstChanceException += (sender, args) =>
+                {
+                    if (args.Exception is AccessViolationException ||
+                        args.Exception?.InnerException is AccessViolationException)
+                        MinidumpSystem.MaybeCollectStatic(AccessViolation, out _);
+                };
+            }
+
+            public static void Prefix(MinidumpSystem.Params configuration)
+            {
+                var dir = Entrypoint.Config.Install.DiagnosticsDirectory;
+                if (dir != null)
+                    configuration.Directory = dir;
+                configuration.DefaultAction = MinidumpSystem.MinidumpAction.DumpThreads;
+                configuration.Cases ??= new List<MinidumpSystem.MinidumpCase>();
+                configuration.Cases.InsertRange(0, new[]
+                {
+                    new MinidumpSystem.MinidumpCase
+                    {
+                        Trigger = "crash",
+                        Action = MinidumpSystem.MinidumpAction.None,
+                    },
+                    new MinidumpSystem.MinidumpCase
+                    {
+                        Trigger = "exception.any",
+                        Action = MinidumpSystem.MinidumpAction.None,
+                    },
+                    new MinidumpSystem.MinidumpCase
+                    {
+                        Trigger = AccessViolation,
+                        Action = MinidumpSystem.MinidumpAction.DumpHeap
+                    }
+                });
             }
         }
 

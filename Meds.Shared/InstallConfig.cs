@@ -15,6 +15,9 @@ namespace Meds.Shared
         public string RuntimeDirectory;
 
         [XmlElement]
+        public string DiagnosticsDirectory;
+
+        [XmlElement]
         public MessagePipe Messaging;
 
         [XmlElement]

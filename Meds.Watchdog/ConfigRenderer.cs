@@ -41,6 +41,7 @@ namespace Meds.Watchdog
         {
             LogDirectory = _config.WrapperLogs,
             RuntimeDirectory = _config.RuntimeDirectory,
+            DiagnosticsDirectory = _config.DiagnosticsDirectory,
             Messaging = _config.Messaging,
             Metrics = _config.Metrics,
             Audit = _config.Audit,
