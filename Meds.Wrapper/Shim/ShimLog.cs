@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
+using Sandbox.Game.EntityComponents.Character;
 using VRage.Collections;
 using VRage.Components;
 using VRage.Engine;
@@ -198,6 +199,9 @@ namespace Meds.Wrapper.Shim
                         case MyEntityComponent ctx:
                             SendWithPayload(new EntityComponentPayload(ctx), message);
                             break;
+                        case MyHandItemBehaviorBase hib:
+                            SendWithPayload(new HandItemBehaviorPayload(hib), message);
+                            return;
                         case IComponent ctx:
                             SendWithPayload(new ComponentPayload(ctx), message);
                             break;

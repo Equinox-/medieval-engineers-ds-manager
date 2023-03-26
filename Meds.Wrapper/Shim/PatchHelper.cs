@@ -48,7 +48,6 @@ namespace Meds.Wrapper.Shim
                 Patch(typeof(LoggerPatches.PatchLogger2));
                 Patch(typeof(LoggerPatches.PatchLogger3));
                 Patch(typeof(LoggerPatches.PatchLogger4));
-                Patch(typeof(LoggerPatches.UpdateSchedulerError));
             }
         }
 

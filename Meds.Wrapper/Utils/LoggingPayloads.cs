@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
+using Sandbox.Definitions.Equipment;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Planet;
+using Sandbox.Game.EntityComponents.Character;
 using Sandbox.Game.Players;
 using Sandbox.Game.World;
 using VRage.Collections;
@@ -107,6 +109,7 @@ namespace Meds.Wrapper.Utils
         public long? EntityId;
         public long? EntityRootId;
         public string EntitySubtype;
+        public DefinitionPayload? Definition;
 
         public EntityComponentPayload(MyEntityComponent comp, string method = null,
             MyEntityComponentContainer container = null)
@@ -118,6 +121,33 @@ namespace Meds.Wrapper.Utils
             EntityId = container?.Entity?.EntityId;
             EntityRootId = container?.Entity?.GetTopMostParent()?.EntityId;
             EntitySubtype = container?.Entity?.DefinitionId?.SubtypeName;
+            if (DefinitionForObject.TryGet(comp, out var def))
+                Definition = new DefinitionPayload(def);
+            else
+                Definition = null;
+        }
+    }
+
+    public struct HandItemBehaviorPayload
+    {
+        public PackagePayload Package;
+        public string Type;
+        public string Method;
+        public long? EntityId;
+        public string EntitySubtype;
+        public DefinitionPayload? Definition;
+
+        public HandItemBehaviorPayload(MyHandItemBehaviorBase tool, string method = null)
+        {
+            Package = new PackagePayload(tool.GetType());
+            Type = tool.GetType().Name;
+            Method = method;
+            EntityId = tool.Holder?.EntityId;
+            EntitySubtype = tool.Holder?.DefinitionId?.SubtypeName;
+            if (DefinitionForObject.TryGet(tool, out var def))
+                Definition = new DefinitionPayload(def);
+            else
+                Definition = null;
         }
     }
 
@@ -135,7 +165,8 @@ namespace Meds.Wrapper.Utils
         public static bool TryCreate(MyPlayer player, out PositionPayload payload)
         {
             payload = default;
-            return player.ControlledEntity != null && TryCreate(player.ControlledEntity.GetPosition(), out payload, player.Identity?.Id);
+            return player.ControlledEntity != null &&
+                   TryCreate(player.ControlledEntity.GetPosition(), out payload, player.Identity?.Id);
         }
 
         public static bool TryCreate(Vector3D position, out PositionPayload payload, long? identity = null)
@@ -149,7 +180,8 @@ namespace Meds.Wrapper.Utils
 
             payload.Elevation = localPos.Normalize() - planet.AverageRadius;
             payload.Lng = MathHelper.ToDegrees(Math.Atan2(-localPos.X, -localPos.Z));
-            payload.Lat = MathHelper.ToDegrees(Math.Atan2(localPos.Y, Math.Sqrt(localPos.X * localPos.X + localPos.Z * localPos.Z)));
+            payload.Lat = MathHelper.ToDegrees(Math.Atan2(localPos.Y,
+                Math.Sqrt(localPos.X * localPos.X + localPos.Z * localPos.Z)));
             MyEnvironmentCubemapHelper.ProjectToCube(ref localPos, out var face, out var tex);
             payload.Face = (byte)face;
             var normXy = (tex + 1.0) * 0.5;

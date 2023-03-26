@@ -103,6 +103,10 @@
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Steamworks.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="System.Xml.ReaderWriter">
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\System.Xml.ReaderWriter.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Audit\AuditPayloads.cs" />
@@ -137,6 +141,8 @@
         <Compile Include="Shim\MecPatches.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
+        <Compile Include="Shim\VerboseCrashPatches.cs" />
+        <Compile Include="Utils\DefinitionForObject.cs" />
         <Compile Include="Utils\LoggingPayloads.cs" />
         <Compile Include="Utils\StackUtils.cs" />
         <Compile Include="WorldChangingConfigReplacer.cs" />
