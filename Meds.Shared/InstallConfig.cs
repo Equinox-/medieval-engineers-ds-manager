@@ -55,6 +55,9 @@ namespace Meds.Shared
         public bool MethodProfiling = true;
 
         [XmlElement]
+        public bool RpcProfiling = true;
+
+        [XmlElement]
         public bool RegionProfiling = false;
 
         [XmlElement]
