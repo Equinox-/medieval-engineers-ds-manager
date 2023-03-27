@@ -12,7 +12,9 @@ namespace Meds.Wrapper.Metrics
 {
     public static class RpcMetrics
     {
-        private const string SeriesName = "me.profiler.rpc";
+        private const string SeriesNameBase = "me.profiler.rpc";
+        private const string TimeSeries = SeriesNameBase + ".time";
+        private const string BitsSeries = SeriesNameBase + ".bits";
 
         public static void Register()
         {
@@ -22,12 +24,13 @@ namespace Meds.Wrapper.Metrics
         private static void Record(string mode, bool valid, string method, Type type, long dt, long bits)
         {
             var name = MetricName.Of(
-                SeriesName,
+                TimeSeries,
                 "mode", mode,
                 "type", type?.Name ?? "unknown",
                 "method", method,
                 "valid", valid ? "true" : "false");
-            MetricRegistry.PerTickTimerAdder(in name).Record(dt, bits);
+            MetricRegistry.Timer(in name).Record(dt);
+            MetricRegistry.Histogram(name.WithSeries(BitsSeries)).Record(bits);
         }
 
         [HarmonyPatch(typeof(MyReplicationLayer), "Invoke")]
