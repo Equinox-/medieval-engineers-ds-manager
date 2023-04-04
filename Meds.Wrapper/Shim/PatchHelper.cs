@@ -141,6 +141,7 @@ namespace Meds.Wrapper.Shim
                 if (dir != null)
                     configuration.Directory = dir;
                 configuration.DefaultAction = MinidumpSystem.MinidumpAction.DumpThreads;
+                configuration.MaximumSpaceMb = 50 * 1024;
                 configuration.Cases ??= new List<MinidumpSystem.MinidumpCase>();
                 configuration.Cases.InsertRange(0, new[]
                 {
