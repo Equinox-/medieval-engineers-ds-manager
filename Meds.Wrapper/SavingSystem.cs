@@ -8,6 +8,7 @@ using Meds.Shared;
 using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sandbox;
 using Sandbox.Game.World;
 using ZLogger;
 using VRage.Collections;
@@ -15,13 +16,14 @@ using MySession = Sandbox.Game.World.MySession;
 
 namespace Meds.Wrapper
 {
-    public class SavingSystem : IHostedService
+    public sealed class SavingSystem : IHostedService
     {
         private readonly ILogger<SavingSystem> _log;
         private readonly ISubscriber<SaveRequest> _subscriber;
         private readonly IPublisher<SaveResponse> _publisher;
 
-        public SavingSystem(ISubscriber<SaveRequest> subscriber, IPublisher<SaveResponse> publisher, ILogger<SavingSystem> log)
+        public SavingSystem(ISubscriber<SaveRequest> subscriber, IPublisher<SaveResponse> publisher,
+            ILogger<SavingSystem> log)
         {
             _subscriber = subscriber;
             _publisher = publisher;
@@ -36,31 +38,72 @@ namespace Meds.Wrapper
                 token.Send(SaveResponse.CreateSaveResponse(token.Builder, id, result));
             }
 
-            while (MyAsyncSaving.InProgress)
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            var completion = new TaskCompletionSource<bool>();
-            MyAsyncSaving.Start(completion.SetResult);
-            await Task.WhenAny(completion.Task, Task.Delay(TimeSpan.FromMinutes(10)));
-            if (!completion.Task.IsCompleted)
+            void HandleStartFailed(Exception err)
             {
-                Respond(SaveResult.TimedOut);
-                return;
-            }
-
-            var saveResult = completion.Task.Result;
-            if (!saveResult)
-            {
+                _log.ZLogError("Failed to save", err);
                 Respond(SaveResult.Failed);
-                return;
             }
 
-            if (string.IsNullOrEmpty(backupPath))
+            void HandleSaveCompleted(bool saveResult)
             {
-                Respond(SaveResult.Success);
-                return;
+                if (!saveResult)
+                {
+                    Respond(SaveResult.Failed);
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(backupPath))
+                {
+                    Respond(SaveResult.Success);
+                    return;
+                }
+
+                Respond(MakeBackup(backupPath) ? SaveResult.Success : SaveResult.Failed);
             }
 
-            Respond(MakeBackup(backupPath) ? SaveResult.Success : SaveResult.Failed);
+            var timeoutAt = DateTime.UtcNow + TimeSpan.FromMinutes(10);
+
+            bool IsTimedOut()
+            {
+                if (DateTime.UtcNow < timeoutAt)
+                    return false;
+                Respond(SaveResult.TimedOut);
+                return true;
+            }
+
+            bool TryStart()
+            {
+                try
+                {
+                    if (MyAsyncSaving.InProgress)
+                        return false;
+                    MyAsyncSaving.Start(HandleSaveCompleted);
+                    return true;
+                }
+                catch (Exception err)
+                {
+                    HandleStartFailed(err);
+                    return true;
+                }
+            }
+
+            while (true)
+            {
+                while (MyAsyncSaving.InProgress)
+                {
+                    if (IsTimedOut())
+                        return;
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                }
+
+                if (IsTimedOut())
+                    return;
+
+                var started = new TaskCompletionSource<bool>();
+                MySandboxGame.Static.Invoke(() => started.SetResult(TryStart()));
+                if (await started.Task)
+                    break;
+            }
         }
 
         private void HandleRequestBackground(SaveRequest obj)
@@ -125,7 +168,8 @@ namespace Meds.Wrapper
             }
         }
 
-        private static IEnumerable<FileInfo> RecurseDirectory(string path, HashSetReader<string> blackList, List<FileInfo> currentData = null)
+        private static IEnumerable<FileInfo> RecurseDirectory(string path, HashSetReader<string> blackList,
+            List<FileInfo> currentData = null)
         {
             currentData ??= new List<FileInfo>();
 
