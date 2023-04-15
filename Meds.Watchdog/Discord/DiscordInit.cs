@@ -14,11 +14,9 @@ namespace Meds.Watchdog.Discord
     {
         private readonly DiscordConfig _config;
         private readonly CommandsNextExtension _commandsNext;
-        private readonly ILogger<DiscordService> _log;
 
         public DiscordService(Configuration config, ILoggerFactory rootLogger, IServiceProvider provider, ILogger<DiscordService> log)
         {
-            _log = log;
             _config = config.Discord;
             if (!Enabled)
             {
@@ -42,7 +40,7 @@ namespace Meds.Watchdog.Discord
             _commandsNext.CommandErrored += (_, args) =>
             {
                 var uuid = Guid.NewGuid();
-                _log.ZLogWarning(args.Exception, "Command {0} ({1}) failed, {2}",
+                log.ZLogWarning(args.Exception, "Command {0} ({1}) failed, {2}",
                     args.Command?.Name, args.Context.Message.Content, uuid);
                 args.Context.RespondAsync($"Command processing failed!  Error ID = {uuid}");
                 return Task.CompletedTask;
@@ -57,7 +55,10 @@ namespace Meds.Watchdog.Discord
         {
             if (Client != null)
             {
-                _commandsNext.RegisterCommands<DiscordCommands>();
+                _commandsNext.RegisterCommands<DiscordCmdDiagnostic>();
+                _commandsNext.RegisterCommands<DiscordCmdLifecycle>();
+                _commandsNext.RegisterCommands<DiscordCmdSave>();
+                _commandsNext.RegisterCommands<DiscordCmdStatus>();
                 await Client.ConnectAsync();
             }
         }

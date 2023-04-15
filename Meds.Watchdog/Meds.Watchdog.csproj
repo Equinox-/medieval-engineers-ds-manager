@@ -46,9 +46,12 @@
         <Compile Include="ConfigRenderer.cs" />
         <Compile Include="Configuration.cs" />
         <Compile Include="DiagnosticController.cs" />
+        <Compile Include="Discord\DiscordCmdDiagnostic.cs" />
+        <Compile Include="Discord\DiscordCmdSave.cs" />
+        <Compile Include="Discord\DiscordCmdStatus.cs" />
         <Compile Include="Discord\DiscordConfig.cs" />
         <Compile Include="Discord\DiscordInit.cs" />
-        <Compile Include="Discord\DiscordCommands.cs" />
+        <Compile Include="Discord\DiscordCmdLifecycle.cs" />
         <Compile Include="Discord\DiscordMessageBridge.cs" />
         <Compile Include="Discord\DiscordPermissionController.cs" />
         <Compile Include="Discord\DiscordStatusMonitor.cs" />
