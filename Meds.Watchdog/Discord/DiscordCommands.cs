@@ -49,7 +49,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("restart")]
         [Description("Restarts and updates the server")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.ServerLifecycleRestart)]
         public Task RestartCommand(CommandContext context,
             [Description("Delay before restart, optional.")]
             TimeSpan delay = default,
@@ -61,7 +61,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("restart-watchdog")]
         [Description("Restarts and updates the watchdog")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.WatchdogRestart)]
         public async Task RestartWatchdogCommand(CommandContext context)
         {
             var bootstrapPath = _configuration.BootstrapEntryPoint;
@@ -116,7 +116,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("shutdown")]
         [Description("Stops the server and keeps it stopped.")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.ServerLifecycleStop)]
         public Task ShutdownCommand(CommandContext context,
             [Description("Delay before shutdown, optional.")]
             TimeSpan delay = default,
@@ -128,7 +128,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("start")]
         [Description("Starts the server.")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.ServerLifecycleStart)]
         public Task StartCommand(CommandContext context)
         {
             return ChangeState(context, new LifetimeState(LifetimeStateCase.Running), TimeSpan.Zero);
@@ -150,7 +150,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("save")]
         [Description("Saves the server's world file")]
-        [RequirePermission(DiscordPermission.Write)]
+        [RequirePermission(DiscordPermission.SavesCreate)]
         public async Task SaveCommand(CommandContext context,
             [Description("Named backup to take, optional.")]
             string name = null)
@@ -210,7 +210,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("status")]
         [Description("Gets server status, restart schedule, and manual tasks.")]
-        [RequirePermission(DiscordPermission.Read)]
+        [RequirePermission(DiscordPermission.StatusGeneral)]
         public async Task StatusCommand(CommandContext context)
         {
             var ready = _healthTracker.Readiness.State;
@@ -278,7 +278,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("players")]
         [Description("Lists online players")]
-        [RequirePermission(DiscordPermission.Read)]
+        [RequirePermission(DiscordPermission.StatusPlayers)]
         public async Task PlayersCommand(CommandContext context)
         {
             try
@@ -330,7 +330,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("coreDump")]
         [Description("Takes a core dump of the server, capturing a full snapshot of its state.")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.DiagnosticsCoreDump)]
         public async Task CoreDumpCommand(
             CommandContext context,
             [Description("Delay before core dump, optional.")]
@@ -352,7 +352,7 @@ namespace Meds.Watchdog.Discord
 
         [Command("profile")]
         [Description("Takes a performance profile of the server.")]
-        [RequirePermission(DiscordPermission.Admin)]
+        [RequirePermission(DiscordPermission.DiagnosticsProfile)]
         public async Task PerformanceProfileCommand(
             CommandContext context,
             [Description("Duration to profile for")]

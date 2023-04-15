@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using DSharpPlus.Entities;
 
+using static Meds.Watchdog.Discord.DiscordPermissionExpansion;
+
 namespace Meds.Watchdog.Discord
 {
     public sealed class DiscordPermissionController
@@ -26,11 +28,6 @@ namespace Meds.Watchdog.Discord
                 if (grant is { User: 0, Role: 0, Channel: 0 })
                     _globalPermission = grant.Perm;
             }
-        }
-
-        private static bool Satisfies(DiscordPermission grant, DiscordPermission request)
-        {
-            return grant >= request;
         }
 
         public bool Check(DiscordPermission request, DiscordUser user, DiscordMember member, DiscordChannel channel = null)
