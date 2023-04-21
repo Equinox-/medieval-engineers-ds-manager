@@ -1,16 +1,17 @@
 using System.Collections.Generic;
 using System.Xml.Serialization;
+using Equ;
 
 namespace Meds.Shared
 {
     [XmlRoot]
-    public class RenderedInstallConfig
+    public class RenderedInstallConfig : MemberwiseEquatable<RenderedInstallConfig>
     {
         public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(RenderedInstallConfig));
 
         [XmlElement]
         public string LogDirectory;
-        
+
         [XmlElement]
         public string RuntimeDirectory;
 
@@ -18,20 +19,26 @@ namespace Meds.Shared
         public MessagePipe Messaging;
 
         [XmlElement]
-        public MetricConfig Metrics;
+        public MetricConfig Metrics = new MetricConfig();
 
         [XmlElement]
-        public AuditConfig Audit;
-
-        [XmlElement]
-        public AdjustmentsConfig Adjustments;
+        public AdjustmentsConfig Adjustments = new AdjustmentsConfig();
     }
 
-    public class AuditConfig
+    [XmlRoot]
+    public sealed class RenderedRuntimeConfig : MemberwiseEquatable<RenderedRuntimeConfig>
+    {
+        public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(RenderedRuntimeConfig));
+
+        [XmlElement]
+        public AuditConfig Audit = new AuditConfig();
+    }
+
+    public class AuditConfig : MemberwiseEquatable<AuditConfig>
     {
     }
 
-    public class AdjustmentsConfig
+    public class AdjustmentsConfig : MemberwiseEquatable<AdjustmentsConfig>
     {
         [XmlElement]
         public int? SyncDistance;
@@ -43,7 +50,7 @@ namespace Meds.Shared
         public bool? ReplaceLogger;
     }
 
-    public class MetricConfig
+    public class MetricConfig : MemberwiseEquatable<MetricConfig>
     {
         [XmlElement]
         public string PrometheusKey;

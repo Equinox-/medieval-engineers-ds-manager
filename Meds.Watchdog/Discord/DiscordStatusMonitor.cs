@@ -10,27 +10,27 @@ namespace Meds.Watchdog.Discord
     {
         private readonly DiscordService _discord;
         private readonly HealthTracker _tracker;
-        private readonly LifetimeController _lifetime;
+        private readonly LifecycleController _lifetime;
         private StatusArgs _prevStatus;
 
-        public DiscordStatusMonitor(DiscordService discord, LifetimeController lifetime, HealthTracker tracker)
+        public DiscordStatusMonitor(DiscordService discord, LifecycleController lifetime, HealthTracker tracker)
         {
             _discord = discord;
             _tracker = tracker;
             _lifetime = lifetime;
         }
 
-        public static string FormatStateRequest(LifetimeState request, bool readiness = false)
+        public static string FormatStateRequest(LifecycleState request, bool readiness = false)
         {
             switch (request.State)
             {
-                case LifetimeStateCase.Running:
+                case LifecycleStateCase.Running:
                     return $"{request.Icon ?? (readiness ? "🟩" : "⏳")} | {request.Reason ?? (readiness ? "Running" : "Starting")}";
-                case LifetimeStateCase.Shutdown:
+                case LifecycleStateCase.Shutdown:
                     return $"{request.Icon ?? "💤"} | {request.Reason ?? "Shutdown"}";
-                case LifetimeStateCase.Restarting:
+                case LifecycleStateCase.Restarting:
                     return $"{request.Icon ?? "♻️"} | {request.Reason ?? "Restarting"}";
-                case LifetimeStateCase.Faulted:
+                case LifecycleStateCase.Faulted:
                     return $"{request.Icon ?? "🪦"} | {request.Reason ?? "Faulted"}";
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -73,15 +73,15 @@ namespace Meds.Watchdog.Discord
             var request = status.RequestedState;
             switch (request.State)
             {
-                case LifetimeStateCase.Running:
+                case LifecycleStateCase.Running:
                     if (status.Readiness)
                         return (new DiscordActivity($"🚶 {status.Players} | 📈 {status.SimulationSpeed:F2}", ActivityType.Playing), UserStatus.Online, null);
                     return (new DiscordActivity($"{request.Icon ?? "⏳"} | Starting", ActivityType.Watching), UserStatus.Idle, status.ReadinessChangedAt);
-                case LifetimeStateCase.Shutdown:
+                case LifecycleStateCase.Shutdown:
                     return (new DiscordActivity(FormatStateRequest(request), ActivityType.Watching), UserStatus.DoNotDisturb, status.ReadinessChangedAt);
-                case LifetimeStateCase.Restarting:
+                case LifecycleStateCase.Restarting:
                     return (new DiscordActivity(FormatStateRequest(request), ActivityType.Watching), UserStatus.Idle, status.ReadinessChangedAt);
-                case LifetimeStateCase.Faulted:
+                case LifecycleStateCase.Faulted:
                     return (new DiscordActivity(FormatStateRequest(request), ActivityType.Watching), UserStatus.DoNotDisturb, status.ReadinessChangedAt);
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -91,7 +91,7 @@ namespace Meds.Watchdog.Discord
         public  struct StatusArgs : IEquatable<StatusArgs>
         {
             public int Pid;
-            public LifetimeState RequestedState;
+            public LifecycleState RequestedState;
             public bool Liveness;
             public bool Readiness;
             public DateTime ReadinessChangedAt;

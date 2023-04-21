@@ -1,29 +1,23 @@
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus;
 using DSharpPlus.Entities;
+using DSharpPlus.SlashCommands;
 using Meds.Shared;
 using Meds.Shared.Data;
-using Meds.Watchdog.Utils;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using ZLogger;
 
 namespace Meds.Watchdog.Discord
 {
-    public class DiscordCmdStatus : BaseCommandModule
+    // Not using command groups for discrete permissions
+    public class DiscordCmdStatus : ApplicationCommandModule
     {
-        private readonly LifetimeController _lifetimeController;
+        private readonly LifecycleController _lifetimeController;
         private readonly HealthTracker _healthTracker;
         private readonly ISubscriber<PlayersResponse> _playersSubscriber;
         private readonly IPublisher<PlayersRequest> _playersRequest;
 
-        public DiscordCmdStatus(LifetimeController lifetimeController, ISubscriber<PlayersResponse> playersSubscriber,
+        public DiscordCmdStatus(LifecycleController lifetimeController, ISubscriber<PlayersResponse> playersSubscriber,
             IPublisher<PlayersRequest> playersRequest, HealthTracker healthTracker)
         {
             _lifetimeController = lifetimeController;
@@ -32,10 +26,9 @@ namespace Meds.Watchdog.Discord
             _healthTracker = healthTracker;
         }
 
-        [Command("status")]
-        [Description("Gets server status, restart schedule, and manual tasks.")]
-        [RequirePermission(DiscordPermission.StatusGeneral)]
-        public async Task StatusCommand(CommandContext context)
+        [SlashCommand("status", "Gets server status, restart schedule, and manual tasks.")]
+        [SlashCommandPermissions(Permissions.UseApplicationCommands)]
+        public async Task StatusCommand(InteractionContext context)
         {
             var ready = _healthTracker.Readiness.State;
             var players = _healthTracker.PlayerCount;
@@ -53,14 +46,14 @@ namespace Meds.Watchdog.Discord
                 {
                     switch (requested.Value.State.State)
                     {
-                        case LifetimeStateCase.Shutdown:
-                        case LifetimeStateCase.Restarting:
+                        case LifecycleStateCase.Shutdown:
+                        case LifecycleStateCase.Restarting:
                         {
                             nextDowntime = requested.Value.ActivateAtUtc.AsDiscordTime();
                             break;
                         }
-                        case LifetimeStateCase.Faulted:
-                        case LifetimeStateCase.Running:
+                        case LifecycleStateCase.Faulted:
+                        case LifecycleStateCase.Running:
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
@@ -79,11 +72,11 @@ namespace Meds.Watchdog.Discord
                 {
                     switch (requested.Value.State.State)
                     {
-                        case LifetimeStateCase.Shutdown:
-                        case LifetimeStateCase.Faulted:
+                        case LifecycleStateCase.Shutdown:
+                        case LifecycleStateCase.Faulted:
                             break;
-                        case LifetimeStateCase.Restarting:
-                        case LifetimeStateCase.Running:
+                        case LifecycleStateCase.Restarting:
+                        case LifecycleStateCase.Running:
                             nextUptime = requested.Value.ActivateAtUtc.AsDiscordTime();
                             break;
                         default:
@@ -96,15 +89,15 @@ namespace Meds.Watchdog.Discord
 
             builder.WithFooter("ME DS Manager");
 
-            await context.RespondAsync(builder.Build());
+            await context.CreateResponseAsync(builder.Build());
         }
 
 
-        [Command("players")]
-        [Description("Lists online players")]
-        [RequirePermission(DiscordPermission.StatusPlayers)]
-        public async Task PlayersCommand(CommandContext context)
+        [SlashCommand("players", "Lists online players")]
+        [SlashCommandPermissions(Permissions.UseApplicationCommands)]
+        public async Task PlayersCommand(InteractionContext context)
         {
+            await context.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             try
             {
                 var response = await _playersSubscriber.AwaitResponse(msg =>
@@ -140,11 +133,11 @@ namespace Meds.Watchdog.Discord
                     PlayersRequest.StartPlayersRequest(token.Builder);
                     token.Send(PlayersRequest.EndPlayersRequest(token.Builder));
                 });
-                await context.RespondAsync(response);
+                await context.EditResponseAsync(response);
             }
             catch (TimeoutException)
             {
-                await context.RespondAsync("Server did not respond to players request.  Is it offline?");
+                await context.EditResponseAsync("Server did not respond to players request.  Is it offline?");
             }
         }
     }

@@ -24,7 +24,7 @@ namespace Meds.Dist
         [XmlIgnore]
         public string WatchdogDirectory => Path.Combine(Directory, "watchdog");
 
-        public void OnLoaded(string path)
+        public virtual void OnLoaded(string path)
         {
             ConfigFile = path;
             Directory ??= Path.GetDirectoryName(path);

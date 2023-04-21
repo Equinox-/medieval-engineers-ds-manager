@@ -27,11 +27,11 @@ namespace Meds.Watchdog.Discord
         private readonly ISubscriber<PlayerJoinedLeft> _playerJoinedLeft;
         private readonly ISubscriber<ModEventMessage> _modEvents;
         private readonly ISubscriber<ChatMessage> _chat;
-        private readonly Dictionary<string, List<DiscordChannelSync>> _toDiscord = new Dictionary<string, List<DiscordChannelSync>>();
-        private readonly LifetimeController _lifetime;
+        private readonly Refreshable<Dictionary<string, List<DiscordChannelSync>>> _toDiscord;
+        private readonly LifecycleController _lifetime;
 
-        public DiscordMessageBridge(DiscordService discord, Configuration config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
-            ILogger<DiscordMessageBridge> log, LifetimeController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat)
+        public DiscordMessageBridge(DiscordService discord, Refreshable<Configuration> config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
+            ILogger<DiscordMessageBridge> log, LifecycleController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat)
         {
             _lifetime = lifetime;
             _modEvents = modEvents;
@@ -39,16 +39,25 @@ namespace Meds.Watchdog.Discord
             _playerJoinedLeft = playerJoinedLeft;
             _log = log;
             _chat = chat;
-            var syncs = config.Discord.ChannelSyncs;
-            if (syncs != null)
-                foreach (var sync in syncs)
+
+            _toDiscord = config
+                .Map(x => x.Discord.ChannelSyncs, CollectionEquality<DiscordChannelSync>.List())
+                .Map(syncs =>
                 {
-                    if ((sync.DiscordChannel == 0 && (sync.DmUser == 0 || sync.DmGuild == 0)) || string.IsNullOrEmpty(sync.EventChannel))
-                        continue;
-                    if (!_toDiscord.TryGetValue(sync.EventChannel, out var group))
-                        _toDiscord.Add(sync.EventChannel, group = new List<DiscordChannelSync>());
-                    group.Add(sync);
-                }
+                    var toDiscord = new Dictionary<string, List<DiscordChannelSync>>();
+                    if (syncs == null)
+                        return toDiscord;
+                    foreach (var sync in syncs)
+                    {
+                        if ((sync.DiscordChannel == 0 && (sync.DmUser == 0 || sync.DmGuild == 0)) || string.IsNullOrEmpty(sync.EventChannel))
+                            continue;
+                        if (!toDiscord.TryGetValue(sync.EventChannel, out var group))
+                            toDiscord.Add(sync.EventChannel, group = new List<DiscordChannelSync>());
+                        group.Add(sync);
+                    }
+
+                    return toDiscord;
+                });
         }
 
         private bool TryGetToDiscordConfig(string eventChannel, out List<DiscordChannelSync> config)
@@ -56,7 +65,7 @@ namespace Meds.Watchdog.Discord
             var query = eventChannel;
             while (true)
             {
-                if (_toDiscord.TryGetValue(query, out config))
+                if (_toDiscord.Current.TryGetValue(query, out config))
                     return true;
                 var prevDot = query.LastIndexOf('.');
                 if (prevDot <= 0)
@@ -158,9 +167,9 @@ namespace Meds.Watchdog.Discord
                 (_, builder) => builder.Content = msg);
         }
 
-        private void HandleStateChanged(LifetimeState prev, LifetimeState current)
+        private void HandleStateChanged(LifecycleState prev, LifecycleState current)
         {
-            if (prev.State == LifetimeStateCase.Faulted || current.State != LifetimeStateCase.Faulted)
+            if (prev.State == LifecycleStateCase.Faulted || current.State != LifecycleStateCase.Faulted)
                 return;
             ToDiscordFork(FaultEvents,
                 (_, builder) => builder.Content = "Server has faulted and likely won't come back up without manual intervention.");
@@ -168,19 +177,19 @@ namespace Meds.Watchdog.Discord
 
         private TimeSpan? _shutdownDuration;
 
-        private void HandleStartStop(LifetimeController.StartStopEvent state, TimeSpan uptime)
+        private void HandleStartStop(LifecycleController.StartStopEvent state, TimeSpan uptime)
         {
             var targetState = _lifetime.Active.State;
             switch (state)
             {
-                case LifetimeController.StartStopEvent.Starting:
-                    if (targetState != LifetimeStateCase.Restarting || !_shutdownDuration.HasValue)
+                case LifecycleController.StartStopEvent.Starting:
+                    if (targetState != LifecycleStateCase.Restarting || !_shutdownDuration.HasValue)
                         ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⏳ Server is starting...");
                     break;
-                case LifetimeController.StartStopEvent.Started:
+                case LifecycleController.StartStopEvent.Started:
                 {
                     var shutdownDuration = _shutdownDuration;
-                    if (targetState == LifetimeStateCase.Restarting && shutdownDuration.HasValue)
+                    if (targetState == LifecycleStateCase.Restarting && shutdownDuration.HasValue)
                         ToDiscordFork(StateChangeFinished,
                             (_, builder) => builder.Content = $"🟩 Server restarted after {(uptime + shutdownDuration.Value).FormatHumanDuration()}.");
                     else
@@ -188,23 +197,23 @@ namespace Meds.Watchdog.Discord
                     _shutdownDuration = null;
                     break;
                 }
-                case LifetimeController.StartStopEvent.Stopping:
-                    if (targetState == LifetimeStateCase.Shutdown)
+                case LifecycleController.StartStopEvent.Stopping:
+                    if (targetState == LifecycleStateCase.Shutdown)
                         ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is stopping...");
-                    else if (targetState == LifetimeStateCase.Restarting)
+                    else if (targetState == LifecycleStateCase.Restarting)
                         ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is restarting...");
                     break;
-                case LifetimeController.StartStopEvent.Stopped:
-                    if (targetState == LifetimeStateCase.Shutdown)
+                case LifecycleController.StartStopEvent.Stopped:
+                    if (targetState == LifecycleStateCase.Shutdown)
                         ToDiscordFork(StateChangeFinished, (_, builder) => builder.Content = $"💤 Server stopped after {uptime.FormatHumanDuration()}.");
                     else
                         _shutdownDuration = uptime;
                     break;
-                case LifetimeController.StartStopEvent.Crashed:
+                case LifecycleController.StartStopEvent.Crashed:
                     ToDiscordFork(StateChangeError, (_, builder) => builder.Content = $"🪦 Server crashed after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
                     break;
-                case LifetimeController.StartStopEvent.Froze:
+                case LifecycleController.StartStopEvent.Froze:
                     ToDiscordFork(StateChangeError, (_, builder) => builder.Content = $"🪦 Server froze after {uptime.FormatHumanDuration()}.");
                     _shutdownDuration = null;
                     break;

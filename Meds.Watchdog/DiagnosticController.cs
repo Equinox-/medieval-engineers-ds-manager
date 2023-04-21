@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using DSharpPlus.SlashCommands;
 using JetBrains.Profiler.SelfApi;
 using Meds.Shared;
 using Meds.Shared.Data;
@@ -21,14 +22,18 @@ namespace Meds.Watchdog
         private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
 
         private readonly IPublisher<ChatMessage> _chatPublisher;
-        private readonly Configuration _config;
+        private readonly Refreshable<Configuration> _runtimeConfig;
+        private readonly InstallConfiguration _installConfig;
         private readonly HealthTracker _healthTracker;
         private readonly ILogger<DiagnosticController> _log;
 
-        public DiagnosticController(IPublisher<ChatMessage> chatPublisher, Configuration config, HealthTracker healthTracker,  ILogger<DiagnosticController> log)
+        public DiagnosticController(IPublisher<ChatMessage> chatPublisher,
+            InstallConfiguration installConfig, Refreshable<Configuration> runtimeConfig,
+            HealthTracker healthTracker, ILogger<DiagnosticController> log)
         {
             _chatPublisher = chatPublisher;
-            _config = config;
+            _runtimeConfig = runtimeConfig;
+            _installConfig = installConfig;
             _healthTracker = healthTracker;
             _log = log;
         }
@@ -54,7 +59,7 @@ namespace Meds.Watchdog
                 if (cancellationToken.IsCancellationRequested)
                 {
                     _chatPublisher.SendGenericMessage(
-                        _config.StatusChangeChannel,
+                        _runtimeConfig.Current.StatusChangeChannel,
                         "Core dump canceled");
                     return null;
                 }
@@ -62,7 +67,7 @@ namespace Meds.Watchdog
                 if (Countdown.TryGetLastMessageForRemainingTime(remaining, out var newMessage) && newMessage != prevMessage)
                 {
                     _chatPublisher.SendGenericMessage(
-                        _config.StatusChangeChannel,
+                        _runtimeConfig.Current.StatusChangeChannel,
                         $"Capturing core dump in {newMessage}");
                     prevMessage = newMessage;
                 }
@@ -73,7 +78,7 @@ namespace Meds.Watchdog
             try
             {
                 var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}.dmp";
-                var dir = _config.DiagnosticsDirectory;
+                var dir = _installConfig.DiagnosticsDirectory;
                 Directory.CreateDirectory(dir);
                 MinidumpFile info = default;
                 info.Path = Path.Combine(dir, name);
@@ -107,7 +112,9 @@ namespace Meds.Watchdog
 
         public enum ProfilingMode
         {
+            [ChoiceName("Sampling")]
             Sampling,
+            [ChoiceName("Timeline")]
             Timeline,
         }
 
@@ -124,7 +131,7 @@ namespace Meds.Watchdog
             try
             {
                 var name = $"prof_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}";
-                var dir = Path.Combine(_config.DiagnosticsDirectory, name);
+                var dir = Path.Combine(_installConfig.DiagnosticsDirectory, name);
                 Directory.CreateDirectory(dir);
                 var rootProfilePath = Path.Combine(dir, "prof.dtp");
 
@@ -171,7 +178,7 @@ namespace Meds.Watchdog
                 if (!profiler.Start())
                     return null;
 
-                _chatPublisher.SendGenericMessage(_config.StatusChangeChannel, $"Profiling for {duration.FormatHumanDuration()}");
+                _chatPublisher.SendGenericMessage(_runtimeConfig.Current.StatusChangeChannel, $"Profiling for {duration.FormatHumanDuration()}");
                 await (starting?.Invoke() ?? Task.CompletedTask);
                 while (!profiler.HasExited)
                 {
@@ -179,7 +186,7 @@ namespace Meds.Watchdog
                         return null;
                     await Task.Delay(PollInterval, cancellationToken);
                 }
-                _chatPublisher.SendGenericMessage(_config.StatusChangeChannel, "Done profiling");
+                _chatPublisher.SendGenericMessage(_runtimeConfig.Current.StatusChangeChannel, "Done profiling");
 
                 if (!File.Exists(rootProfilePath))
                 {

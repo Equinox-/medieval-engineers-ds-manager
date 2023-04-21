@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Meds.Dist;
+using Meds.Shared;
 using Meds.Watchdog.Steam;
 using Microsoft.Extensions.Logging;
 using ZLogger;
@@ -13,7 +14,8 @@ namespace Meds.Watchdog
 {
     public sealed class Updater
     {
-        private readonly Configuration _config;
+        private readonly InstallConfiguration _installConfig;
+        private readonly Refreshable<Configuration> _runtimeConfig;
         private readonly SteamDownloader _downloader;
         private readonly ILogger<Updater> _log;
         public const uint MedievalDsAppId = 367970;
@@ -21,10 +23,14 @@ namespace Meds.Watchdog
         public const uint MedievalGameAppId = 333950;
 
 
-        public Updater(ILogger<Updater> log, Configuration config, SteamDownloader downloader)
+        public Updater(ILogger<Updater> log,
+            InstallConfiguration installConfig,
+            Refreshable<Configuration> runtimeConfig,
+            SteamDownloader downloader)
         {
             _log = log;
-            _config = config;
+            _installConfig = installConfig;
+            _runtimeConfig = runtimeConfig;
             _downloader = downloader;
         }
 
@@ -43,10 +49,11 @@ namespace Meds.Watchdog
 
         private Task<OverlayData[]> LoadOverlays(string installPath)
         {
-            if (_config.WrapperLayers == null || _config.WrapperLayers.Count == 0)
+            var wrappers = _runtimeConfig.Current.WrapperLayers;
+            if (wrappers == null || wrappers.Count == 0)
                 return Task.FromResult(Array.Empty<OverlayData>());
             var log = new OverlayLogger(_log);
-            return Task.WhenAll(_config.WrapperLayers.Select(async spec =>
+            return Task.WhenAll(wrappers.Select(async spec =>
             {
                 var data = new OverlayData(log, installPath, spec);
                 await data.Load();
@@ -67,7 +74,7 @@ namespace Meds.Watchdog
 
         private async Task UpdateInternal(CancellationToken cancellationToken)
         {
-            var installPath = _config.InstallDirectory;
+            var installPath = _installConfig.InstallDirectory;
             var overlays = await LoadOverlays(installPath);
 
             // Clean deleted overlay files
@@ -78,7 +85,7 @@ namespace Meds.Watchdog
             var overlayFiles =
                 new HashSet<string>(overlays.SelectMany(overlay =>
                     overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
-            await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _config.Steam.Branch, installPath, 4,
+            await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
                 path => !overlayFiles.Contains(path), "medieval-ds");
 
             // Apply overlays

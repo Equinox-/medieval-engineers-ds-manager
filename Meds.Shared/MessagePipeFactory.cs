@@ -95,7 +95,9 @@ namespace Meds.Shared
         private const int SockBufferSize = ushort.MaxValue;
         private const int SockTimeout = 500;
 
-        public static void AddMedsMessagePipe(this IServiceCollection services, ushort subscribeToPort, ushort publishToPort)
+        public static void AddMedsMessagePipe(this IServiceCollection services, 
+            ushort subscribeToPort,
+            ushort publishToPort)
         {
             services.AddSingleton(svc => new UdpPublishWorker(
                 svc.GetRequiredService<ILogger<UdpPublishWorker>>(), publishToPort));
@@ -124,6 +126,7 @@ namespace Meds.Shared
             Register<SaveRequest>(Message.SaveRequest);
             Register<SaveResponse>(Message.SaveResponse);
             Register<ModEventMessage>(Message.ModEventMessage);
+            Register<DataStoreSync>(Message.DataStoreSync);
         }
 
         private sealed class UdpMessageQueue<T> : ISubscriber<T>, IPublisher<T> where T : struct, IFlatbufferObject

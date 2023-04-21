@@ -1,47 +1,81 @@
+using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Meds.Shared;
+using Meds.Watchdog.Utils;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ZLogger;
 
 namespace Meds.Watchdog
 {
-    public sealed class ConfigRenderer
+    public sealed class ConfigRenderer : IHostedService
     {
-        private readonly Configuration _config;
+        private readonly InstallConfiguration _installConfig;
+        private readonly Refreshable<RenderedInstallConfig> _renderedInstallConfig;
+        private readonly Refreshable<RenderedRuntimeConfig> _renderedRuntimeConfig;
+        private readonly ILogger<ConfigRenderer> _log;
 
-        public ConfigRenderer(Configuration config)
+        public ConfigRenderer(InstallConfiguration installConfig, Refreshable<Configuration> config, ILogger<ConfigRenderer> log)
         {
-            _config = config;
+            _installConfig = installConfig;
+            InstallConfigFile = Path.Combine(installConfig.RuntimeDirectory, "install.xml");
+            RuntimeConfigFile = Path.Combine(installConfig.RuntimeDirectory, "runtime.xml");
+            _renderedInstallConfig = config.Map(RenderInstall);
+            _renderedRuntimeConfig = config.Map(RenderRuntime);
+            _log = log;
         }
 
-        public RenderResult Render()
+        public string InstallConfigFile { get; }
+        public string RuntimeConfigFile { get; }
+
+        private IDisposable _installToken;
+        private IDisposable _runtimeToken;
+
+        public Task StartAsync(CancellationToken cancellationToken)
         {
-            var installConfig = RenderInstall();
-            var installConfigPath = Path.Combine(_config.RuntimeDirectory, "install.xml");
-            using (var stream = File.Create(installConfigPath))
+            _installToken = _renderedInstallConfig
+                .Subscribe(cfg => WriteConfig(InstallConfigFile, cfg, RenderedInstallConfig.Serializer));
+            _runtimeToken = _renderedRuntimeConfig
+                .Subscribe(cfg => WriteConfig(RuntimeConfigFile, cfg, RenderedRuntimeConfig.Serializer));
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _installToken.Dispose();
+            _runtimeToken.Dispose();
+            return Task.CompletedTask;
+        }
+
+        private void WriteConfig(string target, object obj, XmlSerializer serializer)
+        {
+            try
             {
-                RenderedInstallConfig.Serializer.Serialize(stream, installConfig);
+                FileUtils.WriteAtomic(target, obj, serializer);
+                _log.ZLogInformation("Updated config file {0}", Path.GetFileName(target));
             }
-
-            return new RenderResult(installConfigPath);
-        }
-
-        public readonly struct RenderResult
-        {
-            public readonly string InstallConfigPath;
-
-            public RenderResult(string installConfigPath)
+            catch (Exception err)
             {
-                InstallConfigPath = installConfigPath;
+                _log.ZLogInformation(err, "Failed to update config file {0}", Path.GetFileName(target));
             }
         }
 
-        private RenderedInstallConfig RenderInstall() => new RenderedInstallConfig
+        private RenderedInstallConfig RenderInstall(Configuration cfg) => new RenderedInstallConfig
         {
-            LogDirectory = _config.WrapperLogs,
-            RuntimeDirectory = _config.RuntimeDirectory,
-            Messaging = _config.Messaging,
-            Metrics = _config.Metrics,
-            Audit = _config.Audit,
-            Adjustments = _config.Adjustments,
+            LogDirectory = _installConfig.WrapperLogs,
+            RuntimeDirectory = _installConfig.RuntimeDirectory,
+            Messaging = cfg.Messaging,
+            Metrics = cfg.Metrics,
+            Adjustments = cfg.Adjustments,
+        };
+
+        private RenderedRuntimeConfig RenderRuntime(Configuration cfg) => new RenderedRuntimeConfig
+        {
+            Audit = cfg.Audit,
         };
     }
 }
