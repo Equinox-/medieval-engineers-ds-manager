@@ -103,6 +103,24 @@ table ModEventMessage {
     embed: ModEventEmbed;
 }
 
+table DataStorePlanet {
+    min_radius: float;
+    avg_radius: float;
+    max_radius: float;
+    areas_per_face: int32;
+    areas_per_region: int32; 
+}
+
+table DataStoreGridDatabase {
+    max_lod: int32;
+    grid_size: float;
+}
+
+table DataStoreSync {
+    planet: DataStorePlanet;
+    grid_database: DataStoreGridDatabase;
+}
+
 union Message {
     HealthState,
     ShutdownRequest,
@@ -113,6 +131,7 @@ union Message {
     SaveRequest,
     SaveResponse,
     ModEventMessage,
+    DataStoreSync,
 }
 
 table Packet {

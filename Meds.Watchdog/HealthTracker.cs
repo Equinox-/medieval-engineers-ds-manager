@@ -18,16 +18,19 @@ namespace Meds.Watchdog
         private readonly BoolState _liveness = new BoolState();
         private readonly BoolState _readiness = new BoolState();
         private readonly ISubscriber<HealthState> _healthSubscriber;
-        private readonly Configuration _config;
+        private readonly Refreshable<Configuration> _config;
+        private readonly InstallConfiguration _installConfig;
         private readonly ILogger<HealthTracker> _log;
 
         public int PlayerCount { get; private set; }
         public float SimulationSpeed { get; private set; }
 
-        public HealthTracker(ISubscriber<HealthState> healthSubscriber, 
-            Configuration config,  ILogger<HealthTracker> log)
+        public HealthTracker(ISubscriber<HealthState> healthSubscriber,
+            InstallConfiguration installConfig,
+            Refreshable<Configuration> config,  ILogger<HealthTracker> log)
         {
             _healthSubscriber = healthSubscriber;
+            _installConfig = installConfig;
             _config = config;
             _log = log;
         }
@@ -58,7 +61,7 @@ namespace Meds.Watchdog
 
         private Process FindActiveProcess()
         {
-            var expectedPath = Path.GetFullPath(Path.Combine(_config.InstallDirectory, _config.WrapperEntryPoint));
+            var expectedPath = Path.GetFullPath(Path.Combine(_installConfig.InstallDirectory, _config.Current.WrapperEntryPoint));
             var processName = Path.GetFileNameWithoutExtension(expectedPath);
             var processes = Process.GetProcessesByName(processName);
             foreach (var proc in processes)
@@ -124,6 +127,7 @@ namespace Meds.Watchdog
 
 
         private IDisposable _subscription;
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _subscription = _healthSubscriber.Subscribe(msg =>

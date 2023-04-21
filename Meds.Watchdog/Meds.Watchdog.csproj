@@ -46,36 +46,68 @@
     <ItemGroup>
         <Compile Include="ConfigRenderer.cs" />
         <Compile Include="Configuration.cs" />
+        <Compile Include="DataStore.cs" />
         <Compile Include="DiagnosticController.cs" />
+        <Compile Include="Discord\DiscordCmdDiagnostic.cs" />
+        <Compile Include="Discord\DiscordCmdSave.cs" />
+        <Compile Include="Discord\DiscordCmdSaveSearch.cs" />
+        <Compile Include="Discord\DiscordCmdStatus.cs" />
         <Compile Include="Discord\DiscordConfig.cs" />
         <Compile Include="Discord\DiscordInit.cs" />
-        <Compile Include="Discord\DiscordCommands.cs" />
+        <Compile Include="Discord\DiscordCmdLifecycle.cs" />
         <Compile Include="Discord\DiscordMessageBridge.cs" />
-        <Compile Include="Discord\DiscordPermissionController.cs" />
+        <Compile Include="Discord\DiscordSaveFileUtils.cs" />
         <Compile Include="Discord\DiscordStatusMonitor.cs" />
         <Compile Include="Discord\DiscordUtils.cs" />
-        <Compile Include="Discord\RequirePermission.cs" />
         <Compile Include="HealthTracker.cs" />
-        <Compile Include="LifetimeController.cs" />
-        <Compile Include="Program.cs" />
+        <Compile Include="LifecycleController.cs" />
+        <Compile Include="Entrypoint.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="Save\BlockAccessor.cs" />
+        <Compile Include="Save\BlueprintCreator.cs" />
+        <Compile Include="Save\ChunkAccessor.cs" />
+        <Compile Include="Save\ChunkObjectData.cs" />
+        <Compile Include="Save\ComponentAccessor.cs" />
+        <Compile Include="Save\EntityAccessor.cs" />
+        <Compile Include="Save\GroupAccessor.cs" />
+        <Compile Include="Save\KeenCubemap.cs" />
+        <Compile Include="Save\KeenPlanetAreas.cs" />
+        <Compile Include="Save\ObjectIds.cs" />
+        <Compile Include="Save\SaveSyncData.cs" />
+        <Compile Include="Save\SaveConfigAccessor.cs" />
+        <Compile Include="Save\SaveFile.cs" />
+        <Compile Include="Save\SaveFileGeoSearch.cs" />
+        <Compile Include="Save\SaveFileIndex.cs" />
+        <Compile Include="Save\SaveFiles.cs" />
+        <Compile Include="Save\SaveFileTextSearch.cs" />
+        <Compile Include="Save\SaveMath.cs" />
+        <Compile Include="Save\SaveFileAccessor.cs" />
+        <Compile Include="Save\SerializationUtils.cs" />
+        <Compile Include="InstallConfiguration.cs" />
         <Compile Include="Steam\CallbackPump.cs" />
         <Compile Include="Steam\CdnPool.cs" />
         <Compile Include="Steam\InstallJob.cs" />
         <Compile Include="Steam\PICSProductInfoExtensions.cs" />
         <Compile Include="Steam\SteamDownloader.cs" />
         <Compile Include="Updater.cs" />
+        <Compile Include="Utils\AutoCompleteTree.cs" />
         <Compile Include="Utils\CiUtils.cs" />
         <Compile Include="Utils\Countdown.cs" />
+        <Compile Include="Utils\FileUtils.cs" />
+        <Compile Include="Utils\MiscExtensions.cs" />
         <Compile Include="Utils\PathUtils.cs" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="DSharpPlus.CommandsNext" Version="4.3.0" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.3.0" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.3.0" />
+      <PackageReference Include="Equ" Version="2.3.0" />
       <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.4.0" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.1" />
       <PackageReference Include="SteamKit2" Version="2.4.1" />
+      <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+      <PackageReference Include="System.Runtime.Caching" Version="5.0.0" />
       <PackageReference Include="ZLogger" Version="1.7.0" />
     </ItemGroup>
     <ItemGroup>

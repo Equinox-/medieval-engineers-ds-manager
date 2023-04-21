@@ -18,16 +18,19 @@ namespace Meds.Wrapper
 
         public static void Main(string[] args)
         {
-            if (args.Length != 1)
-                throw new Exception("Wrapper should not be invoked manually.  [installConfig]");
-            var cfg = new Configuration(args[0]);
+            if (args.Length != 2)
+                throw new Exception("Wrapper should not be invoked manually.  [installConfig] [runtimeConfig]");
+            var cfg = new Configuration(args[0], args[1]);
 
             PatchHelper.PatchStartup(cfg.Install.Adjustments.ReplaceLogger ?? false);
 
             using var instance = new HostBuilder()
                 .ConfigureServices(services =>
                 {
-                    services.AddSingleton<Configuration>(cfg);
+                    services.AddSingleton(cfg);
+                    services.AddSingleton(cfg.Install);
+                    services.AddSingleton<Refreshable<RenderedRuntimeConfig>>(cfg.Runtime);
+                    services.AddHostedService(svc => cfg.Runtime.Refreshing(svc));
                     services.AddSingleton<ShimLog>();
                     services.AddSingleton<HealthReporter>();
                     services.AddHostedAlias<HealthReporter>();

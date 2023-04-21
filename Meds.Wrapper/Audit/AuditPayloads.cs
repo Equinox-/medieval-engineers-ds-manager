@@ -4,7 +4,7 @@ namespace Meds.Wrapper.Audit
 {
     public struct AuditPayload
     {
-        public ulong SteamId;
-        public PositionPayload? Position;
+        public PlayerPayload Player;
+        public PositionPayload Position;
     }
 }

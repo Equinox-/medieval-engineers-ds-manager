@@ -43,16 +43,18 @@
         <Reference Include="netstandard" />
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="CollectionEquality.cs" />
         <Compile Include="CustomLogFormat.cs" />
         <Compile Include="ExtraContextLogger.cs" />
         <Compile Include="HostBuilder.cs" />
         <Compile Include="FlatBufferPool.cs" />
-        <Compile Include="InstallConfig.cs" />
+        <Compile Include="WrapperConfig.cs" />
         <Compile Include="MessagePipe.cs" />
         <Compile Include="MessagePipeExt.cs" />
         <Compile Include="MessagePipeFactory.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="RefCountedObjectPool.cs" />
+        <Compile Include="Refreshable.cs" />
         <Compile Include="ServiceExtensions.cs" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -67,8 +69,8 @@
       <FlatSharpSchema Include="Schema.fbs" />
     </ItemGroup>
     <ItemGroup>
+      <PackageReference Include="Equ" Version="2.3.0" />
       <PackageReference Include="KdSoft.FlatBuffers" Version="1.12.0" />
-      <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="ZLogger" Version="1.7.0" />

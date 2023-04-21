@@ -12,12 +12,6 @@
     <Discord>
         <!-- Authorization token for discord -->
         <!-- <Token>DiscordBotTokenHere</Token> -->
-        <!-- Grant bot read permissions to anyone addressing the bot in a specific channel -->
-        <!-- <Grant Perm="Read" Channel="channelId" /> -->
-        <!-- Grant bot admin permission to the user with the provided ID -->
-        <!-- <Grant Perm="Admin" User="userId" /> -->
-        <!-- Grant bot admin permission to any user in the provided role -->
-        <!-- <Grant Perm="Admin" Role="roleId" /> -->
         <!-- Post messages from the player join/leave event channel into the provided discord channel -->
         <!-- <ChannelSync DiscordChannel="channelId" EventChannel="internal.playerJoinLeave" /> -->
         <!-- Post messages about non-recoverable server faults to the provided discord channel and mention a user -->

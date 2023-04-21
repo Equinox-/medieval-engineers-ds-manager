@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ZLogger;
+using ZLogger.Entries;
 
 namespace Meds.Shared
 {
@@ -32,8 +33,8 @@ namespace Meds.Shared
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            _backing.Log(logLevel, eventId, new ExtraContextState<TState>(state, Thread.CurrentThread, formatter), exception,
-                ExtraContextState<TState>.Formatter);
+            _backing.Log(logLevel, eventId, new ExtraContextState<TState>(state, Thread.CurrentThread, formatter),
+                exception, ExtraContextState<TState>.FormatterImpl);
         }
 
         public bool IsEnabled(LogLevel logLevel) => _backing.IsEnabled(logLevel);
@@ -45,19 +46,19 @@ namespace Meds.Shared
     {
         internal TState State;
         internal readonly Thread CallingThread;
-        private readonly Func<TState, Exception, string> _formatter;
+        internal readonly Func<TState, Exception, string> Formatter;
 
         public ExtraContextState(TState state, Thread callingThread, Func<TState, Exception, string> formatter)
         {
             State = state;
             CallingThread = callingThread;
-            _formatter = formatter;
+            Formatter = formatter;
         }
 
-        public static readonly Func<ExtraContextState<TState>, LogInfo, IZLoggerEntry> Factory = factory;
-        private static IZLoggerEntry factory(ExtraContextState<TState> self, LogInfo logInfo) => self.CreateLogEntry(logInfo);
+        public static readonly Func<ExtraContextState<TState>, LogInfo, IZLoggerEntry> Factory = FactoryMethod;
+        private static IZLoggerEntry FactoryMethod(ExtraContextState<TState> self, LogInfo logInfo) => self.CreateLogEntry(logInfo);
 
-        public static readonly Func<ExtraContextState<TState>, Exception, string> Formatter = (state, err) => state._formatter(state.State, err);
+        public static readonly Func<ExtraContextState<TState>, Exception, string> FormatterImpl = (state, err) => state.Formatter(state.State, err);
 
         public IZLoggerEntry CreateLogEntry(LogInfo logInfo) => ExtraContextLogEntry<TState>.Create(in logInfo, in this);
     }
@@ -66,7 +67,7 @@ namespace Meds.Shared
     {
         private Thread _callingThread;
         private IZLoggerEntry _backing;
-        private static readonly ConcurrentQueue<ExtraContextLogEntry<TState>> cache = new ConcurrentQueue<ExtraContextLogEntry<TState>>();
+        private static readonly ConcurrentQueue<ExtraContextLogEntry<TState>> Cache = new ConcurrentQueue<ExtraContextLogEntry<TState>>();
 
         private ExtraContextLogEntry()
         {
@@ -76,10 +77,12 @@ namespace Meds.Shared
             in LogInfo logInfo,
             in ExtraContextState<TState> state)
         {
-            if (!cache.TryDequeue(out var result))
+            if (!Cache.TryDequeue(out var result))
                 result = new ExtraContextLogEntry<TState>();
             result._callingThread = state.CallingThread;
-            result._backing = CreateLogEntryDynamic<TState>.Factory?.Invoke(state.State, logInfo);
+            result._backing = CreateLogEntryDynamic<TState>.IsInternalFormattedLogValues 
+                ? StringFormatterEntry<TState>.Create(logInfo, state.State, logInfo.Exception, state.Formatter) 
+                : CreateLogEntryDynamic<TState>.Factory?.Invoke(state.State, logInfo);
             return result;
         }
 
@@ -91,7 +94,9 @@ namespace Meds.Shared
             if (_backing == null) return;
             _backing.FormatUtf8(writer, options, jsonWriter);
             if (!options.EnableStructuredLogging) return;
-            jsonWriter.WriteString(ExtraContextLogger.ThreadNameProp, _callingThread.Name);
+            var name = _callingThread.Name;
+            if (name != null)
+                jsonWriter.WriteString(ExtraContextLogger.ThreadNameProp, name);
             jsonWriter.WriteNumber(ExtraContextLogger.ThreadIdProp, _callingThread.ManagedThreadId);
         }
 
@@ -110,12 +115,13 @@ namespace Meds.Shared
             _backing?.Return();
             _backing = null;
             _callingThread = null;
-            cache.Enqueue(this);
+            Cache.Enqueue(this);
         }
 
         private static class CreateLogEntryDynamic<T>
         {
             public static readonly Func<T, LogInfo, IZLoggerEntry> Factory;
+            public static readonly bool IsInternalFormattedLogValues = typeof(T).FullName == "Microsoft.Extensions.Logging.FormattedLogValues";
 
             static CreateLogEntryDynamic()
             {

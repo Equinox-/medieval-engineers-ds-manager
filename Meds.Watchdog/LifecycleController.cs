@@ -14,28 +14,44 @@ using ZLogger;
 
 namespace Meds.Watchdog
 {
-    public class LifetimeController : BackgroundService
+    public class LifecycleController : BackgroundService
     {
         private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan CronTabBuffer = TimeSpan.FromSeconds(5);
 
-        private readonly ILogger<LifetimeController> _log;
+        private readonly ILogger<LifecycleController> _log;
         private readonly HealthTracker _healthTracker;
-        private readonly Configuration _config;
+        private readonly InstallConfiguration _installConfig;
+        private readonly Refreshable<Configuration> _runtimeConfig;
 
         private DateTime? _startedAt;
         private readonly IPublisher<ShutdownRequest> _shutdownPublisher;
         private readonly IPublisher<ChatMessage> _sendChatMessagePublisher;
         private readonly Updater _updater;
         private readonly ConfigRenderer _configRenderer;
-        private readonly List<(CrontabSchedule schedule, bool utc, LifetimeState target)> _scheduled = new List<(CrontabSchedule, bool, LifetimeState)>();
+        private readonly Refreshable<List<CrontabEntry>> _scheduled;
         private readonly DiagnosticController _diagnostics;
 
-        public delegate void DelStateChanged(LifetimeState previousState, LifetimeState currentState);
+        private readonly struct CrontabEntry
+        {
+            public readonly CrontabSchedule Schedule;
+            public readonly bool Utc;
+            public readonly LifecycleState Target;
+
+            public CrontabEntry(CrontabSchedule schedule, bool utc, LifecycleState target)
+            {
+                Schedule = schedule;
+                Utc = utc;
+                Target = target;
+            }
+        }
+
+        public delegate void DelStateChanged(LifecycleState previousState, LifecycleState currentState);
 
         public event DelStateChanged StateChanged;
 
         public delegate void DelStartStop(StartStopEvent type, TimeSpan uptime);
+
         public event DelStartStop StartStop;
 
         public enum StartStopEvent
@@ -48,9 +64,9 @@ namespace Meds.Watchdog
             Froze
         }
 
-        private LifetimeState _active = new LifetimeState(LifetimeStateCase.Running);
+        private LifecycleState _active = new LifecycleState(LifecycleStateCase.Running);
 
-        public LifetimeState Active
+        public LifecycleState Active
         {
             get => _active;
             set
@@ -63,21 +79,21 @@ namespace Meds.Watchdog
             }
         }
 
-        private LifetimeStateRequest? _request;
+        private LifecycleStateRequest? _request;
         private string _lastSentRequestMessage;
 
-        public LifetimeStateRequest? Request
+        public LifecycleStateRequest? Request
         {
             get
             {
                 var best = _request;
-                foreach (var (schedule, utc, target) in _scheduled)
+                foreach (var entry in _scheduled.Current)
                 {
-                    var nextOccurrenceUtc = utc
-                        ? schedule.GetNextOccurrence(DateTime.UtcNow - CronTabBuffer)
-                        : schedule.GetNextOccurrence(DateTime.Now - CronTabBuffer).ToUniversalTime();
+                    var nextOccurrenceUtc = entry.Utc
+                        ? entry.Schedule.GetNextOccurrence(DateTime.UtcNow - CronTabBuffer)
+                        : entry.Schedule.GetNextOccurrence(DateTime.Now - CronTabBuffer).ToUniversalTime();
                     if (best == null || best.Value.ActivateAtUtc > nextOccurrenceUtc)
-                        best = new LifetimeStateRequest(nextOccurrenceUtc, target);
+                        best = new LifecycleStateRequest(nextOccurrenceUtc, entry.Target);
                 }
 
                 return best;
@@ -89,35 +105,46 @@ namespace Meds.Watchdog
             }
         }
 
-        public LifetimeController (ILogger<LifetimeController> logger,
+        public LifecycleController(ILogger<LifecycleController> logger,
             HealthTracker health,
-            Configuration config,
+            InstallConfiguration installConfig,
+            Refreshable<Configuration> runtimeConfig,
             IPublisher<ShutdownRequest> shutdownPublisher,
             Updater updater,
             ConfigRenderer configRenderer, IPublisher<ChatMessage> sendChatMessagePublisher, DiagnosticController diagnostics)
         {
             _log = logger;
             _healthTracker = health;
-            _config = config;
+            _installConfig = installConfig;
+            _runtimeConfig = runtimeConfig;
             _updater = updater;
             _shutdownPublisher = shutdownPublisher;
             _configRenderer = configRenderer;
             _sendChatMessagePublisher = sendChatMessagePublisher;
             _diagnostics = diagnostics;
 
-            if (config.ScheduledTasks != null)
-                foreach (var task in config.ScheduledTasks)
+            _scheduled = runtimeConfig
+                .Map(cfg => cfg.ScheduledTasks, CollectionEquality<Configuration.ScheduledTaskConfig>.List())
+                .Map(tasks =>
                 {
-                    try
+                    var dest = new List<CrontabEntry>(tasks?.Count ?? 0);
+                    if (tasks == null)
+                        return dest;
+                    foreach (var task in tasks)
                     {
-                        var schedule = CrontabSchedule.Parse(task.Cron);
-                        _scheduled.Add((schedule, task.Utc, new LifetimeState(task.Target, task.Reason)));
+                        try
+                        {
+                            var schedule = CrontabSchedule.Parse(task.Cron);
+                            dest.Add(new CrontabEntry(schedule, task.Utc, new LifecycleState(task.Target, task.Reason)));
+                        }
+                        catch (Exception err)
+                        {
+                            _log.ZLogWarning(err, "Failed to parse crontab {0}", task.Cron);
+                        }
                     }
-                    catch (Exception err)
-                    {
-                        _log.ZLogWarning(err, "Failed to parse crontab {0}", task.Cron);
-                    }
-                }
+
+                    return dest;
+                });
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -135,7 +162,7 @@ namespace Meds.Watchdog
             }
         }
 
-        private bool HandleRequest(LifetimeStateRequest request)
+        private bool HandleRequest(LifecycleStateRequest request)
         {
             var timeUntilActivation = request.ActivateAtUtc - DateTime.UtcNow;
             if (timeUntilActivation <= TimeSpan.Zero)
@@ -144,28 +171,28 @@ namespace Meds.Watchdog
                 return false;
             if (requestMessage == _lastSentRequestMessage) return false;
             var fullMessage = FormatMessage(in request.State, requestMessage);
-            if (!string.IsNullOrEmpty(_config.StatusChangeChannel) && fullMessage != null)
+
+            var statusChangeChannel = _runtimeConfig.Current.StatusChangeChannel;
+            if (!string.IsNullOrEmpty(statusChangeChannel) && fullMessage != null)
             {
-                _sendChatMessagePublisher.SendGenericMessage(
-                    _config.StatusChangeChannel,
-                    fullMessage);
+                _sendChatMessagePublisher.SendGenericMessage(statusChangeChannel, fullMessage);
             }
 
             _lastSentRequestMessage = requestMessage;
             return false;
         }
 
-        private static string FormatMessage(in LifetimeState request, string duration)
+        private static string FormatMessage(in LifecycleState request, string duration)
         {
             var suffix = string.IsNullOrEmpty(request.Reason) ? "" : $" for {request.Reason}";
             switch (request.State)
             {
-                case LifetimeStateCase.Running:
-                case LifetimeStateCase.Faulted:
+                case LifecycleStateCase.Running:
+                case LifecycleStateCase.Faulted:
                     return null;
-                case LifetimeStateCase.Shutdown:
+                case LifecycleStateCase.Shutdown:
                     return $"Shutting down in {duration}{suffix}";
-                case LifetimeStateCase.Restarting:
+                case LifecycleStateCase.Restarting:
                     return $"Restarting in {duration}{suffix}";
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -177,17 +204,18 @@ namespace Meds.Watchdog
             var desiredState = Active.State;
             switch (desiredState)
             {
-                case LifetimeStateCase.Running:
-                case LifetimeStateCase.Restarting:
+                case LifecycleStateCase.Running:
+                case LifecycleStateCase.Restarting:
                 {
                     var frozen = false;
-                    if (desiredState == LifetimeStateCase.Restarting || NeedsRestart(out frozen))
+                    if (desiredState == LifecycleStateCase.Restarting || NeedsRestart(out frozen))
                     {
                         if (frozen)
                         {
                             _log.ZLogError("Taking a core dump from a frozen process");
                             await _diagnostics.CaptureCoreDump(DateTime.UtcNow, "frozen", stoppingToken);
                         }
+
                         await Stop(stoppingToken);
                         if (stoppingToken.IsCancellationRequested)
                             break;
@@ -198,7 +226,7 @@ namespace Meds.Watchdog
                         catch (Exception err)
                         {
                             _log.ZLogError(err, "Failed to update game binaries");
-                            Active = new LifetimeState(LifetimeStateCase.Faulted, "Failed to update game binaries");
+                            Active = new LifecycleState(LifecycleStateCase.Faulted, "Failed to update game binaries");
                             break;
                         }
 
@@ -207,19 +235,19 @@ namespace Meds.Watchdog
                         var result = await Start(stoppingToken);
                         if (result)
                         {
-                            if (Active.State == LifetimeStateCase.Restarting)
-                                Active = new LifetimeState(LifetimeStateCase.Running);
+                            if (Active.State == LifecycleStateCase.Restarting)
+                                Active = new LifecycleState(LifecycleStateCase.Running);
                         }
                         else
                         {
-                            Active = new LifetimeState(LifetimeStateCase.Faulted);
+                            Active = new LifecycleState(LifecycleStateCase.Faulted);
                         }
                     }
 
                     break;
                 }
-                case LifetimeStateCase.Faulted:
-                case LifetimeStateCase.Shutdown:
+                case LifecycleStateCase.Faulted:
+                case LifecycleStateCase.Shutdown:
                 {
                     if (_healthTracker.IsRunning)
                         await Stop(stoppingToken);
@@ -252,19 +280,19 @@ namespace Meds.Watchdog
             {
                 _log.ZLogError("Server has been up for {0:g} and the process disappeared.  Restarting", uptime);
                 _healthTracker.Reset();
-                Active = new LifetimeState(LifetimeStateCase.Restarting, "Crashed");
+                Active = new LifecycleState(LifecycleStateCase.Restarting, "Crashed");
                 StartStop?.Invoke(StartStopEvent.Crashed, uptime);
                 return true;
             }
 
-            if (!_healthTracker.Liveness.State && _healthTracker.Liveness.TimeInState.TotalSeconds > _config.LivenessTimeout)
+            if (!_healthTracker.Liveness.State && _healthTracker.Liveness.TimeInState.TotalSeconds > _runtimeConfig.Current.LivenessTimeout)
             {
                 _log.ZLogError(
                     "Server has been up for {0:g} and has not been not life for {TimeNotLive:g}.  Restarting",
                     uptime,
                     _healthTracker.Liveness.TimeInState);
                 _healthTracker.Reset();
-                Active = new LifetimeState(LifetimeStateCase.Restarting, "Crashed");
+                Active = new LifecycleState(LifecycleStateCase.Restarting, "Crashed");
                 StartStop?.Invoke(StartStopEvent.Crashed, uptime);
                 return true;
             }
@@ -274,12 +302,12 @@ namespace Meds.Watchdog
                 _log.ZLogError("Server has been up for {0:g} and has stopped reporting.  Restarting", uptime);
                 frozen = true;
                 _healthTracker.Reset();
-                Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
+                Active = new LifecycleState(LifecycleStateCase.Restarting, "Frozen");
                 StartStop?.Invoke(StartStopEvent.Froze, uptime);
                 return true;
             }
 
-            if (!_healthTracker.Readiness.State && _healthTracker.Readiness.TimeInState.TotalSeconds > _config.ReadinessTimeout)
+            if (!_healthTracker.Readiness.State && _healthTracker.Readiness.TimeInState.TotalSeconds > _runtimeConfig.Current.ReadinessTimeout)
             {
                 _log.ZLogError(
                     "Server has been up for {0:g} and has not been ready for {TimeNotReady:g}.  Restarting",
@@ -287,7 +315,7 @@ namespace Meds.Watchdog
                     _healthTracker.Readiness.TimeInState);
                 frozen = true;
                 _healthTracker.Reset();
-                Active = new LifetimeState(LifetimeStateCase.Restarting, "Frozen");
+                Active = new LifecycleState(LifecycleStateCase.Restarting, "Frozen");
                 StartStop?.Invoke(StartStopEvent.Froze, uptime);
                 return true;
             }
@@ -303,6 +331,7 @@ namespace Meds.Watchdog
                 _startedAt = null;
                 return;
             }
+
             StartStop?.Invoke(StartStopEvent.Stopping, TimeSpan.Zero);
             if (!process.HasExited)
             {
@@ -319,10 +348,10 @@ namespace Meds.Watchdog
                 if (process == null)
                     break;
 
-                if ((DateTime.UtcNow - start).TotalSeconds > _config.ShutdownTimeout)
+                if ((DateTime.UtcNow - start).TotalSeconds > _runtimeConfig.Current.ShutdownTimeout)
                 {
                     var killWait = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-                    _log.ZLogError("Server has not shutdown in {0:g}.  Killing it", _config.ShutdownTimeout);
+                    _log.ZLogError("Server has not shutdown in {0:g}.  Killing it", _runtimeConfig.Current.ShutdownTimeout);
                     process.Kill();
                     while (DateTime.UtcNow < killWait && !cancellationToken.IsCancellationRequested)
                     {
@@ -334,8 +363,10 @@ namespace Meds.Watchdog
 
                     break;
                 }
+
                 await Task.Delay(PollInterval, cancellationToken);
             }
+
             StartStop?.Invoke(StartStopEvent.Stopped, DateTime.UtcNow - start);
             _startedAt = null;
         }
@@ -349,14 +380,19 @@ namespace Meds.Watchdog
                 return false;
             }
 
-            var renderedConfig = _configRenderer.Render();
             _healthTracker.Reset();
+            var cfg = _runtimeConfig.Current;
             var startInfo = new ProcessStartInfo
             {
-                WorkingDirectory = _config.InstallDirectory,
-                Arguments = $"\"{renderedConfig.InstallConfigPath}\"",
-                FileName = Path.Combine(_config.InstallDirectory, _config.WrapperEntryPoint)
+                WorkingDirectory = _installConfig.InstallDirectory,
+                Arguments = $"\"{_configRenderer.InstallConfigFile}\" \"{_configRenderer.RuntimeConfigFile}\"",
+                FileName = Path.Combine(_installConfig.InstallDirectory, cfg.WrapperEntryPoint)
             };
+            if (!File.Exists(startInfo.FileName))
+            {
+                _log.ZLogError("Entry point missing {0}", startInfo.FileName);
+                return false;
+            }
             var started = Process.Start(startInfo);
             if (started == null)
             {
@@ -389,16 +425,16 @@ namespace Meds.Watchdog
                     return true;
                 }
 
-                if (!_healthTracker.Liveness.State && uptime.TotalSeconds > _config.LivenessTimeout)
+                if (!_healthTracker.Liveness.State && uptime.TotalSeconds > _runtimeConfig.Current.LivenessTimeout)
                 {
-                    _log.ZLogError("Server did not become alive within {0} seconds", _config.LivenessTimeout);
+                    _log.ZLogError("Server did not become alive within {0} seconds", _runtimeConfig.Current.LivenessTimeout);
                     return false;
                 }
 
 
-                if (!_healthTracker.Readiness.State && uptime.TotalSeconds > _config.ReadinessTimeout)
+                if (!_healthTracker.Readiness.State && uptime.TotalSeconds > _runtimeConfig.Current.ReadinessTimeout)
                 {
-                    _log.ZLogError("Server did not become ready within {0} seconds", _config.ReadinessTimeout);
+                    _log.ZLogError("Server did not become ready within {0} seconds", _runtimeConfig.Current.ReadinessTimeout);
                     return false;
                 }
 
@@ -409,34 +445,34 @@ namespace Meds.Watchdog
         }
     }
 
-    public readonly struct LifetimeStateRequest
+    public readonly struct LifecycleStateRequest
     {
         public readonly DateTime ActivateAtUtc;
-        public readonly LifetimeState State;
+        public readonly LifecycleState State;
 
-        public LifetimeStateRequest(DateTime activateAtUtc, LifetimeState state)
+        public LifecycleStateRequest(DateTime activateAtUtc, LifecycleState state)
         {
             ActivateAtUtc = activateAtUtc;
             State = state;
         }
     }
 
-    public readonly struct LifetimeState : IEquatable<LifetimeState>
+    public readonly struct LifecycleState : IEquatable<LifecycleState>
     {
-        public readonly LifetimeStateCase State;
+        public readonly LifecycleStateCase State;
         public readonly string Icon;
         public readonly string Reason;
 
-        public LifetimeState(LifetimeStateCase state, string reason = null, string icon = null)
+        public LifecycleState(LifecycleStateCase state, string reason = null, string icon = null)
         {
             State = state;
             Reason = reason;
             Icon = icon;
         }
 
-        public bool Equals(LifetimeState other) => State == other.State && Icon == other.Icon && Reason == other.Reason;
+        public bool Equals(LifecycleState other) => State == other.State && Icon == other.Icon && Reason == other.Reason;
 
-        public override bool Equals(object obj) => obj is LifetimeState other && Equals(other);
+        public override bool Equals(object obj) => obj is LifecycleState other && Equals(other);
 
         public override int GetHashCode()
         {
@@ -450,7 +486,7 @@ namespace Meds.Watchdog
         }
     }
 
-    public enum LifetimeStateCase
+    public enum LifecycleStateCase
     {
         Faulted,
         Running,
