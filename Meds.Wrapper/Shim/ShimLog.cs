@@ -99,9 +99,8 @@ namespace Meds.Wrapper.Shim
                 switch (severity)
                 {
                     case LogSeverity.Debug:
-                        return LogLevel.Trace;
-                    case LogSeverity.Message:
                         return LogLevel.Debug;
+                    case LogSeverity.Message:
                     case LogSeverity.Verbatim:
                     case LogSeverity.Info:
                         return LogLevel.Information;
