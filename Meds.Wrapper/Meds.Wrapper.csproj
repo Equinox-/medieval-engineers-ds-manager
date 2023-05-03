@@ -140,6 +140,7 @@
         <Compile Include="Shim\AlwaysPatch.cs" />
         <Compile Include="Shim\LoggerPatches.cs" />
         <Compile Include="Shim\MecPatches.cs" />
+        <Compile Include="Shim\MiscPatches.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
         <Compile Include="Shim\VerboseCrashPatches.cs" />
