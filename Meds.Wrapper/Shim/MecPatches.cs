@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Medieval.Entities.Components;
 using Medieval.Entities.Components.Crafting;
 using Medieval.GameSystems;
 using Medieval.World.Persistence;
@@ -426,6 +427,17 @@ namespace Meds.Wrapper.Shim
         public static void Prefix(MySessionPersistence __instance)
         {
             PersistWorkGetter(__instance).Wait();
+        }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=409
+    [HarmonyPatch(typeof(MyClaimedAreaRespawnLocation), nameof(MyClaimedAreaRespawnLocation.IsValidForIdentity))]
+    [AlwaysPatch]
+    public static class ProhibitSpawningAtUnclaimedAreas
+    {
+        public static void Postfix(MyClaimedAreaRespawnLocation __instance, ref bool __result)
+        {
+            __result &= __instance.OwnerId != 0;
         }
     }
 }
