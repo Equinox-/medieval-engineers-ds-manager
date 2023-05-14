@@ -63,14 +63,41 @@ namespace Meds.Wrapper.Shim
                 Patch(typeof(LoggerPatches.PatchReplaceLogger));
         }
 
+        public static void Transpile(MethodBase target, MethodInfo transpiler)
+        {
+            try
+            {
+                var processor = _harmony.CreateProcessor(target);
+                processor.AddTranspiler(transpiler);
+                processor.Patch();
+            }
+            catch (Exception err)
+            {
+                throw new Exception($"Failed to transpile {target} with {transpiler}", err);
+            }
+        }
+
+        public static void Prefix(MethodBase target, MethodInfo prefix)
+        {
+            try
+            {
+                var processor = _harmony.CreateProcessor(target);
+                processor.AddPrefix(prefix);
+                processor.Patch();
+            }
+            catch (Exception err)
+            {
+                throw new Exception($"Failed to transpile {target} with {prefix}", err);
+            }
+        }
+
         public static void Patch(Type type)
         {
             var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null)
                 .ToList();
             if (results.Count > 0)
             {
-                Entrypoint.Instance?.Services.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger(typeof(PatchHelper))
+                Entrypoint.LoggerFor(typeof(PatchHelper))?
                     .ZLogInformationWithPayload(results, "Applied patch {0} ", type.FullName);
             }
         }

@@ -71,6 +71,7 @@ namespace Meds.Wrapper
             GridDatabaseMetrics.Register();
             CoreMetrics.Register();
             PaxMetrics.Register(Config.Metrics);
+            VoxelResetPatches.Register();
             MyMultiplayer.Static.ClientReady += id => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(true, id);
             MyMultiplayer.Static.ClientLeft += (id, _) => Entrypoint.Instance?.Services.GetRequiredService<PlayerReporter>().HandlePlayerJoinedLeft(false, id);
             MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);

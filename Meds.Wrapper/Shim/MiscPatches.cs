@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -9,9 +8,7 @@ using Medieval.ObjectBuilders.Session;
 using Medieval.Players;
 using Meds.Wrapper.Utils;
 using Sandbox.Game.Players;
-using Sandbox.Game.SessionComponents;
 using VRage;
-using VRage.Session;
 using VRageMath;
 using ZLogger;
 
@@ -19,90 +16,63 @@ using ZLogger;
 
 namespace Meds.Wrapper.Shim
 {
-    [HarmonyPatch(typeof(MyMedievalPlanetRespawnComponent), "CorrectSpawnPosition")]
+    [HarmonyPatch(typeof(MyMedievalPlanetRespawnComponent), "RespawnInPlayerControlledEntity")]
     [AlwaysPatch]
-    public static class RespawnReporting
+    public static class RespawnInPlayerControlledEntity
     {
-        public static void Prefix(ref MatrixD worldMatrix, out MatrixD __state)
-        {
-            __state = worldMatrix;
-        }
+        private static readonly MethodInfo RealMethod = AccessTools.Method(typeof(MyMedievalPlanetRespawnComponent), "CorrectSpawnPosition");
 
-        public static void Postfix(ref MatrixD worldMatrix, MatrixD __state, float characterSize)
+        private static bool CorrectSpawnPosition(float charSizeRad, ref MatrixD position, int call, MyPlayer player)
         {
-            if (worldMatrix.EqualsFast(ref __state))
-                return;
-            Entrypoint.LoggerFor(typeof(RespawnReporting))
-                .ZLogInformation("Adjusted position when respawning, distance={0}, characterSize={1}, from={2}, to={3}",
-                    Vector3D.Distance(worldMatrix.Translation, __state.Translation),
-                    characterSize, __state.Translation, worldMatrix.Translation);
-        }
-    }
-
-    [HarmonyPatch(typeof(MyPlayerStorageComponent), "RegeneratePlayerData")]
-    [AlwaysPatch]
-    public static class RegenPlayerData
-    {
-        public static void Postfix(MyObjectBuilder_PlayerStorage __result, MyPlayer player)
-        {
-            if (__result.Entity is { PositionAndOrientation: null })
+            var originalLocation = position.Translation;
+            var args = new object[] { charSizeRad, position };
+            var result = (bool) RealMethod.Invoke(null, args);
+            position = (MatrixD)args[1];
+            if (!result)
             {
-                Entrypoint.LoggerFor(typeof(MyPlayerStorageComponent))
-                    .ZLogInformation("Player {0} ({1}) has entity data but does not have position data during save. Their entity is at {3}",
-                        player.Id.SteamId, player.Identity?.DisplayName, player.Identity?.ControlledEntity?.GetPosition());
+                var okay = PositionPayload.TryCreate(originalLocation, out var positionPayload, player?.Identity?.Id);
+                Entrypoint.LoggerFor(typeof(MyMedievalPlanetRespawnComponent))
+                    .ZLogInformationWithPayload(StackUtils.CaptureGameLogicStackPayload(),
+                        "Failed to correct spawn location on call {0} while spawning {1} ({2}).  Originally at {3} ({4}/{5}/{6})",
+                        call,
+                        player?.Id.SteamId,
+                        player?.Identity?.DisplayName,
+                        originalLocation,
+                        positionPayload.Face,
+                        positionPayload.X,
+                        positionPayload.Y);
             }
-        }
-    }
-
-    [HarmonyPatch(typeof(MyPlayerStorageComponent), "GetPlayerData")]
-    [AlwaysPatch]
-    public static class GetPlayerData
-    {
-        public static void Postfix(MyObjectBuilder_PlayerStorage __result, MyPlayer.PlayerId playerId)
-        {
-            var caller = StackUtils.CaptureGameLogicStackPayload();
-            if (__result.Entity is { PositionAndOrientation: null })
+            else
+            
             {
-                var identity = MyPlayers.Static?.GetPlayer(playerId)?.Identity;
-                Entrypoint.LoggerFor(typeof(MyPlayerStorageComponent))
-                    .ZLogWarningWithPayload(caller, "Player {0} ({1}) has entity data but does not have position data during get. Their entity is at {3}",
-                        playerId.SteamId, identity?.DisplayName, identity?.ControlledEntity?.GetPosition());
-                return;
+                var okay = PositionPayload.TryCreate(originalLocation, out var positionPayload, player?.Identity?.Id);
+                Entrypoint.LoggerFor(typeof(MyMedievalPlanetRespawnComponent))
+                    .ZLogInformationWithPayload(StackUtils.CaptureGameLogicStackPayload(),
+                        "Corrected spawn location on call {0} while spawning {1} ({2}).  Originally at {3} ({4}/{5}/{6}), moved {7}m",
+                        call,
+                        player?.Id.SteamId,
+                        player?.Identity?.DisplayName,
+                        originalLocation,
+                        positionPayload.Face,
+                        positionPayload.X,
+                        positionPayload.Y,
+                        Vector3D.Distance(originalLocation, position.Translation));
             }
-
-            MySession.Static?.SystemUpdateScheduler.AddScheduledCallback(dt =>
-            {
-                if (__result.Entity is { PositionAndOrientation: null })
-                {
-                    var identity = MyPlayers.Static?.GetPlayer(playerId)?.Identity;
-                    Entrypoint.LoggerFor(typeof(MyPlayerStorageComponent))
-                        .ZLogWarningWithPayload(caller,
-                            "Player {0} ({1}) lost their position after their data was returned. Their entity is at {3}",
-                            playerId.SteamId, identity?.DisplayName, identity?.ControlledEntity?.GetPosition());
-                }
-            }, 1000);
+            return result;
         }
-    }
-
-    [HarmonyPatch(typeof(MyMedievalPlanetRespawnComponent), "GetSpawnPosition")]
-    [AlwaysPatch]
-    public static class PreferBoundRespawnFallback
-    {
-        private static IEnumerable<MyRespawnLocation> PreferBoundRespawns(IEnumerable<MyRespawnLocation> options)
-        {
-            return options.OrderBy(loc => loc is MyBindableRespawnLocation ? 0 : 1);
-        }
-
+        
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
+            var call = 0;
             foreach (var instruction in instructions)
             {
-                yield return instruction;
-                if (instruction.opcode == OpCodes.Call
-                    && instruction.operand is MethodInfo { Name: "GetAllRespawns" } info
-                    && info.ReturnType == typeof(IEnumerable<MyTuple<UniformRespawnProviderId, MyRespawnLocation>>))
+                if (instruction.opcode == OpCodes.Call && instruction.operand is MethodInfo { Name: "CorrectSpawnPosition" })
                 {
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(PreferBoundRespawnFallback), nameof(PreferBoundRespawns)));
+                    yield return new CodeInstruction(OpCodes.Ldc_I4, call++);
+                    yield return new CodeInstruction(OpCodes.Ldarg_1);
+                    yield return CodeInstruction.Call(typeof(RespawnInPlayerControlledEntity), nameof(CorrectSpawnPosition));
+                } else {
+                    yield return instruction;
                 }
             }
         }
