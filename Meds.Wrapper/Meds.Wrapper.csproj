@@ -110,6 +110,9 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Audit\AuditPayloads.cs" />
+        <Compile Include="Audit\EquiEntityControlAudit.cs" />
+        <Compile Include="Audit\InventoryAudit.cs" />
+        <Compile Include="Audit\PaxEntityControlAudit.cs" />
         <Compile Include="ChatBridge.cs" />
         <Compile Include="Configuration.cs" />
         <Compile Include="HealthReporter.cs" />

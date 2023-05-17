@@ -168,12 +168,6 @@ namespace Meds.Wrapper.Utils
         }
     }
 
-    public struct PlayerPayload
-    {
-        public ulong SteamId;
-        public string DisplayName;
-    }
-
     public struct PositionPayload
     {
         public byte Face;

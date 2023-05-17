@@ -51,6 +51,7 @@
     </ItemGroup>
     <ItemGroup>
       <Content Include="config.example.xml" />
+      <Content Include="metrics.example.yml" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <Import Project="..\Meds.Dist\Meds.Dist.projitems" Label="Shared" />

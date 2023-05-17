@@ -1,0 +1,59 @@
+server:
+  log_level: info
+
+metrics:
+  wal_directory: "${INSTALL_DIR}/grafana-agent/wal/"
+  global:
+    scrape_interval: 1m
+    remote_write:
+      - # https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
+  configs:
+    - name: agent
+      scrape_configs:
+        - job_name: agent
+          metrics_path: /vrageremote/metrics
+          authorization:
+            credentials: # server PrometheusKey here
+          static_configs:
+            - targets: [ '127.0.0.1:27743' ]
+              labels:
+                instance: # instance name here
+
+logs:
+  positions_directory: "${INSTALL_DIR}/grafana-agent/positions/"
+  configs:
+    - name: agent
+      clients:
+        - # https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients
+      scrape_configs:
+        - job_name: meds-management
+          static_configs:
+            - targets:
+                - localhost
+              labels:
+                __path__: "${INSTALL_DIR}/logs/*/*.log"
+                instance: # instance name here
+          pipeline_stages:
+            - regex:
+                source: filename
+                expression: '^.*[\\\/](?P<tool>[^\\\/]+)[\\\/][^\\\/]*\.log$'
+            - json:
+                expressions:
+                  logger: CategoryName
+                  level: LogLevel
+                  time: Timestamp
+                  thread: ThreadName
+                  mod_id: Payload.Package.ModId
+                  audit_event: Payload.AuditEvent
+                  audit_player: Payload.ActingPlayer.SteamId
+            - timestamp:
+                source: time
+                format: RFC3339Nano
+            - labels:
+                tool: tool
+                mod_id: mod_id
+                logger: logger
+                level: level
+                thread: thread
+                audit_event: audit_event
+                audit_player: audit_player
