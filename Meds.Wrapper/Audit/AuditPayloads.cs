@@ -25,6 +25,9 @@ namespace Meds.Wrapper.Audit
         EquiControlStart,
 
         PaxRopeControlStart,
+
+        MedievalMasterStart,
+        MedievalMasterStop,
     }
 
     public class AuditPayload
