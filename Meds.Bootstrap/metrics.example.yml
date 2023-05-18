@@ -46,6 +46,7 @@ logs:
                   mod_id: Payload.Package.ModId
                   audit_event: Payload.AuditEvent
                   audit_player: Payload.ActingPlayer.SteamId
+                  audit_player_name: Payload.ActingPlayer.DisplayName
             - timestamp:
                 source: time
                 format: RFC3339Nano

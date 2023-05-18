@@ -63,10 +63,35 @@ namespace Meds.Wrapper.Shim
 
             public bool Prefix { get; set; }
 
-            public ImplAttribute(params Type[] arguments)
+            public ImplAttribute(params Type[] arguments) : this(arguments, null)
+            {
+            }
+
+            public ImplAttribute(Type[] arguments, ArgumentType[] argumentTypes)
             {
                 Method = null;
-                Arguments = arguments;
+                Arguments = new Type[arguments.Length];
+                for (var i = 0; i < arguments.Length; i++)
+                {
+                    var type = arguments[i];
+                    var variation = argumentTypes != null ? argumentTypes[i] : ArgumentType.Normal;
+                    switch (variation)
+                    {
+                        case ArgumentType.Normal:
+                            break;
+                        case ArgumentType.Ref:
+                        case ArgumentType.Out:
+                            type = type.MakeByRefType();
+                            break;
+                        case ArgumentType.Pointer:
+                            type = type.MakePointerType();
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    Arguments[i] = type;
+                }
             }
         }
 
@@ -113,10 +138,11 @@ namespace Meds.Wrapper.Shim
                 var attr = method.GetCustomAttribute<ImplAttribute>();
                 if (attr == null)
                     continue;
+                var args = attr.Arguments;
                 var methodName = attr.Method ?? method.Name;
                 foreach (var (mod, type) in modTypes)
                 {
-                    var target = AccessTools.Method(type, methodName, attr.Arguments);
+                    var target = AccessTools.Method(type, methodName, args);
                     if (target == null)
                     {
                         Entrypoint.LoggerFor(typeof(VoxelResetPatches))
@@ -219,9 +245,15 @@ namespace Meds.Wrapper.Shim
         private const int LeafTypeProvider = 1;
         private const int LeafTypeMicroOctree = 2;
 
-        [Impl(typeof(IMyStorage), typeof(ulong), typeof(MyStorageDataTypeEnum))]
+        [Impl(
+            new[] { typeof(IMyStorage), typeof(ulong), typeof(MyStorageDataTypeEnum), typeof(int) },
+            new[] { ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Out })]
         private static IEnumerable<CodeInstruction> TryGetLeafTypeInternal(IEnumerable<CodeInstruction> _, ILGenerator ilg)
         {
+            yield return ins(OpCodes.Ldarg_3);
+            yield return ins(OpCodes.Ldc_I4_0);
+            yield return ins(OpCodes.Stind_I4);
+
             foreach (var i in LoadLeafDictionary(OpCodes.Ldarg_0, OpCodes.Ldarg_2, ilg))
                 yield return i;
 
@@ -245,6 +277,12 @@ namespace Meds.Wrapper.Shim
             yield return ins(OpCodes.Ldloc, local).WithLabels(notProvider);
             yield return ins(OpCodes.Isinst, MicroOctreeLeafType);
             yield return ins(OpCodes.Brfalse, fallback);
+
+            yield return ins(OpCodes.Ldarg_3);
+            yield return ins(OpCodes.Ldloc, local);
+            yield return CodeInstruction.Call(typeof(IMyOctreeLeafNode), "get_" + nameof(IMyOctreeLeafNode.SerializedChunkSize));
+            yield return ins(OpCodes.Stind_I4);
+
             yield return ins(OpCodes.Ldc_I4, LeafTypeMicroOctree);
             yield return ins(OpCodes.Ret);
 
@@ -354,12 +392,13 @@ namespace Meds.Wrapper.Shim
                 Rotation = Quaternion.Identity,
                 Position = worldBox.Center,
             };
-            Func<MyVoxelBase, Action<MySignedDistanceShape, MyVoxelOperationType, byte, bool>> endpoint = x => (Action<MySignedDistanceShape, MyVoxelOperationType, byte, bool>)
+            Func<MyVoxelBase, Action<MySignedDistanceShape, MyVoxelOperationType, byte, bool>> endpoint = x =>
+                (Action<MySignedDistanceShape, MyVoxelOperationType, byte, bool>)
                 Delegate.CreateDelegate(typeof(Action<MySignedDistanceShape, MyVoxelOperationType, byte, bool>), x, OnVoxelOperationResponse);
 
-            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Cut, (byte) 0, true);
-            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Fill, (byte) 0, true);
-            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Paint, (byte) 0, true);
+            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Cut, (byte)0, true);
+            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Fill, (byte)0, true);
+            MyAPIGateway.Multiplayer?.RaiseEvent(voxel, endpoint, shape, MyVoxelOperationType.Paint, (byte)0, true);
             __result = true;
             return false;
         }
