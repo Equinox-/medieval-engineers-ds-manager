@@ -87,26 +87,25 @@ namespace Meds.Watchdog
         {
             using var subscriber = _syncSubscriber.Subscribe(sync =>
             {
-                using (Write(out var data))
-                {
-                    if (sync.Planet.HasValue)
-                    {
-                        var planetSrc = sync.Planet.Value;
-                        var planetDst = data.Planet ??= new PlanetData();
-                        planetDst.MinRadius = planetSrc.MinRadius;
-                        planetDst.AvgRadius = planetSrc.AvgRadius;
-                        planetDst.MaxRadius = planetSrc.MaxRadius;
-                        planetDst.AreasPerRegion = planetSrc.AreasPerRegion;
-                        planetDst.AreasPerFace = planetSrc.AreasPerFace;
-                    }
+                using var tok = Write(out var data);
 
-                    if (sync.GridDatabase.HasValue)
-                    {
-                        var gridSrc = sync.GridDatabase.Value;
-                        var gridDst = data.GridDatabase ??= new GridDatabaseConfig();
-                        gridDst.MaxLod = gridSrc.MaxLod;
-                        gridDst.GridSize = gridSrc.GridSize;
-                    }
+                if (sync.Planet.HasValue)
+                {
+                    var planetSrc = sync.Planet.Value;
+                    var planetDst = data.Planet ??= new PlanetData();
+                    tok.Update(ref planetDst.MinRadius, planetSrc.MinRadius);
+                    tok.Update(ref planetDst.AvgRadius, planetSrc.AvgRadius);
+                    tok.Update(ref planetDst.MaxRadius, planetSrc.MaxRadius);
+                    tok.Update(ref planetDst.AreasPerRegion, planetSrc.AreasPerRegion);
+                    tok.Update(ref planetDst.AreasPerFace, planetSrc.AreasPerFace);
+                }
+
+                if (sync.GridDatabase.HasValue)
+                {
+                    var gridSrc = sync.GridDatabase.Value;
+                    var gridDst = data.GridDatabase ??= new GridDatabaseConfig();
+                    tok.Update(ref gridDst.MaxLod, gridSrc.MaxLod);
+                    tok.Update(ref gridDst.GridSize, gridSrc.GridSize);
                 }
             });
             while (!stoppingToken.IsCancellationRequested)
@@ -132,19 +131,30 @@ namespace Meds.Watchdog
             public void Dispose() => _store._lock.ExitReadLock();
         }
 
-        public readonly struct WriteToken : IDisposable
+        public struct WriteToken : IDisposable
         {
             private readonly DataStore _store;
+            private bool _updated;
 
             public WriteToken(DataStore store)
             {
                 _store = store;
                 store._lock.EnterWriteLock();
+                _updated = false;
+            }
+
+            public void Update<T>(ref T value, T newValue) where T : IEquatable<T>
+            {
+                // ReSharper disable once HeapView.PossibleBoxingAllocation
+                if (!_updated)
+                    _updated = typeof(T).IsValueType ? newValue.Equals(value) : Equals(newValue, value);
+                value = newValue;
             }
 
             public void Dispose()
             {
-                Interlocked.Exchange(ref _store._modified, 1);
+                if (_updated)
+                    Interlocked.Exchange(ref _store._modified, 1);
                 _store._lock.ExitWriteLock();
             }
         }
