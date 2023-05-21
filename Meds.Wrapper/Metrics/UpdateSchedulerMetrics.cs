@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Threading;
 using HarmonyLib;
 using Meds.Metrics;
 using Meds.Shared;
@@ -12,13 +10,8 @@ using Meds.Wrapper.Shim;
 using Sandbox.Engine.Networking;
 using VRage.Components;
 using VRage.Engine;
-using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
-using VRage.Session;
-using VRageMath;
-using ZLogger;
-using Timer = Meds.Metrics.Timer;
 
 #pragma warning disable 618
 
@@ -27,7 +20,6 @@ namespace Meds.Wrapper.Metrics
     public static class UpdateSchedulerMetrics
     {
         private const string SeriesName = "me.profiler.scheduler";
-        private const string DefinitionSeriesName = "me.profiler.definitions";
         private const string FixedScheduler = "fixed";
         private const string TimedScheduler = "timed";
         private const string LegacyScheduler = "legacy";
@@ -35,13 +27,11 @@ namespace Meds.Wrapper.Metrics
 
         private static bool _methodProfiling;
         private static bool _regionProfiling;
-        private static bool _definitionProfiling;
 
         public static void Register(MetricConfig config)
         {
             _methodProfiling = config.MethodProfiling;
             _regionProfiling = config.RegionProfiling;
-            _definitionProfiling = config.DefinitionProfiling;
 
             PatchHelper.Patch(typeof(TimedUpdatePatch));
             PatchHelper.Patch(typeof(FixedUpdatePatch));
@@ -94,9 +84,6 @@ namespace Meds.Wrapper.Metrics
 
             if (_regionProfiling)
                 RecordRegionUpdate(target, dt);
-
-            if (_definitionProfiling)
-                RecordDefinitionUpdate(target, dt);
         }
 
         private static void RecordRegionUpdate(object target, long dt)
@@ -110,21 +97,6 @@ namespace Meds.Wrapper.Metrics
 
             if (geoData != null)
                 RegionMetrics.RecordRegionUpdateTime(geoData.Value, dt);
-        }
-
-        private static void RecordDefinitionUpdate(object target, long dt)
-        {
-            var definitionId = target switch
-            {
-                MyEntity entity => entity.DefinitionId,
-                MyEntityComponent entityComponent => entityComponent.Entity?.DefinitionId,
-                _ => null
-            };
-
-            if (definitionId == null)
-                return;
-            var name = MetricName.Of(DefinitionSeriesName, "subtype", PatchHelper.SubtypeOrDefault(definitionId.Value));
-            MetricRegistry.PerTickTimer(in name).Record(dt);
         }
 
         [HarmonyPatch(typeof(MyUpdateScheduler), "RunFixedUpdates")]
