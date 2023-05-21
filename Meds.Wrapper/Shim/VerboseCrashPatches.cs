@@ -5,6 +5,8 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Meds.Wrapper.Utils;
+using Microsoft.Extensions.Logging;
+using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.EntityComponents.Character;
 using VRage.Components;
 using VRage.Game.Components;
@@ -16,32 +18,27 @@ namespace Meds.Wrapper.Shim
     [AlwaysPatch]
     public static class VerboseUpdateSchedulerCrash
     {
-        public static void Prefix(Delegate action, Exception error)
+        private readonly struct LoggingPayloadConsumer : IPayloadConsumer
         {
-            void Report<T>(T payload)
+            private readonly Delegate _action;
+            private readonly Exception _error;
+
+            public LoggingPayloadConsumer(Delegate action, Exception error)
             {
-                Entrypoint
-                    .LoggerFor(action.Method.DeclaringType ?? typeof(VerboseUpdateSchedulerCrash))
-                    .ZLogErrorWithPayload(error, payload, "Update method failed: {0} on {1}",
-                        action.Method.FullDescription(), action.Target ?? "null");
+                _action = action;
+                _error = error;
             }
 
-            switch (action.Target)
+            public void Consume<T>(in T payload)
             {
-                case MyEntityComponent ec:
-                    Report(new EntityComponentPayload(ec, action.Method.Name));
-                    return;
-                case IComponent c:
-                    Report(new ComponentPayload(c, action.Method.Name));
-                    return;
-                case MyHandItemBehaviorBase hib:
-                    Report(new HandItemBehaviorPayload(hib, action.Method.Name));
-                    return;
-                default:
-                    Report(new MemberPayload(action.Method));
-                    return;
+                Entrypoint
+                    .LoggerFor(_action.Method.DeclaringType ?? typeof(VerboseUpdateSchedulerCrash))
+                    .ZLogErrorWithPayload(_error, payload, "Update method failed: {0} on {1}",
+                        _action.Method.FullDescription(), _action.Target ?? "null");
             }
         }
+
+        public static void Prefix(Delegate action, Exception error) => LoggingPayloads.VisitPayload(action, new LoggingPayloadConsumer(action, error));
     }
 
 

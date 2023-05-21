@@ -6,9 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Meds.Shared;
 using Meds.Shared.Data;
+using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sandbox;
+using VRage;
 using ZLogger;
 
 namespace Meds.Wrapper
@@ -61,13 +63,44 @@ namespace Meds.Wrapper
             catch (TargetInvocationException err)
             {
                 var unwrapped = err.InnerException ?? err;
-                _log.ZLogError(unwrapped, "Server crashed");
+                Delegate updateTarget = null;
+                var tmp = unwrapped;
+                while (tmp != null)
+                {
+                    if (tmp is MyUpdateSchedulerException use)
+                    {
+                        updateTarget = use.Callback;
+                        break;
+                    }
+
+                    tmp = tmp.InnerException;
+                }
+
+                if (updateTarget != null)
+                    LoggingPayloads.VisitPayload(updateTarget, new CrashLoggingPayloadConsumer(_log, unwrapped));
+                else
+                    _log.ZLogError(unwrapped, "Server crashed");
                 throw unwrapped;
             }
             finally
             {
                 _lifetime.StopApplication();
             }
+        }
+
+        private readonly struct CrashLoggingPayloadConsumer : IPayloadConsumer
+        {
+            private readonly ILogger<ServerService> _log;
+            private readonly Exception _error;
+
+            // ReSharper disable once ContextualLoggerProblem
+            public CrashLoggingPayloadConsumer(ILogger<ServerService> log, Exception error)
+            {
+                _log = log;
+                _error = error;
+            }
+
+            public void Consume<T>(in T payload) => _log.ZLogErrorWithPayload(_error, payload, "Server crashed");
         }
 
         protected override Task ExecuteAsync(CancellationToken ct)

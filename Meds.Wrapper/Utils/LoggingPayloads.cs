@@ -5,6 +5,7 @@ using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Sandbox.Definitions.Equipment;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.Entities.Planet;
 using Sandbox.Game.EntityComponents.Character;
 using Sandbox.Game.Players;
@@ -59,11 +60,15 @@ namespace Meds.Wrapper.Utils
         public string Type;
         public string Member;
 
-        public MemberPayload(MemberInfo member)
+        public MemberPayload(MemberInfo member) : this(member.DeclaringType, member.Name)
         {
-            Package = new PackagePayload(member.DeclaringType);
-            Type = member.DeclaringType?.Name;
-            Member = member.Name;
+        }
+
+        public MemberPayload(Type declaringType, string member)
+        {
+            Package = new PackagePayload(declaringType);
+            Type = declaringType?.Name;
+            Member = member;
         }
     }
 
@@ -217,6 +222,41 @@ namespace Meds.Wrapper.Utils
             }
 
             return true;
+        }
+    }
+
+    public interface IPayloadConsumer
+    {
+        void Consume<T>(in T payload);
+    }
+
+    public static class LoggingPayloads
+    {
+        public static void VisitPayload<T>(Delegate target, T consumer) where T : IPayloadConsumer
+        {
+            VisitPayload(target.Target, consumer, target.Method.Name);
+        }
+
+        public static void VisitPayload<T>(object target, T consumer, string method = null) where T : IPayloadConsumer
+        {
+            switch (target)
+            {
+                case MyEntityStatComponent.DelayedEffect delayed:
+                    consumer.Consume(new EntityComponentPayload(delayed.StatComponent, method));
+                    return;
+                case MyEntityComponent ec:
+                    consumer.Consume(new EntityComponentPayload(ec, method));
+                    return;
+                case IComponent c:
+                    consumer.Consume(new ComponentPayload(c, method));
+                    return;
+                case MyHandItemBehaviorBase hib:
+                    consumer.Consume(new HandItemBehaviorPayload(hib, method));
+                    return;
+                default:
+                    consumer.Consume(new MemberPayload(target?.GetType(), method));
+                    return;
+            }
         }
     }
 }
