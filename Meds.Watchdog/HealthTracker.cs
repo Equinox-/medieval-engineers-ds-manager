@@ -25,12 +25,25 @@ namespace Meds.Watchdog
         public int PlayerCount { get; private set; }
         public float SimulationSpeed { get; private set; }
 
-        public DateTime VersionCompiledAt { get; private set; }
-        public string VersionHash { get; private set; }
+        public VersionInfo? Version { get; private set; }
+
+        public readonly struct VersionInfo
+        {
+            public readonly DateTime CompiledAtUtc;
+            public readonly string GitHash;
+            public readonly string Medieval;
+
+            public VersionInfo(VersionInfoMsg msg)
+            {
+                CompiledAtUtc = new DateTime(msg.CompiledAt, DateTimeKind.Utc);
+                GitHash = msg.GitHash;
+                Medieval = msg.Medieval;
+            }
+        }
 
         public HealthTracker(ISubscriber<HealthState> healthSubscriber,
             InstallConfiguration installConfig,
-            Refreshable<Configuration> config,  ILogger<HealthTracker> log)
+            Refreshable<Configuration> config, ILogger<HealthTracker> log)
         {
             _healthSubscriber = healthSubscriber;
             _installConfig = installConfig;
@@ -137,13 +150,13 @@ namespace Meds.Watchdog
             {
                 if (_readiness.UpdateState(msg.Readiness))
                     _log.ZLogInformation("Readiness changed from {0} to {1}", !msg.Readiness, msg.Readiness);
-                if (_liveness.UpdateState(msg.Liveness)) 
+                if (_liveness.UpdateState(msg.Liveness))
                     _log.ZLogInformation("Liveness changed from {0} to {1}", !msg.Liveness, msg.Liveness);
 
                 PlayerCount = msg.Players;
                 SimulationSpeed = msg.SimSpeed;
-                VersionCompiledAt = msg.VersionCompiledAt != 0 ? new DateTime(msg.VersionCompiledAt, DateTimeKind.Utc) : default;
-                VersionHash = msg.VersionHash;
+                var ver = msg.Version;
+                Version = ver != null ? (VersionInfo?) new VersionInfo(ver.Value) : null;
             });
             return Task.CompletedTask;
         }

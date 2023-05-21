@@ -88,17 +88,38 @@ namespace Meds.Watchdog.Discord
                 builder.AddField("Next Uptime", nextUptime, true);
             }
 
-            string FormatVersion(string gitHash, DateTime compiledAt)
+            bool IsGitHash(string hash)
             {
-                var shortHash = gitHash.Substring(0, Math.Min(gitHash.Length, 8));
-                return $"[{shortHash}]({DiscordUtils.RepositoryUrl}/commit/{gitHash}) @ {compiledAt.AsDiscordTime()}";
+                foreach (var c in hash)
+                    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+                        return false;
+                return true;
             }
 
-            var watchdogVersionInfo = typeof(DiscordCmdStatus).Assembly.GetCustomAttribute<VersionInfoAttribute>();
-            if (watchdogVersionInfo != null)
-                builder.AddField("Watchdog Version", FormatVersion(watchdogVersionInfo.GitHash, watchdogVersionInfo.CompiledAt));
-            if (_healthTracker.VersionHash != null)
-                builder.AddField("Wrapper Version", FormatVersion(_healthTracker.VersionHash, _healthTracker.VersionCompiledAt));
+            string FormatVersion(string gitHash, DateTime compiledAt)
+            {
+                string hashFmt;
+                if (IsGitHash(gitHash))
+                {
+                    var shortHash = gitHash.Substring(0, Math.Min(gitHash.Length, 8));
+                    hashFmt = $"[{shortHash}]({DiscordUtils.RepositoryUrl}/commit/{gitHash})";
+                }
+                else
+                {
+                    hashFmt = gitHash;
+                }
+
+                return $"{hashFmt} @ {compiledAt.AsDiscordTime()}";
+            }
+
+            var watchdogVersion = typeof(DiscordCmdStatus).Assembly.GetCustomAttribute<VersionInfoAttribute>();
+            if (watchdogVersion != null)
+                builder.AddField("Watchdog Version", FormatVersion(watchdogVersion.GitHash, watchdogVersion.CompiledAt));
+            var wrapperVersion = _healthTracker.Version;
+            if (wrapperVersion?.GitHash != null)
+                builder.AddField("Wrapper Version", FormatVersion(wrapperVersion.Value.GitHash, wrapperVersion.Value.CompiledAtUtc));
+            if (wrapperVersion?.Medieval != null)
+                builder.AddField("Medieval Version", wrapperVersion.Value.Medieval);
 
             await context.CreateResponseAsync(builder.Build());
         }

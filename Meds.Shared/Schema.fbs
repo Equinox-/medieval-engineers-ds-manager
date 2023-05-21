@@ -6,8 +6,13 @@ table HealthState {
     sim_speed: float;
     players: int32;
 
-    version_compiled_at: int64;
-    version_hash: string;
+    version: VersionInfoMsg;
+}
+
+table VersionInfoMsg {
+    compiled_at: int64;
+    git_hash: string;
+    medieval: string;
 }
 
 table ShutdownRequest {
