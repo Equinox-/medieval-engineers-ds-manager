@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <UsingTask TaskName="GenerateVersionInfo" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+        <ParameterGroup>
+            <Output ParameterType="System.String" Required="true" />
+        </ParameterGroup>
+        <Task>
+            <Using Namespace="System" />
+            <Using Namespace="System.IO" />
+            <Using Namespace="System.Diagnostics" />
+            <Code Type="Fragment" Language="cs">
+                <![CDATA[
+var gitHash = "unknown";
+try {
+    var proc = Process.Start(new ProcessStartInfo
+    {
+        FileName = "git",
+        Arguments = "rev-parse HEAD",
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        WorkingDirectory = Directory.GetCurrentDirectory()
+    });
+    gitHash = proc.StandardOutput.ReadToEnd().Trim();
+    proc.WaitForExit();
+} catch (Exception ignored) {
+}
+using (var writer = File.CreateText(Output)) {
+    writer.WriteLine("using Meds.Shared;");
+    writer.WriteLine("[assembly: VersionInfo(" + DateTime.UtcNow.Ticks + ", \"" + gitHash + "\")]");
+}
+]]>
+            </Code>
+        </Task>
+    </UsingTask>
+</Project>

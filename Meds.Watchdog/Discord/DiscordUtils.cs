@@ -26,6 +26,8 @@ namespace Meds.Watchdog.Discord
 
     public static class DiscordUtils
     {
+        public const string RepositoryUrl = "https://github.com/Equinox-/medieval-engineers-ds-manager";
+
         public class TableFormatter
         {
             private readonly int _monoSpacedColumns;

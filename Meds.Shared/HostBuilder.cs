@@ -219,7 +219,7 @@ namespace Meds.Shared
                 try
                 {
                     if (!_stoppingSource.IsCancellationRequested)
-                        _logger.ZLogInformation("Shutting down here:\n{0}", new StackTrace());
+                        _logger.ZLogInformation("Shutdown requested");
                     ExecuteHandlers(_stoppingSource);
                 }
                 catch (Exception ex)

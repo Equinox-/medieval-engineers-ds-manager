@@ -5,6 +5,9 @@ table HealthState {
     readiness: bool;
     sim_speed: float;
     players: int32;
+
+    version_compiled_at: int64;
+    version_hash: string;
 }
 
 table ShutdownRequest {

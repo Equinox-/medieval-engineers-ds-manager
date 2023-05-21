@@ -25,6 +25,9 @@ namespace Meds.Watchdog
         public int PlayerCount { get; private set; }
         public float SimulationSpeed { get; private set; }
 
+        public DateTime VersionCompiledAt { get; private set; }
+        public string VersionHash { get; private set; }
+
         public HealthTracker(ISubscriber<HealthState> healthSubscriber,
             InstallConfiguration installConfig,
             Refreshable<Configuration> config,  ILogger<HealthTracker> log)
@@ -139,6 +142,8 @@ namespace Meds.Watchdog
 
                 PlayerCount = msg.Players;
                 SimulationSpeed = msg.SimSpeed;
+                VersionCompiledAt = msg.VersionCompiledAt != 0 ? new DateTime(msg.VersionCompiledAt, DateTimeKind.Utc) : default;
+                VersionHash = msg.VersionHash;
             });
             return Task.CompletedTask;
         }

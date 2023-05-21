@@ -123,7 +123,7 @@ namespace Meds.Wrapper.Metrics
 
             if (definitionId == null)
                 return;
-            var name = MetricName.Of(DefinitionSeriesName, "subtype", definitionId.Value.SubtypeName);
+            var name = MetricName.Of(DefinitionSeriesName, "subtype", PatchHelper.SubtypeOrDefault(definitionId.Value));
             MetricRegistry.PerTickTimer(in name).Record(dt);
         }
 

@@ -1,6 +1,7 @@
 **/Content/Textures/
 **/Content/Models/
 **/OriginalContent/
+**/Properties/VersionInfo.cs
 *.fbx
 *.blend1
 *.dds

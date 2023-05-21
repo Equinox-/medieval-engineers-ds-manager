@@ -43,6 +43,8 @@
         <Reference Include="netstandard" />
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Properties\VersionInfo.cs" />
+        <Compile Include="VersionInfoAttribute.cs" />
         <Compile Include="CollectionEquality.cs" />
         <Compile Include="CustomLogFormat.cs" />
         <Compile Include="ExtraContextLogger.cs" />
@@ -75,6 +77,14 @@
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="ZLogger" Version="1.7.0" />
     </ItemGroup>
+    <ItemGroup>
+      <Content Include="VersionInfoGen.props" />
+    </ItemGroup>
+
+    <Import Project="..\Meds.Shared\VersionInfoGen.props" />
+    <Target Name="BeforeBuild">
+        <GenerateVersionInfo Output="$(ProjectDir)\Properties\VersionInfo.cs" />
+    </Target>
 
     <Target Name="FlatcCompile" BeforeTargets="CoreCompile" Inputs="@(FlatSharpSchema)" Outputs="$(FlatCOutput)**\*.cs">
         <PropertyGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">

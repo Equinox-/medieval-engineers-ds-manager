@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
@@ -84,10 +85,20 @@ namespace Meds.Watchdog.Discord
                     }
                 }
 
-                builder.AddField("Next Uptime", nextUptime);
+                builder.AddField("Next Uptime", nextUptime, true);
             }
 
-            builder.WithFooter("ME DS Manager");
+            string FormatVersion(string gitHash, DateTime compiledAt)
+            {
+                var shortHash = gitHash.Substring(0, Math.Min(gitHash.Length, 8));
+                return $"[{shortHash}]({DiscordUtils.RepositoryUrl}/commit/{gitHash}) @ {compiledAt.AsDiscordTime()}";
+            }
+
+            var watchdogVersionInfo = typeof(DiscordCmdStatus).Assembly.GetCustomAttribute<VersionInfoAttribute>();
+            if (watchdogVersionInfo != null)
+                builder.AddField("Watchdog Version", FormatVersion(watchdogVersionInfo.GitHash, watchdogVersionInfo.CompiledAt));
+            if (_healthTracker.VersionHash != null)
+                builder.AddField("Wrapper Version", FormatVersion(_healthTracker.VersionHash, _healthTracker.VersionCompiledAt));
 
             await context.CreateResponseAsync(builder.Build());
         }

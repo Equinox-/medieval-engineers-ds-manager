@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Meds.Shared;
@@ -31,13 +32,18 @@ namespace Meds.Wrapper
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                var versionInfo = typeof(HealthReporter).Assembly.GetCustomAttribute<VersionInfoAttribute>();
                 using (var builder = _healthPublisher.Publish())
                 {
+                    var gitHash = versionInfo != null ? builder.Builder.CreateString(versionInfo.GitHash) : default;
                     builder.Send(HealthState.CreateHealthState(builder.Builder,
                         liveness: true,
                         readiness: _lastGameTick + ReadinessTimeout >= DateTime.UtcNow,
                         sim_speed: MyPhysicsSandbox.SimulationRatio,
-                        players: (Sync.Clients?.Count ?? 1) - 1));
+                        players: (Sync.Clients?.Count ?? 1) - 1,
+                        version_hashOffset: gitHash,
+                        version_compiled_at: versionInfo?.CompiledAt.Ticks ?? 0L
+                    ));
                 }
 
                 await Task.Delay(ReportInterval, stoppingToken);
