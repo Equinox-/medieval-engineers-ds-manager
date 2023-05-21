@@ -12,6 +12,7 @@ using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
 using Sandbox.Engine.Multiplayer;
 using Sandbox.Game.Entities.Character;
+using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Players;
 using VRage.Components;
@@ -419,21 +420,6 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    // https://communityedition.medievalengineers.com/mantis/view.php?id=469
-    [HarmonyPatch(typeof(MySessionPersistence), "Apply")]
-    [AlwaysPatch]
-    public static class WaitForPersistCompletion
-    {
-        private static readonly Func<MySessionPersistence, RecurringWork> PersistWorkGetter = AccessTools.Field(typeof(MySessionPersistence), "m_persistWork")
-            .CreateGetter<MySessionPersistence, RecurringWork>();
-
-        // Before applying the session snapshot make sure background persistence finishes.
-        public static void Prefix(MySessionPersistence __instance)
-        {
-            PersistWorkGetter(__instance).Wait();
-        }
-    }
-
     // https://communityedition.medievalengineers.com/mantis/view.php?id=409
     [HarmonyPatch(typeof(MyClaimedAreaRespawnLocation), nameof(MyClaimedAreaRespawnLocation.IsValidForIdentity))]
     [AlwaysPatch]
@@ -541,5 +527,13 @@ namespace Meds.Wrapper.Shim
             foreach (var i in instructions)
                 yield return i;
         }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=480
+    [HarmonyPatch(typeof(MyEntityStatComponent.DelayedEffect), "HandleTick")]
+    [AlwaysPatch]
+    public static class SkipUnloadedDelayedEffects
+    {
+        public static bool Prefix(MyEntityStatComponent.DelayedEffect __instance) => __instance.StatComponent?.Entity?.InScene ?? false;
     }
 }
