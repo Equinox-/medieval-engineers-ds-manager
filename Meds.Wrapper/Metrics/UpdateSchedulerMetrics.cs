@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using HarmonyLib;
 using Meds.Metrics;
+using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Sandbox.Engine.Networking;
 using VRage.Components;
 using VRage.Engine;
+using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
+using VRage.Session;
 using VRageMath;
 using ZLogger;
 using Timer = Meds.Metrics.Timer;
@@ -23,6 +27,7 @@ namespace Meds.Wrapper.Metrics
     public static class UpdateSchedulerMetrics
     {
         private const string SeriesName = "me.profiler.scheduler";
+        private const string DefinitionSeriesName = "me.profiler.definitions";
         private const string FixedScheduler = "fixed";
         private const string TimedScheduler = "timed";
         private const string LegacyScheduler = "legacy";
@@ -30,16 +35,18 @@ namespace Meds.Wrapper.Metrics
 
         private static bool _methodProfiling;
         private static bool _regionProfiling;
+        private static bool _definitionProfiling;
 
-        public static void Register(bool methods, bool regions)
+        public static void Register(MetricConfig config)
         {
-            _methodProfiling = methods;
-            _regionProfiling = regions;
+            _methodProfiling = config.MethodProfiling;
+            _regionProfiling = config.RegionProfiling;
+            _definitionProfiling = config.DefinitionProfiling;
 
             PatchHelper.Patch(typeof(TimedUpdatePatch));
             PatchHelper.Patch(typeof(FixedUpdatePatch));
 
-            if (methods)
+            if (_methodProfiling)
             {
                 PatchHelper.Patch(typeof(LegacyUpdateBefore));
                 PatchHelper.Patch(typeof(LegacySimulate));
@@ -85,22 +92,39 @@ namespace Meds.Wrapper.Metrics
                 MetricRegistry.PerTickTimer(in name).Record(dt);
             }
 
-            if (!_regionProfiling)
-                return;
+            if (_regionProfiling)
+                RecordRegionUpdate(target, dt);
 
-            Vector3D? geoData = null;
-            switch (target)
+            if (_definitionProfiling)
+                RecordDefinitionUpdate(target, dt);
+        }
+
+        private static void RecordRegionUpdate(object target, long dt)
+        {
+            var geoData = target switch
             {
-                case MyEntity entity:
-                    geoData = entity.PositionComp?.WorldAABB.Center;
-                    break;
-                case MyEntityComponent entityComponent:
-                    geoData = entityComponent.Entity?.PositionComp?.WorldAABB.Center;
-                    break;
-            }
+                MyEntity entity => entity.PositionComp?.WorldAABB.Center,
+                MyEntityComponent entityComponent => entityComponent.Entity?.PositionComp?.WorldAABB.Center,
+                _ => null
+            };
 
             if (geoData != null)
                 RegionMetrics.RecordRegionUpdateTime(geoData.Value, dt);
+        }
+
+        private static void RecordDefinitionUpdate(object target, long dt)
+        {
+            var definitionId = target switch
+            {
+                MyEntity entity => entity.DefinitionId,
+                MyEntityComponent entityComponent => entityComponent.Entity?.DefinitionId,
+                _ => null
+            };
+
+            if (definitionId == null)
+                return;
+            var name = MetricName.Of(DefinitionSeriesName, "subtype", definitionId.Value.SubtypeName);
+            MetricRegistry.PerTickTimer(in name).Record(dt);
         }
 
         [HarmonyPatch(typeof(MyUpdateScheduler), "RunFixedUpdates")]
@@ -119,7 +143,8 @@ namespace Meds.Wrapper.Metrics
 
                 // Don't double count legacy updates 
                 var method = update.Method;
-                if (method == DoSimulate || method == DoUpdateAfterSimulation || method == DoUpdateBeforeSimulation || method == ProfilingMetrics.RunSingleFrame)
+                if (method == DoSimulate || method == DoUpdateAfterSimulation || method == DoUpdateBeforeSimulation ||
+                    method == ProfilingMetrics.RunSingleFrame)
                 {
                     update();
                     return;

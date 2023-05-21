@@ -493,7 +493,12 @@ namespace Meds.Wrapper.Shim
                          "TransmissionWoodTWithFrame",
                          "TransmissionWoodVertical",
                          "TransmissionWoodVerticalWithFrame",
-                         "TransmissionWoodWithFrame"
+                         "TransmissionWoodWithFrame",
+                         "Windmill",
+                         "DutchWindmill",
+                         "StampMillMechanicalAnimation",
+                         "SawmillMechanical",
+                         "MillstoneMechanical"
                      })
             {
                 _disabled.Add(new AnimationKey(transmission, "ccw"));

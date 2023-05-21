@@ -19,7 +19,7 @@ namespace Meds.Metrics
 
         private sealed class MetricTable<TV>
         {
-            private const int ThreadLocalMask = (1 << 12) -1;
+            private const int ThreadLocalMask = (1 << 14) - 1;
             private int _tlsPopulated;
             private readonly Dictionary<MetricName, TV> _shared = new Dictionary<MetricName, TV>();
             private readonly ThreadLocal<TlsStorage> _local = new ThreadLocal<TlsStorage>(() => new TlsStorage(), true);

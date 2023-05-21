@@ -65,7 +65,7 @@ namespace Meds.Wrapper
             if (Config.Metrics.Player)
                 PlayerMetrics.Register();
             CraftingMetrics.Register(Config.Metrics);
-            UpdateSchedulerMetrics.Register(Config.Metrics.MethodProfiling, Config.Metrics.RegionProfiling);
+            UpdateSchedulerMetrics.Register(Config.Metrics);
             if (Config.Metrics.RpcProfiling)
                 RpcMetrics.Register();
             GridDatabaseMetrics.Register();
