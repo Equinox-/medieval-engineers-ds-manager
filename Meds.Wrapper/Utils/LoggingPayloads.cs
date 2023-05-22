@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
+using Meds.Wrapper.Audit;
 using Sandbox.Definitions.Equipment;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Entity.Stats;
@@ -123,7 +124,7 @@ namespace Meds.Wrapper.Utils
         }
     }
 
-    public struct EntityComponentPayload
+    public class EntityComponentPayload
     {
         public PackagePayload Package;
         public string Type;
@@ -132,6 +133,7 @@ namespace Meds.Wrapper.Utils
         public long? EntityRootId;
         public string EntitySubtype;
         public DefinitionPayload? Definition;
+        public PlayerPayload? Player;
 
         public EntityComponentPayload(MyEntityComponent comp, string method = null,
             MyEntityComponentContainer container = null)
@@ -147,10 +149,12 @@ namespace Meds.Wrapper.Utils
                 Definition = new DefinitionPayload(def);
             else
                 Definition = null;
+            var holdingPlayer = MyPlayers.Static?.GetControllingPlayer(comp.Entity);
+            Player = holdingPlayer != null ? (PlayerPayload?)PlayerPayload.Create(holdingPlayer) : null;
         }
     }
 
-    public struct HandItemBehaviorPayload
+    public class HandItemBehaviorPayload
     {
         public PackagePayload Package;
         public string Type;
@@ -158,6 +162,7 @@ namespace Meds.Wrapper.Utils
         public long? EntityId;
         public string EntitySubtype;
         public DefinitionPayload? Definition;
+        public PlayerPayload? Player;
 
         public HandItemBehaviorPayload(MyHandItemBehaviorBase tool, string method = null)
         {
@@ -170,6 +175,8 @@ namespace Meds.Wrapper.Utils
                 Definition = new DefinitionPayload(def);
             else
                 Definition = null;
+            var holdingPlayer = MyPlayers.Static?.GetControllingPlayer(tool.Holder);
+            Player = holdingPlayer != null ? (PlayerPayload?)PlayerPayload.Create(holdingPlayer) : null;
         }
     }
 
