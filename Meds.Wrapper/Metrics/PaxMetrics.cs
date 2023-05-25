@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +10,7 @@ using Meds.Metrics;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Sandbox.Game.Entities;
+using Sandbox.Game.World;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
@@ -25,6 +27,32 @@ namespace Meds.Wrapper.Metrics
         {
             PatchHelper.Patch(typeof(PatchAuctionHouseBuy));
             PatchHelper.Patch(typeof(PatchAuctionHouseSell));
+
+            var waterSurface = PatchHelper.ModTypes("Pax.Water.PAX_WaterSurface").FirstOrDefault().type;
+            if (waterSurface != null)
+                WaterMetrics(waterSurface);
+        }
+
+
+        private static void WaterMetrics(Type waterSurface)
+        {
+            var group = MetricRegistry.Group(MetricName.Of("me.pax.water"));
+            void MaybeRegister(string name, FieldInfo field)
+            {
+                if (field == null || !typeof(ICollection).IsAssignableFrom(field.FieldType))
+                    return;
+                group.Gauge(name, () =>
+                {
+                    var sc = MySession.Static?.Components;
+                    if (sc == null || !sc.TryGet(waterSurface, out var comp))
+                        return double.NaN;
+                    var collection = field.GetValue(comp) as ICollection;
+                    return collection?.Count ?? double.NaN;
+                });
+            }
+            MaybeRegister("floating.grids", AccessTools.Field(waterSurface, "m_grids"));
+            MaybeRegister("floating.entities", AccessTools.Field(waterSurface, "m_entities"));
+            MaybeRegister("sinking", AccessTools.Field(waterSurface, "m_sinkingData"));
         }
 
 
