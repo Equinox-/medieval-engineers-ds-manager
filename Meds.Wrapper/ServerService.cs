@@ -60,7 +60,7 @@ namespace Meds.Wrapper
                     method.Invoke(null, new object[] { allArgs.ToArray() });
                 }
             }
-            catch (TargetInvocationException err)
+            catch (Exception err)
             {
                 var unwrapped = err.InnerException ?? err;
                 Delegate updateTarget = null;
