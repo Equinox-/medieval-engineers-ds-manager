@@ -257,10 +257,11 @@ namespace Meds.Watchdog.Steam
                         DistFileCache.Serializer.Serialize(fs, localCache);
                 }
             }
-            catch
+            catch (Exception err)
             {
                 throw new InvalidOperationException(
-                    $"A job may already be in progress on this install ({debugName}).If you're sure there isn't one, delete {lockFile}");
+                    $"A job may already be in progress on this install ({debugName}).If you're sure there isn't one, delete {lockFile}",
+                    err);
             }
         }
 
