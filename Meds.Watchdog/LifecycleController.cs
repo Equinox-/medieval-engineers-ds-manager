@@ -225,9 +225,7 @@ namespace Meds.Watchdog
                         }
                         catch (Exception err)
                         {
-                            _log.ZLogError(err, "Failed to update game binaries");
-                            Active = new LifecycleState(LifecycleStateCase.Faulted, "Failed to update game binaries");
-                            break;
+                            _log.ZLogWarning(err, "Failed to update game binaries. Attempting to continue anyways.");
                         }
 
                         if (stoppingToken.IsCancellationRequested)
