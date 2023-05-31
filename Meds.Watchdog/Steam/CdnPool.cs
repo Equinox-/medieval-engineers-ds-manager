@@ -19,9 +19,9 @@ namespace Meds.Watchdog.Steam
         private readonly SteamClient _client;
         private int _cellId;
         private readonly ConcurrentBag<Client> _clientBag = new ConcurrentBag<Client>();
-        private List<Server> _servers;
+        private readonly List<Server> _servers = new List<Server>();
 
-        public CdnPool (ILogger<CdnPool> log, SteamClient client)
+        public CdnPool(ILogger<CdnPool> log, SteamClient client)
         {
             _log = log;
             _client = client;
@@ -34,23 +34,21 @@ namespace Meds.Watchdog.Steam
         public async Task Initialize(int cellId)
         {
             _cellId = cellId;
-            _servers = (await ContentServerDirectoryService.LoadAsync(_client.Configuration, _cellId, CancellationToken.None)
-                                                          .ConfigureAwait(false)).OrderBy(x => x.WeightedLoad).ToList();
             Client.RequestTimeout = TimeSpan.FromSeconds(10);
             ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 100);
-            _log.ZLogInformation($"Got {_servers.Count} CDN servers.");
+            await RefreshServers();
         }
-        
+
         public Client TakeClient()
         {
             if (_servers == null)
                 return null;
-            
+
             if (!_clientBag.TryTake(out var client))
             {
                 client = new Client(_client);
             }
-            
+
             return client;
         }
 
@@ -59,9 +57,37 @@ namespace Meds.Watchdog.Steam
             _clientBag.Add(client);
         }
 
-        public Server GetBestServer()
+        private void SortServers()
         {
-            return _servers[0];
+            _servers.Sort((a, b) => a.WeightedLoad.CompareTo(b.WeightedLoad));
+        }
+
+        private async Task RefreshServers()
+        {
+            var servers = await ContentServerDirectoryService
+                .LoadAsync(_client.Configuration, _cellId, CancellationToken.None)
+                .ConfigureAwait(false);
+            foreach (var server in servers)
+                if (!server.UseAsProxy && !server.SteamChinaOnly)
+                    _servers.Add(server);
+            _log.ZLogInformation($"Got {_servers.Count} CDN servers.");
+            SortServers();
+        }
+
+        public async Task<Server> TakeServer()
+        {
+            if (_servers.Count == 0)
+                await RefreshServers();
+            var server = _servers[0];
+            _servers.RemoveAt(0);
+            _log.ZLogInformation("Using CDN server {0}", server.Host);
+            return server;
+        }
+
+        public void ReturnServer(Server server)
+        {
+            _servers.Add(server);
+            SortServers();
         }
     }
 }

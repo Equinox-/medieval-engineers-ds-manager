@@ -99,10 +99,10 @@
         <Compile Include="Utils\PathUtils.cs" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="DSharpPlus.Interactivity" Version="4.3.0" />
-      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.3.0" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.4.1" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.4.1" />
       <PackageReference Include="Equ" Version="2.3.0" />
-      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.4.0" />
+      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.4.2" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.1" />

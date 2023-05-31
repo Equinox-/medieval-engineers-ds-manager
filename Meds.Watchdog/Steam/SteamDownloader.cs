@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
@@ -24,7 +25,19 @@ namespace Meds.Watchdog.Steam
     {
         public static void AddSteamDownloader(this IServiceCollection collection, SteamConfiguration config)
         {
-            collection.AddSingleton(svc => new SteamClient(config));
+            var categoryCleaner = new Regex("^[0-9a-f]+/");
+            collection.AddSingleton(svc =>
+            {
+                var logFactory = svc.GetRequiredService<ILoggerFactory>();
+                DebugLog.ClearListeners();
+                DebugLog.AddListener((category, msg) =>
+                {
+                    category = categoryCleaner.Replace(category, "");
+                    logFactory.CreateLogger("SteamKit2." + category).ZLogInformation(msg);
+                });
+                DebugLog.Enabled = true;
+                return new SteamClient(config);
+            });
             collection.AddSingleton<CdnPool>();
             collection.AddSingleton<SteamDownloader>();
         }
@@ -119,10 +132,24 @@ namespace Meds.Watchdog.Steam
 
             var depotKey = await GetDepotKeyAsync(appId, depotId);
             var cdnClient = CdnPool.TakeClient();
-            var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch, branchPasswordHash);
-            var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, manifestRequestCode, CdnPool.GetBestServer(), depotKey);
-
-            return manifest;
+            int attempts = 0;
+            while (true)
+            {
+                var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch, branchPasswordHash);
+                var server = await CdnPool.TakeServer();
+                try
+                {
+                    var manifest = await cdnClient.DownloadManifestAsync(depotId, manifestId, manifestRequestCode, server, depotKey);
+                    CdnPool.ReturnServer(server);
+                    return manifest;
+                }
+                catch (SteamKitWebRequestException)
+                {
+                    // ignore server errors + don't return it so the server isn't used again.
+                    if (attempts++ > 5)
+                        throw;
+                }
+            }
         }
 
         #region Auth

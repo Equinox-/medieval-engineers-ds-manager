@@ -8,7 +8,7 @@ namespace Meds.Watchdog.Steam
     {
         public static ulong GetManifestId(this PICSProductInfo info, uint depotId, string branch)
         {
-            return info.GetSection(EAppInfoSection.Depots)[depotId.ToString()]["manifests"][branch].AsUnsignedLong();
+            return info.GetSection(EAppInfoSection.Depots)[depotId.ToString()]["manifests"][branch]["gid"].AsUnsignedLong();
         }
 
         public static uint GetWorkshopDepot(this PICSProductInfo info)

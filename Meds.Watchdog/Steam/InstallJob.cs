@@ -73,7 +73,7 @@ namespace Meds.Watchdog.Steam
                 if (!_neededChunks.TryPop(out var workItem))
                     continue;
 
-                var server = _downloader.CdnPool.GetBestServer();
+                var server = await _downloader.CdnPool.TakeServer();
                 var client = _downloader.CdnPool.TakeClient();
 
                 try
@@ -90,6 +90,7 @@ namespace Meds.Watchdog.Steam
                     {
                         _neededChunks.Push(workItem);
                     }
+                    _downloader.CdnPool.ReturnServer(server);
                 }
                 catch
                 {
