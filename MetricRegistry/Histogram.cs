@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading;
 using HdrHistogram;
 using Meds.Metrics.Group;
+using VRage.Library.Threading;
 
 namespace Meds.Metrics
 {
@@ -13,21 +14,33 @@ namespace Meds.Metrics
 
         private long _countAccumulator;
         private long _sumAccumulator;
+        private readonly FastResourceLock _lock;
         private readonly HistogramBase _histogram;
         private readonly double _scale;
 
         public HistogramMetricBase(MetricName name, double scale) : base(name)
         {
+            _lock = new FastResourceLock();
             _histogram = new IntConcurrentHistogram(LowestTrackableValue, HighestTrackableValue, NumberOfSignificantValueDigits);
             _scale = scale;
             UpdateRate = 5;
         }
         
-        public long Percentile(double percentile) => _histogram.GetValueAtPercentile(percentile * 100);
+        public long Percentile(double percentile)
+        {
+            using (_lock.AcquireExclusiveUsing())
+            {
+                return _histogram.GetValueAtPercentile(percentile * 100);
+            }
+        }
 
         public void Record(long value)
         {
-            _histogram.RecordValue(value);
+            using (_lock.AcquireSharedUsing())
+            {
+                _histogram.RecordValue(value);
+            }
+
             Interlocked.Add(ref _sumAccumulator, value);
             LastModification = MetricRegistry.GcCounter;
         }
@@ -52,7 +65,7 @@ namespace Meds.Metrics
             HistogramReader reader;
             long sum;
             long count;
-            lock (this)
+            using (_lock.AcquireExclusiveUsing())
             {
                 reader = HistogramReader.Read(_histogram);
                 if (reader.SampleCount <= 0)
