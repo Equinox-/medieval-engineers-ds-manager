@@ -536,4 +536,40 @@ namespace Meds.Wrapper.Shim
     {
         public static bool Prefix(MyEntityStatComponent.DelayedEffect __instance) => __instance.StatComponent?.Entity?.InScene ?? false;
     }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=436
+    [HarmonyPatch]
+    [AlwaysPatch]
+    public static class SometimesAvoidInvalidNetworkClosureCrash
+    {
+        private static MethodBase _target;
+
+        public static bool Prepare()
+        {
+            _target = Type.GetType("VRage.Network.MyGroupClosure, VRage.Game")
+                ?.GetMethod("get_Master", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return _target != null;
+        }
+
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return _target;
+        }
+
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            foreach (var i in instructions)
+            {
+                if (i.opcode == OpCodes.Call && i.operand is MethodBase method && method.DeclaringType == typeof(Enumerable) && method.Name == nameof(Enumerable.First))
+                {
+                    // Change .First() call to .FirstOrDefault() to push crashes elsewhere.
+                    // This doesn't come close to actually fixing everything, but it's better than nothing.
+                    i.operand = AccessTools.GetDeclaredMethods(typeof(Enumerable))
+                        .First(x => x.Name == nameof(Enumerable.FirstOrDefault) && x.GetParameters().Length == 1)
+                        .MakeGenericMethod(method.GetGenericArguments());
+                }
+                yield return i;
+            }
+        }
+    }
 }
