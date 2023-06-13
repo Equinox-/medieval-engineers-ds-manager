@@ -1,11 +1,12 @@
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Havok;
 using Sandbox.Engine.Physics;
+using Sandbox.Game.Components;
 using Sandbox.Game.EntityComponents.Grid;
-using VRage.Components.Physics;
+using Sandbox.Game.World;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRage.Scene;
@@ -20,9 +21,10 @@ namespace Meds.Wrapper.Shim
         private const int MaxEventCount = 1024;
         private static readonly Queue<AftermathEvent> _events = new Queue<AftermathEvent>();
 
+        [DebuggerDisplay("{Tick}, {Type}, {EntityOneName}, {EntityTwoName}")]
         private struct AftermathEvent
         {
-            public DateTime Time;
+            public int Tick;
 
             public AftermathType Type;
 
@@ -46,7 +48,7 @@ namespace Meds.Wrapper.Shim
 
         private static AftermathEvent CreateEvent(AftermathType type, MyEntity a, MyEntity b = null) => new AftermathEvent
         {
-            Time = DateTime.Now,
+            Tick = MySession.Static?.GameplayFrameCounter ?? 0,
             Type = type,
             EntityOne = a?.Id ?? default,
             EntityOneDef = a?.DefinitionId?.SubtypeName,
@@ -106,7 +108,7 @@ namespace Meds.Wrapper.Shim
             public static void Postfix(MyPhysicsBody __instance)
             {
                 // Ignore detector physics
-                if (!(__instance.Entity is { InScene: true }))
+                if (__instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
                     return;
                 Add(CreateEvent(AftermathType.AddBodyToWorld, __instance.Entity));
             }
@@ -119,7 +121,7 @@ namespace Meds.Wrapper.Shim
             public static void Prefix(MyPhysicsBody __instance)
             {
                 // Ignore detector physics
-                if (!(__instance.Entity is { InScene: true }))
+                if (__instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
                     return;
                 Add(CreateEvent(AftermathType.RemoveBodyFromWorld, __instance.Entity));
             }
