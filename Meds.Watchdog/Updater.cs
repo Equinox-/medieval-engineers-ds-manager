@@ -21,6 +21,7 @@ namespace Meds.Watchdog
         public const uint MedievalDsAppId = 367970;
         public const uint MedievalDsDepotId = 367971;
         public const uint MedievalGameAppId = 333950;
+        private const uint SteamRedistDepotId = 1004;
 
 
         public Updater(ILogger<Updater> log,
@@ -80,13 +81,18 @@ namespace Meds.Watchdog
             // Clean deleted overlay files
             await Task.WhenAll(overlays.Select(overlay => Task.Run(overlay.CleanDeleted, cancellationToken)));
 
-            // Update game files
+            var overlayFiles = new HashSet<string>(overlays.SelectMany(overlay =>
+                overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
+
+            _log.ZLogInformation("Updating Steam SDK Redist");
+            var redistFiles = await _downloader.InstallAppAsync(MedievalDsAppId, SteamRedistDepotId, "public",
+                installPath, 4,
+                path => !overlayFiles.Contains(path), "steam-redist",
+                installPrefix: "DedicatedServer64");
+
             _log.ZLogInformation("Updating Medieval Engineers");
-            var overlayFiles =
-                new HashSet<string>(overlays.SelectMany(overlay =>
-                    overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
             await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
-                path => !overlayFiles.Contains(path), "medieval-ds");
+                path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path), "medieval-ds");
 
             // Apply overlays
             foreach (var overlay in overlays)

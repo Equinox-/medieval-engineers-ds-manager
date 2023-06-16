@@ -16,7 +16,7 @@ namespace Meds.Watchdog.Steam
 {
     public class InstallJob
     {
-        private readonly Dictionary<string, FileParts> _fileParts = new Dictionary<string, FileParts>();
+        private readonly List<FileParts> _fileParts = new List<FileParts>();
         private readonly ConcurrentStack<ChunkWorkItem> _neededChunks = new ConcurrentStack<ChunkWorkItem>();
         private long _finishedChunks;
         private long _totalChunks;
@@ -27,7 +27,7 @@ namespace Meds.Watchdog.Steam
         private DistFileCache _cache;
         private SteamDownloader _downloader;
 
-        public float ProgressRatio => Interlocked.Read(ref _finishedChunks) / (float) _totalChunks;
+        public float ProgressRatio => Interlocked.Read(ref _finishedChunks) / (float)_totalChunks;
 
         public async Task Execute(SteamDownloader downloader, int workerCount = 8, Action<string> stateCallback = null)
         {
@@ -52,14 +52,14 @@ namespace Meds.Watchdog.Steam
             await Task.WhenAll(workers);
 
             // Stage 3: Update local cache
-            foreach (var newFile in _fileParts.Values)
+            foreach (var newFile in _fileParts)
             {
                 var (relPath, hash, totalSize, _) = newFile.GetCacheDetails();
                 _cache.Add(new DistFileInfo
                 {
                     Path = relPath,
                     Hash = hash,
-                    Size = (long) totalSize
+                    Size = (long)totalSize
                 });
             }
         }
@@ -81,15 +81,16 @@ namespace Meds.Watchdog.Steam
                     // Don't need AuthenticateDepot because we're managing auth keys ourselves.
                     var chunk = await client.DownloadDepotChunkAsync(_depotId, workItem.ChunkData, server, depotKey).ConfigureAwait(false);
 
-                    if (depotKey != null || CryptoHelper.AdlerHash(chunk.Data).SequenceEqual(chunk.ChunkInfo.Checksum))
+                    if (depotKey != null || CryptoHelper.AdlerHash(chunk.Data).AsSpan().SequenceEqual(chunk.ChunkInfo.Checksum))
                     {
-                        await _fileParts[workItem.FileName].SubmitAsync(chunk).ConfigureAwait(false);
+                        await workItem.Owner.SubmitAsync(chunk).ConfigureAwait(false);
                         Interlocked.Increment(ref _finishedChunks);
                     }
                     else
                     {
                         _neededChunks.Push(workItem);
                     }
+
                     _downloader.CdnPool.ReturnServer(server);
                 }
                 catch
@@ -102,7 +103,7 @@ namespace Meds.Watchdog.Steam
         }
 
         public static InstallJob Upgrade(uint appId, uint depotId, string installPath, DistFileCache localFiles, DepotManifest remoteFiles,
-            Predicate<string> installFilter)
+            Predicate<string> installFilter, HashSet<string> installed, string installPrefix)
         {
             var job = new InstallJob
             {
@@ -114,8 +115,11 @@ namespace Meds.Watchdog.Steam
 
             var remoteFileDict = remoteFiles.Files
                 .Where(x => (x.Flags & EDepotFileFlag.Directory) == 0)
-                .Where(x => installFilter(x.FileName))
-                .ToDictionary(x => x.FileName);
+                .Select(x => (Path.Combine(installPrefix, x.FileName), x))
+                .Where(x => installFilter(x.Item1))
+                .ToDictionary(x => x.Item1, x => x.Item2);
+            foreach (var file in remoteFileDict)
+                installed.Add(file.Key);
 
             // Find difference between local files and remote files.
             foreach (var localFile in localFiles.Files)
@@ -123,7 +127,7 @@ namespace Meds.Watchdog.Steam
                 if (remoteFileDict.TryGetValue(localFile.Path, out var remoteFile))
                 {
                     // Don't download unchanged files.
-                    if (localFile.Hash.SequenceEqual(remoteFile.FileHash))
+                    if (localFile.Hash.AsSpan().SequenceEqual(remoteFile.FileHash))
                         remoteFileDict.Remove(localFile.Path);
                 }
                 else
@@ -134,15 +138,16 @@ namespace Meds.Watchdog.Steam
             }
 
             // Populate needed chunks
-            foreach (var file in remoteFileDict.Values)
+            foreach (var file in remoteFileDict)
             {
-                job._fileParts.Add(file.FileName, new FileParts(file, installPath));
-                foreach (var chunk in file.Chunks)
+                var parts = new FileParts(file.Value, file.Key, installPath);
+                job._fileParts.Add(parts);
+                foreach (var chunk in file.Value.Chunks)
                 {
                     job._neededChunks.Push(new ChunkWorkItem
                     {
+                        Owner = parts,
                         ChunkData = chunk,
-                        FileName = file.FileName
                     });
                 }
             }
@@ -152,6 +157,7 @@ namespace Meds.Watchdog.Steam
 
         private class FileParts
         {
+            private readonly string _installRelPath;
             private readonly System.IO.FileInfo _destPath;
             private readonly DepotManifest.FileData _fileData;
             private ConcurrentBag<DepotChunk> _completeChunks;
@@ -167,13 +173,14 @@ namespace Meds.Watchdog.Steam
                 if (!IsComplete)
                     throw new InvalidOperationException("File is not complete!");
 
-                return (_fileData.FileName, _fileData.FileHash, _fileData.TotalSize, _completionTime);
+                return (_installRelPath, _fileData.FileHash, _fileData.TotalSize, _completionTime);
             }
 
-            public FileParts(DepotManifest.FileData fileData, string basePath)
+            public FileParts(DepotManifest.FileData fileData, string installRelPath, string installBasePath)
             {
                 _fileData = fileData;
-                _destPath = new System.IO.FileInfo(Path.Combine(basePath, fileData.FileName));
+                _installRelPath = installRelPath;
+                _destPath = new System.IO.FileInfo(Path.Combine(installBasePath, installRelPath));
                 _completeChunks = new ConcurrentBag<DepotChunk>();
 
                 IsComplete = false;
@@ -208,7 +215,7 @@ namespace Meds.Watchdog.Steam
             {
                 Directory.CreateDirectory(_destPath.DirectoryName);
 
-                using (var fs = File.Create(_destPath.FullName, (int) _fileData.TotalSize))
+                using (var fs = File.Create(_destPath.FullName, (int)_fileData.TotalSize))
                 {
                     foreach (var chunk in _completeChunks.OrderBy(x => x.ChunkInfo.Offset))
                     {
@@ -226,7 +233,7 @@ namespace Meds.Watchdog.Steam
 
         private struct ChunkWorkItem
         {
-            public string FileName;
+            public FileParts Owner;
             public DepotManifest.ChunkData ChunkData;
         }
     }

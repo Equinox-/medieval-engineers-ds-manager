@@ -214,19 +214,27 @@ namespace Meds.Watchdog.Steam
 
         #endregion
 
-
-        public async Task InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
-            Predicate<string> installFilter, string debugName, string branchPasswordHash = null)
+        public readonly struct InstallResult
         {
-            var manifestId = await GetManifestForBranch(appId, depotId, branch);
-            await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
-                branch, branchPasswordHash);
+            public readonly HashSet<string> InstalledFiles;
+
+            public InstallResult(HashSet<string> installedFiles)
+            {
+                InstalledFiles = installedFiles;
+            }
         }
 
-        private async Task InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
-            string installPath, int workerCount,
-            Predicate<string> installFilter, string debugName,
-            string branch, string branchPasswordHash)
+        public async Task<InstallResult> InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
+            Predicate<string> installFilter, string debugName, string branchPasswordHash = null, string installPrefix = "")
+        {
+            var manifestId = await GetManifestForBranch(appId, depotId, branch);
+            return await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
+                branch, branchPasswordHash, installPrefix);
+        }
+
+        private async Task<InstallResult> InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
+            string installPath, int workerCount, Predicate<string> installFilter, string debugName,
+            string branch, string branchPasswordHash, string installPrefix)
         {
             var localCache = new DistFileCache();
             var localCacheFile = Path.Combine(installPath, DistFileCache.CacheDir, depotId.ToString());
@@ -264,6 +272,7 @@ namespace Meds.Watchdog.Steam
             Directory.CreateDirectory(Path.Combine(installPath, DistFileCache.CacheDir));
 
             var lockFile = Path.Combine(installPath, LockFile);
+            var result = new InstallResult(new HashSet<string>());
             try
             {
                 using (File.Create(lockFile))
@@ -271,7 +280,7 @@ namespace Meds.Watchdog.Steam
                     // Get installation details from Steam
                     var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPasswordHash);
 
-                    var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter);
+                    var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter, result.InstalledFiles, installPrefix);
                     using (var timer = new Timer(3000) { AutoReset = true })
                     {
                         timer.Elapsed += (sender, args) => _log.ZLogInformation($"{debugName} progress: {job.ProgressRatio:0.00%}");
@@ -290,6 +299,8 @@ namespace Meds.Watchdog.Steam
                     $"A job may already be in progress on this install ({debugName}).If you're sure there isn't one, delete {lockFile}",
                     err);
             }
+
+            return result;
         }
 
         public async Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(uint appId, IEnumerable<ulong> modIds)
@@ -319,7 +330,7 @@ namespace Meds.Watchdog.Steam
                 throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName})");
 
             await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
-                debugName, null, null);
+                debugName, null, null, "");
             _log.ZLogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
             return result;
         }
