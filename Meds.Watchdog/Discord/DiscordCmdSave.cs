@@ -32,13 +32,17 @@ namespace Meds.Watchdog.Discord
         private readonly IPublisher<SaveRequest> _saveRequest;
         private readonly SaveFiles _saves;
         private readonly DataStore _dataStore;
+        private readonly ISubscriber<RestoreSceneResponse> _restoreSceneResponse;
+        private readonly IPublisher<RestoreSceneRequest> _restoreSceneRequest;
 
         public DiscordCmdSave(HealthTracker healthTracker, ISubscriber<SaveResponse> saveResponse, IPublisher<SaveRequest> saveRequest, SaveFiles saves,
-            DataStore dataStore)
+            DataStore dataStore, ISubscriber<RestoreSceneResponse> restoreSceneResponse, IPublisher<RestoreSceneRequest> restoreSceneRequest)
         {
             _healthTracker = healthTracker;
             _saveResponse = saveResponse;
             _saveRequest = saveRequest;
+            _restoreSceneResponse = restoreSceneResponse;
+            _restoreSceneRequest = restoreSceneRequest;
             _saves = saves;
             _dataStore = dataStore;
         }
@@ -435,6 +439,91 @@ namespace Meds.Watchdog.Discord
             }
 
             await context.EditResponseAsync(msg);
+        }
+
+        [SlashCommand("save-restore-subset", "Restores a single object or closure within a save")]
+        [SlashCommandPermissions(Permissions.Administrator)]
+        public async Task RestoreSubset(
+            InteractionContext context,
+            [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
+            string saveName,
+            [Option("target", "Type of object to restore")]
+            InspectObjectType target,
+            [Option("object-id", "Object ID to lookup, decimal (1234) or hex (0xABC)")]
+            string objectIdString)
+        {
+            if (!ObjectIds.TryParseObjectId(objectIdString, out var objectId))
+            {
+                await context.CreateResponseAsync("Invalid object ID.  Valid styles are 1234 or 0xABC.");
+                return;
+            }
+
+            await context.CreateResponseAsync($"Loading save `{saveName}`...");
+            if (!_saves.TryOpenSave(saveName, out var saveFile))
+            {
+                await context.EditResponseAsync($"Failed to load save `{saveFile}`");
+                return;
+            }
+
+            var closure = target switch
+            {
+                InspectObjectType.Entity => new SaveFileIndex.Closure(new EntityId(objectId)),
+                InspectObjectType.Group => new SaveFileIndex.Closure(new GroupId(objectId)),
+                _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
+            };
+            closure.Expand(_saves.Index(saveFile));
+            await context.EditResponseAsync($"Loading {closure.Entities.Count} entities and {closure.Groups.Count} groups");
+            using var save = saveFile.Open();
+
+            var doc = new XmlDocument();
+            doc.CreateXmlDeclaration();
+
+            var failedEntities = new List<EntityId>();
+            var failedGroups = new List<GroupId>();
+            using (_dataStore.Read(out var data))
+            {
+                var restored = doc.CreateElement("RestoreScene");
+                doc.AppendChild(restored);
+                var scene = doc.CreateElement(restored, "Scene");
+                BlueprintCreator.CreateScene(
+                    scene,
+                    save,
+                    data.GridDatabase,
+                    closure.Entities,
+                    closure.Groups,
+                    failedEntities,
+                    failedGroups);
+            }
+
+            if (failedEntities.Count > 0 || failedGroups.Count > 0)
+            {
+                await context.EditResponseAsync($"Failed to load {failedEntities.Count}/{closure.Entities.Count} entities and {failedGroups.Count}/{closure.Groups.Count} groups");
+                return;
+            }
+
+            var tempFile = Path.GetTempFileName();
+            try
+            {
+                doc.Save(tempFile);
+
+                await context.EditResponseAsync($"Restoring {closure.Entities.Count} and {failedGroups.Count}");
+                var msg = await _restoreSceneResponse.AwaitResponse(msg =>
+                {
+                    var text = $"Restored {msg.RestoredEntities} entities and {msg.RestoredGroups} groups.";
+                    if (msg.ReplacedEntities > 0 || msg.ReplacedGroups > 0)
+                        text += $" Replaced {msg.ReplacedEntities} entities and {msg.ReplacedGroups} groups.";
+                    return text;
+                }, sendRequest: () =>
+                {
+                    using var token = _restoreSceneRequest.Publish();
+                    token.Send(RestoreSceneRequest.CreateRestoreSceneRequest(token.Builder, token.Builder.CreateString(tempFile)));
+                });
+                await context.EditResponseAsync(msg);
+            }
+            finally
+            {
+                File.Delete(tempFile);
+            }
         }
 
         private static string RenderEntityList(

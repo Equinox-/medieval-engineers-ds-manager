@@ -129,6 +129,17 @@ table DataStoreSync {
     grid_database: DataStoreGridDatabase;
 }
 
+table RestoreSceneRequest {
+    scene_file: string;
+}
+
+table RestoreSceneResponse {
+    restored_entities: uint32;
+    replaced_entities: uint32;
+    restored_groups: uint32;
+    replaced_groups: uint32;
+}
+
 union Message {
     HealthState,
     ShutdownRequest,
@@ -140,6 +151,8 @@ union Message {
     SaveResponse,
     ModEventMessage,
     DataStoreSync,
+    RestoreSceneRequest,
+    RestoreSceneResponse,
 }
 
 table Packet {

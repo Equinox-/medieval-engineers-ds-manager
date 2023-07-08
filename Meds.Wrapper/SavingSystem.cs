@@ -4,37 +4,46 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sandbox;
 using Sandbox.Game.World;
-using ZLogger;
 using VRage.Collections;
-using MySession = Sandbox.Game.World.MySession;
+using VRage.ObjectBuilders.Scene;
+using VRage.ParallelWorkers;
+using VRage.Scene;
+using ZLogger;
 
 namespace Meds.Wrapper
 {
     public sealed class SavingSystem : IHostedService
     {
         private readonly ILogger<SavingSystem> _log;
-        private readonly ISubscriber<SaveRequest> _subscriber;
-        private readonly IPublisher<SaveResponse> _publisher;
+        private readonly ISubscriber<SaveRequest> _saveSubscriber;
+        private readonly IPublisher<SaveResponse> _savePublisher;
+        private readonly ISubscriber<RestoreSceneRequest> _restoreSubsetSubscriber;
+        private readonly IPublisher<RestoreSceneResponse> _restoreSubsetPublisher;
 
-        public SavingSystem(ISubscriber<SaveRequest> subscriber, IPublisher<SaveResponse> publisher,
+        public SavingSystem(
+            ISubscriber<SaveRequest> saveSubscriber, IPublisher<SaveResponse> savePublisher,
+            ISubscriber<RestoreSceneRequest> restoreSubsetSubscriber, IPublisher<RestoreSceneResponse> restoreSubsetPublisher,
             ILogger<SavingSystem> log)
         {
-            _subscriber = subscriber;
-            _publisher = publisher;
+            _saveSubscriber = saveSubscriber;
+            _savePublisher = savePublisher;
+            _restoreSubsetSubscriber = restoreSubsetSubscriber;
+            _restoreSubsetPublisher = restoreSubsetPublisher;
             _log = log;
         }
 
-        private async Task HandleRequest(long id, string backupPath)
+        private async Task HandleSave(long id, string backupPath)
         {
             void Respond(SaveResult result)
             {
-                using var token = _publisher.Publish();
+                using var token = _savePublisher.Publish();
                 token.Send(SaveResponse.CreateSaveResponse(token.Builder, id, result));
             }
 
@@ -106,9 +115,9 @@ namespace Meds.Wrapper
             }
         }
 
-        private void HandleRequestBackground(SaveRequest obj)
+        private void HandleSaveBackground(SaveRequest obj)
         {
-            var task = HandleRequest(obj.Id, obj.BackupPath);
+            var task = HandleSave(obj.Id, obj.BackupPath);
             task.ContinueWith(result =>
             {
                 if (result.IsFaulted)
@@ -116,17 +125,19 @@ namespace Meds.Wrapper
             });
         }
 
-        private IDisposable _requestSubscription;
+        private IDisposable _saveSubscription;
+        private IDisposable _restoreSubsetSubscription;
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _requestSubscription = _subscriber.Subscribe(HandleRequestBackground);
+            _saveSubscription = _saveSubscriber.Subscribe(HandleSaveBackground);
+            _restoreSubsetSubscription = _restoreSubsetSubscriber.Subscribe(HandleRestoreSceneBackground);
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _requestSubscription.Dispose();
+            _saveSubscription.Dispose();
             return Task.CompletedTask;
         }
 
@@ -192,5 +203,64 @@ namespace Meds.Wrapper
         }
 
         private static bool CheckBlackList(string path, HashSetReader<string> blackList) => blackList.Contains(path);
+
+        private void HandleRestoreSceneBackground(RestoreSceneRequest request)
+        {
+            Workers.Do(request.SceneFile, sceneFile =>
+            {
+                try
+                {
+                    HandleRestoreScene(sceneFile);
+                }
+                catch (Exception err)
+                {
+                    _log.ZLogWarning(err, "Failed to restore scene");
+                }
+            });
+        }
+
+        private void HandleRestoreScene(string tempScene)
+        {
+            MyObjectBuilder_Scene restoredOb;
+            using (var stream = File.OpenRead(tempScene))
+                restoredOb = ((RestoredScene)RestoredScene.Serializer.Deserialize(stream)).Scene;
+            var restored = new MyStagingScene("restored-" + Path.GetFileNameWithoutExtension(tempScene));
+            restored.Load(restoredOb, null);
+            MySandboxGame.Static.Invoke(() =>
+            {
+                var target = MySession.Static.Scene;
+                var replacedEntities = 0u;
+                foreach (var entity in restored.TopLevelEntities)
+                    if (target.TryGetEntity(entity.Id, out var targetEntity))
+                    {
+                        replacedEntities++;
+                        target.Destroy(targetEntity);
+                    }
+
+                var replacedGroups = 0u;
+                foreach (var group in restored.GetAllGroups())
+                    if (target.ContainsGroup(group.Id))
+                    {
+                        replacedGroups++;
+                    }
+
+                target.Merge(restored);
+                using var token = _restoreSubsetPublisher.Publish();
+                token.Send(RestoreSceneResponse.CreateRestoreSceneResponse(token.Builder,
+                    (uint)(restoredOb.Entities?.Count ?? 0),
+                    replacedEntities,
+                    (uint)(restoredOb.Groups?.Count ?? 0),
+                    replacedGroups));
+            });
+        }
+
+        [XmlRoot("RestoreScene")]
+        public class RestoredScene
+        {
+            public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(RestoredScene));
+
+            [XmlElement]
+            public MyObjectBuilder_Scene Scene;
+        }
     }
 }

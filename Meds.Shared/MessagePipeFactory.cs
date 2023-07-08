@@ -127,6 +127,8 @@ namespace Meds.Shared
             Register<SaveResponse>(Message.SaveResponse);
             Register<ModEventMessage>(Message.ModEventMessage);
             Register<DataStoreSync>(Message.DataStoreSync);
+            Register<RestoreSceneRequest>(Message.RestoreSceneRequest);
+            Register<RestoreSceneResponse>(Message.RestoreSceneResponse);
         }
 
         private sealed class UdpMessageQueue<T> : ISubscriber<T>, IPublisher<T> where T : struct, IFlatbufferObject

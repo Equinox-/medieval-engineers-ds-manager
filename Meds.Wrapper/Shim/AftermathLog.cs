@@ -18,6 +18,7 @@ namespace Meds.Wrapper.Shim
 {
     public static class AftermathLog
     {
+        // Meds.Wrapper.Shim.AftermathLog._events
         private const int MaxEventCount = 1024;
         private static readonly Queue<AftermathEvent> _events = new Queue<AftermathEvent>();
 

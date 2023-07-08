@@ -43,7 +43,6 @@ namespace Meds.Wrapper.Metrics
             group.Gauge("bots", () => MyAIComponent.Static?.Bots?.TotalBotCount);
             group.Gauge("paused", () => Sync.Clients != null && MySandboxGame.IsPaused);
             group.Gauge("threads", () => process.Threads.Count);
-
             {
                 var memoryGroup = MetricRegistry.Group(MetricName.Of(Prefix + ".memory"));
                 memoryGroup.Gauge("managed", () => GC.GetTotalMemory(false));
