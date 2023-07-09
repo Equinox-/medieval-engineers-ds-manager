@@ -497,7 +497,8 @@ namespace Meds.Watchdog.Discord
 
             if (failedEntities.Count > 0 || failedGroups.Count > 0)
             {
-                await context.EditResponseAsync($"Failed to load {failedEntities.Count}/{closure.Entities.Count} entities and {failedGroups.Count}/{closure.Groups.Count} groups");
+                await context.EditResponseAsync(
+                    $"Failed to load {failedEntities.Count}/{closure.Entities.Count} entities and {failedGroups.Count}/{closure.Groups.Count} groups");
                 return;
             }
 
@@ -506,23 +507,32 @@ namespace Meds.Watchdog.Discord
             {
                 doc.Save(tempFile);
 
-                await context.EditResponseAsync($"Restoring {closure.Entities.Count} and {failedGroups.Count}");
+                await context.EditResponseAsync($"Restoring {closure.Entities.Count} entities and {failedGroups.Count} groups");
                 var msg = await _restoreSceneResponse.AwaitResponse(msg =>
-                {
-                    var text = $"Restored {msg.RestoredEntities} entities and {msg.RestoredGroups} groups.";
-                    if (msg.ReplacedEntities > 0 || msg.ReplacedGroups > 0)
-                        text += $" Replaced {msg.ReplacedEntities} entities and {msg.ReplacedGroups} groups.";
-                    return text;
-                }, sendRequest: () =>
-                {
-                    using var token = _restoreSceneRequest.Publish();
-                    token.Send(RestoreSceneRequest.CreateRestoreSceneRequest(token.Builder, token.Builder.CreateString(tempFile)));
-                });
+                    {
+                        var text = $"Restored {msg.RestoredEntities} entities and {msg.RestoredGroups} groups.";
+                        if (msg.ReplacedEntities > 0 || msg.ReplacedGroups > 0)
+                            text += $" Replaced {msg.ReplacedEntities} entities and {msg.ReplacedGroups} groups.";
+                        return text;
+                    },
+                    TimeSpan.FromMinutes(1),
+                    () =>
+                    {
+                        using var token = _restoreSceneRequest.Publish();
+                        token.Send(RestoreSceneRequest.CreateRestoreSceneRequest(token.Builder, token.Builder.CreateString(tempFile)));
+                    });
                 await context.EditResponseAsync(msg);
             }
             finally
             {
-                File.Delete(tempFile);
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                    // ignore deletion errors
+                }
             }
         }
 

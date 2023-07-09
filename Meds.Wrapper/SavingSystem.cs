@@ -223,7 +223,10 @@ namespace Meds.Wrapper
         {
             MyObjectBuilder_Scene restoredOb;
             using (var stream = File.OpenRead(tempScene))
+            {
                 restoredOb = ((RestoredScene)RestoredScene.Serializer.Deserialize(stream)).Scene;
+            }
+
             var restored = new MyStagingScene("restored-" + Path.GetFileNameWithoutExtension(tempScene));
             restored.Load(restoredOb, null);
             MySandboxGame.Static.Invoke(() =>

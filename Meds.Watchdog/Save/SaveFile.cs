@@ -98,5 +98,7 @@ namespace Meds.Watchdog.Save
         public override bool Equals(object obj) => obj is SaveFile other && Equals(other);
 
         public override int GetHashCode() => SavePath.GetHashCode();
+
+        public override string ToString() => SaveName;
     }
 }
