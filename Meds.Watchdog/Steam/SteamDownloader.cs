@@ -280,7 +280,7 @@ namespace Meds.Watchdog.Steam
                     // Get installation details from Steam
                     var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPasswordHash);
 
-                    var job = InstallJob.Upgrade(appId, depotId, installPath, localCache, manifest, installFilter, result.InstalledFiles, installPrefix);
+                    var job = InstallJob.Upgrade(_log, appId, depotId, installPath, localCache, manifest, installFilter, result.InstalledFiles, installPrefix);
                     using (var timer = new Timer(3000) { AutoReset = true })
                     {
                         timer.Elapsed += (sender, args) => _log.ZLogInformation($"{debugName} progress: {job.ProgressRatio:0.00%}");

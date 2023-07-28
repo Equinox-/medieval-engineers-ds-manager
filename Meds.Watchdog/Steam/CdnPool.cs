@@ -67,27 +67,44 @@ namespace Meds.Watchdog.Steam
             var servers = await ContentServerDirectoryService
                 .LoadAsync(_client.Configuration, _cellId, CancellationToken.None)
                 .ConfigureAwait(false);
-            foreach (var server in servers)
-                if (!server.UseAsProxy && !server.SteamChinaOnly)
-                    _servers.Add(server);
-            _log.ZLogInformation($"Got {_servers.Count} CDN servers.");
-            SortServers();
+            lock (_servers)
+            {
+                _servers.Clear();
+                foreach (var server in servers)
+                    if (!server.UseAsProxy && !server.SteamChinaOnly)
+                        _servers.Add(server);
+                _log.ZLogInformation($"Got {_servers.Count} CDN servers.");
+                SortServers();
+            }
         }
 
         public async Task<Server> TakeServer()
         {
-            if (_servers.Count == 0)
+            bool refresh;
+            lock (_servers)
+            {
+                refresh = _servers.Count == 0;
+            }
+
+            if (refresh)
                 await RefreshServers();
-            var server = _servers[0];
-            _servers.RemoveAt(0);
-            _log.ZLogInformation("Using CDN server {0}", server.Host);
+            Server server;
+            lock (_servers)
+            {
+                server = _servers[0];
+                _servers.RemoveAt(0);
+            }
+
             return server;
         }
 
         public void ReturnServer(Server server)
         {
-            _servers.Add(server);
-            SortServers();
+            lock (_servers)
+            {
+                _servers.Add(server);
+                SortServers();
+            }
         }
     }
 }

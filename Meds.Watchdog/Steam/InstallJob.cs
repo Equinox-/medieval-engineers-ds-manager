@@ -8,14 +8,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Watchdog.Utils;
+using Microsoft.Extensions.Logging;
 using ProtoBuf;
 using SteamKit2;
 using SteamKit2.CDN;
+using ZLogger;
 
 namespace Meds.Watchdog.Steam
 {
     public class InstallJob
     {
+        private readonly ILogger _log;
         private readonly List<FileParts> _fileParts = new List<FileParts>();
         private readonly ConcurrentStack<ChunkWorkItem> _neededChunks = new ConcurrentStack<ChunkWorkItem>();
         private long _finishedChunks;
@@ -26,6 +29,11 @@ namespace Meds.Watchdog.Steam
         private string _basePath;
         private DistFileCache _cache;
         private SteamDownloader _downloader;
+
+        private InstallJob(ILogger log)
+        {
+            _log = log;
+        }
 
         public float ProgressRatio => Interlocked.Read(ref _finishedChunks) / (float)_totalChunks;
 
@@ -93,8 +101,14 @@ namespace Meds.Watchdog.Steam
 
                     _downloader.CdnPool.ReturnServer(server);
                 }
-                catch
+                catch (Exception err)
                 {
+                    _log.ZLogWarning(
+                        err,
+                        "Failed to download chunk path={0} size={1}. Abandoning CDN server {2}",
+                        workItem.Owner.InstallRelativePath,
+                        workItem.ChunkData.UncompressedLength,
+                        server.Host);
                     _neededChunks.Push(workItem);
                 }
 
@@ -102,10 +116,12 @@ namespace Meds.Watchdog.Steam
             }
         }
 
-        public static InstallJob Upgrade(uint appId, uint depotId, string installPath, DistFileCache localFiles, DepotManifest remoteFiles,
+        public static InstallJob Upgrade(
+            ILogger log,
+            uint appId, uint depotId, string installPath, DistFileCache localFiles, DepotManifest remoteFiles,
             Predicate<string> installFilter, HashSet<string> installed, string installPrefix)
         {
-            var job = new InstallJob
+            var job = new InstallJob(log)
             {
                 _cache = localFiles,
                 _basePath = installPath,
@@ -157,7 +173,6 @@ namespace Meds.Watchdog.Steam
 
         private class FileParts
         {
-            private readonly string _installRelPath;
             private readonly System.IO.FileInfo _destPath;
             private readonly DepotManifest.FileData _fileData;
             private ConcurrentBag<DepotChunk> _completeChunks;
@@ -166,6 +181,8 @@ namespace Meds.Watchdog.Steam
             private bool _started;
             private Stopwatch _sw = new Stopwatch();
 
+            public string InstallRelativePath { get; }
+
             public bool IsComplete { get; private set; }
 
             public (string relPath, byte[] hash, ulong totalSize, DateTime completionTime) GetCacheDetails()
@@ -173,13 +190,13 @@ namespace Meds.Watchdog.Steam
                 if (!IsComplete)
                     throw new InvalidOperationException("File is not complete!");
 
-                return (_installRelPath, _fileData.FileHash, _fileData.TotalSize, _completionTime);
+                return (InstallRelativePath, _fileData.FileHash, _fileData.TotalSize, _completionTime);
             }
 
             public FileParts(DepotManifest.FileData fileData, string installRelPath, string installBasePath)
             {
                 _fileData = fileData;
-                _installRelPath = installRelPath;
+                InstallRelativePath = installRelPath;
                 _destPath = new System.IO.FileInfo(Path.Combine(installBasePath, installRelPath));
                 _completeChunks = new ConcurrentBag<DepotChunk>();
 
