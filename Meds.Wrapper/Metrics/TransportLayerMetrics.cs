@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -11,7 +10,6 @@ using Meds.Metrics.Group;
 using Meds.Wrapper.Shim;
 using VRage.Library;
 using VRage.Network;
-using VRage.Replication;
 using VRage.Steam;
 
 namespace Meds.Wrapper.Metrics
@@ -156,14 +154,61 @@ namespace Meds.Wrapper.Metrics
             private static readonly FieldInfo PacketData = PacketDesc != null ? AccessTools.Field(PacketDesc, "PacketData") : null;
             private static readonly FieldInfo Replicables = PacketDesc != null ? AccessTools.Field(PacketDesc, "Replicables") : null;
 
+            private static IMyReplicable FindRoot(List<IMyReplicable> replicables)
+            {
+                if (replicables.Count == 0)
+                    return null;
+                var search = replicables[0];
+                while (true)
+                {
+                    var dep = search.GetDependency();
+                    if (dep == null)
+                        return search;
+                    search = dep;
+                }
+            }
+
+            [ThreadStatic]
+            private static Dictionary<Type, string> _replicableNameCache;
+
+            private static string ReplicableName(IMyReplicable replicable)
+            {
+                var type = replicable.GetType();
+                if (!type.IsGenericType)
+                    return type.Name;
+                ref var cache = ref _replicableNameCache;
+                cache ??= new Dictionary<Type, string>();
+                if (cache.TryGetValue(type, out var name))
+                    return name;
+                name = type.Name;
+                var gd = type.GetGenericTypeDefinition();
+                if (gd == typeof(MyEntityReplicable<>) || gd == typeof(MyGroupReplicable<>))
+                {
+                    var ga = type.GenericTypeArguments;
+                    name = ga[0].Name;
+                }
+
+                cache.Add(type, name);
+                return name;
+            }
+
             private static void Submit(bool isCompressed, byte[] packetData, List<IMyReplicable> replicables, long startTime)
             {
-                var name = MetricName.Of(ReplicationStreamingByteCount, "compressed", isCompressed ? "true" : "false");
-                MetricRegistry.Histogram(in name).Record(packetData.Length);
+                var root = FindRoot(replicables);
                 var entities = 0;
-                foreach (var replicable in replicables)
+                // ReSharper disable once ForCanBeConvertedToForeach
+                for (var i = 0; i < replicables.Count; i++)
+                {
+                    var replicable = replicables[i];
                     if (replicable is IMyEntityReplicable)
                         entities++;
+                }
+
+                var name = MetricName.Of(
+                    ReplicationStreamingByteCount,
+                    "compressed", isCompressed ? "true" : "false",
+                    "root", root != null ? ReplicableName(root) : "unknown");
+                MetricRegistry.Histogram(in name).Record(packetData.Length);
                 MetricRegistry.Histogram(name.WithSeries(ReplicationStreamingEntityCount)).Record(entities);
                 MetricRegistry.Timer(name.WithSeries(ReplicationStreamingTime)).Record(Stopwatch.GetTimestamp() - startTime);
             }
