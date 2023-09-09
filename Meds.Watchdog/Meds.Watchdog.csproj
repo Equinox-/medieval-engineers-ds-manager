@@ -49,6 +49,7 @@
         <Compile Include="DataStore.cs" />
         <Compile Include="DiagnosticController.cs" />
         <Compile Include="Discord\DiscordCmdDiagnostic.cs" />
+        <Compile Include="Discord\DiscordCmdPlayers.cs" />
         <Compile Include="Discord\DiscordCmdSave.cs" />
         <Compile Include="Discord\DiscordCmdSaveSearch.cs" />
         <Compile Include="Discord\DiscordCmdStatus.cs" />
@@ -56,6 +57,7 @@
         <Compile Include="Discord\DiscordInit.cs" />
         <Compile Include="Discord\DiscordCmdLifecycle.cs" />
         <Compile Include="Discord\DiscordMessageBridge.cs" />
+        <Compile Include="Discord\DiscordPlayersAutocomplete.cs" />
         <Compile Include="Discord\DiscordSaveFileUtils.cs" />
         <Compile Include="Discord\DiscordStatusMonitor.cs" />
         <Compile Include="Discord\DiscordUtils.cs" />

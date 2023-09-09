@@ -37,7 +37,7 @@ namespace Meds.Wrapper
                     services.AddHostedService<ServerService>();
                     services.AddMedsMessagePipe(cfg.Install.Messaging.WatchdogToServer, cfg.Install.Messaging.ServerToWatchdog);
                     services.AddSingleton<MedsCoreSystemArgs>();
-                    services.AddSingletonAndHost<PlayerReporter>();
+                    services.AddSingletonAndHost<PlayerSystem>();
                     services.AddSingletonAndHost<ChatBridge>();
                     services.AddSingletonAndHost<SavingSystem>();
                 })

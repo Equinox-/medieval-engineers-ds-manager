@@ -92,7 +92,9 @@ namespace Meds.Watchdog
 
             _log.ZLogInformation("Updating Medieval Engineers");
             await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
-                path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path), "medieval-ds");
+                branchPassword: _runtimeConfig.Current.Steam.BranchPassword,
+                installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path), 
+                debugName: "medieval-ds");
 
             // Apply overlays
             foreach (var overlay in overlays)

@@ -140,6 +140,19 @@ table RestoreSceneResponse {
     replaced_groups: uint32;
 }
 
+table PromotePlayerRequest {
+    steam_id: uint64;
+    promotion: PlayerPromotionLevel;
+}
+
+table PromotePlayerResponse {
+    steam_id: uint64;
+    name: string;
+    old_promotion: PlayerPromotionLevel;
+    requested_promotion: PlayerPromotionLevel;
+    successful: bool;
+}
+
 union Message {
     HealthState,
     ShutdownRequest,
@@ -153,6 +166,8 @@ union Message {
     DataStoreSync,
     RestoreSceneRequest,
     RestoreSceneResponse,
+    PromotePlayerRequest,
+    PromotePlayerResponse,
 }
 
 table Packet {

@@ -34,7 +34,7 @@ namespace Meds.Wrapper.Shim
 {
     // https://communityedition.medievalengineers.com/mantis/view.php?id=317
     [HarmonyPatch]
-    [AlwaysPatch(Late = true)]
+    [AlwaysPatch(Late = true, VersionRange = "[,0.7.4)")]
     public static class PatchMtuWarning
     {
         public static IEnumerable<MethodBase> TargetMethods()
@@ -66,7 +66,7 @@ namespace Meds.Wrapper.Shim
 
     // Partial fix for https://communityedition.medievalengineers.com/mantis/view.php?id=452
     [HarmonyPatch]
-    [AlwaysPatch(Late = true)]
+    [AlwaysPatch(Late = true, VersionRange = "[,0.7.4)")]
     public static class PatchStateSyncOverflow
     {
         private static readonly MethodInfo SetBitPositionWrite = AccessTools.Method(typeof(BitStream), nameof(BitStream.SetBitPositionWrite));
@@ -133,7 +133,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=103
     [HarmonyPatch(typeof(MyBannerComponent), "OnSessionReady")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class PatchBannerLoading
     {
         public static bool Prefix() => false;
@@ -141,7 +141,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=459
     [HarmonyPatch(typeof(MyPersistenceViewers), "GetIdentity")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class PatchPersistenceViewerCleanup
     {
         // Save the identities of players so that we still know the identity once the player logs out.
@@ -157,7 +157,7 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(MyInfiniteWorldPersistence), nameof(MyInfiniteWorldPersistence.DestroyView))]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class PatchPersistenceViewerDestroy
     {
         public static bool Prefix(int viewId)
@@ -172,7 +172,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=461
     [HarmonyPatch(typeof(MyCraftingComponent), "SimulatePassageOfTime")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class UnloadedCraftingBatchFix
     {
         public static bool Prefix(MyCraftingComponent __instance) => __instance.Entity?.InScene ?? false;
@@ -180,7 +180,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=463
     [HarmonyPatch(typeof(MyCharacterDetectorComponent), "set_DetectedEntity")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class CharacterDetectorCloseHandlerFix
     {
         private static readonly MethodInfo OnDetectedEntityMarkForClose =
@@ -214,7 +214,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=463
     [HarmonyPatch(typeof(MyCharacterDetectorComponent), "GatherDetectorsInArea")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class CharacterDetectorListAllocationFix
     {
         [ThreadStatic]
@@ -248,7 +248,7 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(MyNullRender), "EnqueueMessage")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class NullRenderMessagePoolingFix
     {
         public static bool Prefix(MyRenderMessageBase message)
@@ -260,7 +260,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=464
     [HarmonyPatch]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class NullRenderSkipMethods
     {
         public static IEnumerable<MethodBase> TargetMethods()
@@ -286,7 +286,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=465
     [HarmonyPatch]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class UpdateSchedulerFixedUpdatesAllocations
     {
         private sealed class EqualityAdapter<T> : IEqualityComparer<T>
@@ -422,7 +422,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=409
     [HarmonyPatch(typeof(MyClaimedAreaRespawnLocation), nameof(MyClaimedAreaRespawnLocation.IsValidForIdentity))]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class ProhibitSpawningAtUnclaimedAreas
     {
         public static void Postfix(MyClaimedAreaRespawnLocation __instance, ref bool __result)
@@ -433,7 +433,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=457
     [HarmonyPatch(typeof(MyAttachmentAnimationComponent), "UpdateAnimation")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class DisableSomeAttachmentAnimations
     {
         private readonly struct AnimationKey : IEquatable<AnimationKey>
@@ -531,7 +531,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=480
     [HarmonyPatch(typeof(MyEntityStatComponent.DelayedEffect), "HandleTick")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class SkipUnloadedDelayedEffects
     {
         public static bool Prefix(MyEntityStatComponent.DelayedEffect __instance) => __instance.StatComponent?.Entity?.InScene ?? false;
@@ -539,7 +539,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=436
     [HarmonyPatch]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class SometimesAvoidInvalidNetworkClosureCrash
     {
         private static MethodBase _target;

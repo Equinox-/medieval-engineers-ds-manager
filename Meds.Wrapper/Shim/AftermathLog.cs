@@ -7,6 +7,7 @@ using Sandbox.Engine.Physics;
 using Sandbox.Game.Components;
 using Sandbox.Game.EntityComponents.Grid;
 using Sandbox.Game.World;
+using VRage.Components.Physics;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRage.Scene;
@@ -109,7 +110,8 @@ namespace Meds.Wrapper.Shim
             public static void Postfix(MyPhysicsBody __instance)
             {
                 // Ignore detector physics
-                if (__instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
+                if ((__instance.Flags & RigidBodyFlag.RBF_DISABLE_COLLISION_RESPONSE) != 0
+                    || __instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
                     return;
                 Add(CreateEvent(AftermathType.AddBodyToWorld, __instance.Entity));
             }
@@ -122,7 +124,8 @@ namespace Meds.Wrapper.Shim
             public static void Prefix(MyPhysicsBody __instance)
             {
                 // Ignore detector physics
-                if (__instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
+                if ((__instance.Flags & RigidBodyFlag.RBF_DISABLE_COLLISION_RESPONSE) != 0
+                    || __instance.Container?.Get<MyUseObjectsComponent>()?.DetectorPhysics == __instance)
                     return;
                 Add(CreateEvent(AftermathType.RemoveBodyFromWorld, __instance.Entity));
             }

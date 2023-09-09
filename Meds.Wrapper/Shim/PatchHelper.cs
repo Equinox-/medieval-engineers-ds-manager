@@ -39,8 +39,9 @@ namespace Meds.Wrapper.Shim
         {
             foreach (var type in typeof(PatchHelper).Assembly.GetTypes())
             {
-                var attr = type.GetCustomAttribute<AlwaysPatch>();
+                var attr = type.GetCustomAttribute<AlwaysPatchAttribute>();
                 if (attr == null || attr.Late != late) continue;
+                if (!attr.CanUse()) continue;
                 Patch(type);
             }
 
@@ -150,18 +151,6 @@ namespace Meds.Wrapper.Shim
         [HarmonyPatch(typeof(MinidumpSystem), nameof(MinidumpSystem.Init), typeof(MinidumpSystem.Params))]
         public static class PatchMinidump
         {
-            private const string AccessViolation = "exception.accessViolation";
-
-            static PatchMinidump()
-            {
-                AppDomain.CurrentDomain.FirstChanceException += (sender, args) =>
-                {
-                    if (args.Exception is AccessViolationException ||
-                        args.Exception?.InnerException is AccessViolationException)
-                        MinidumpSystem.MaybeCollectStatic(AccessViolation, out _);
-                };
-            }
-
             public static void Prefix(MinidumpSystem.Params configuration)
             {
                 var dir = Entrypoint.Config.Install.DiagnosticsDirectory;
@@ -176,16 +165,6 @@ namespace Meds.Wrapper.Shim
                     {
                         Trigger = "crash",
                         Action = MinidumpSystem.MinidumpAction.None,
-                    },
-                    new MinidumpSystem.MinidumpCase
-                    {
-                        Trigger = "exception.any",
-                        Action = MinidumpSystem.MinidumpAction.None,
-                    },
-                    new MinidumpSystem.MinidumpCase
-                    {
-                        Trigger = AccessViolation,
-                        Action = MinidumpSystem.MinidumpAction.DumpHeap
                     }
                 });
             }

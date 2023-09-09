@@ -119,13 +119,24 @@ namespace Meds.Watchdog.Steam
             }
         }
 
-        private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch)
+        private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch, string branchPassword = null)
         {
             var appInfo = await GetAppInfoAsync(appId);
-            return appInfo.GetManifestId(depotId, branch);
+            var id = appInfo.GetManifestId(depotId, branch);
+            if (id > 0)
+                return id;
+            var encryptedManifestId = appInfo.GetEncryptedManifestId(depotId, branch);
+            if (branchPassword == null)
+                throw new Exception($"No password provided for branch {branch}");
+            var branchPasswords = await _apps.CheckAppBetaPassword(appId, branchPassword).ToTask();
+            var key = branchPasswords.BetaPasswords[branch];
+            if (key == null)
+                throw new Exception($"Invalid password for branch {branch}");
+            var manifestBytes = CryptoHelper.SymmetricDecryptECB(encryptedManifestId, key);
+            return BitConverter.ToUInt64(manifestBytes, 0);
         }
 
-        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPasswordHash)
+        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch)
         {
             if (!IsLoggedIn)
                 throw new InvalidOperationException("The Steam client is not logged in.");
@@ -135,7 +146,7 @@ namespace Meds.Watchdog.Steam
             int attempts = 0;
             while (true)
             {
-                var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch, branchPasswordHash);
+                var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch);
                 var server = await CdnPool.TakeServer();
                 try
                 {
@@ -225,16 +236,16 @@ namespace Meds.Watchdog.Steam
         }
 
         public async Task<InstallResult> InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
-            Predicate<string> installFilter, string debugName, string branchPasswordHash = null, string installPrefix = "")
+            Predicate<string> installFilter, string debugName, string branchPassword = null, string installPrefix = "")
         {
-            var manifestId = await GetManifestForBranch(appId, depotId, branch);
+            var manifestId = await GetManifestForBranch(appId, depotId, branch, branchPassword);
             return await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
-                branch, branchPasswordHash, installPrefix);
+                branch, installPrefix);
         }
 
         private async Task<InstallResult> InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
             string installPath, int workerCount, Predicate<string> installFilter, string debugName,
-            string branch, string branchPasswordHash, string installPrefix)
+            string branch, string installPrefix)
         {
             var localCache = new DistFileCache();
             var localCacheFile = Path.Combine(installPath, DistFileCache.CacheDir, depotId.ToString());
@@ -278,7 +289,7 @@ namespace Meds.Watchdog.Steam
                 using (File.Create(lockFile))
                 {
                     // Get installation details from Steam
-                    var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPasswordHash);
+                    var manifest = await GetManifestAsync(appId, depotId, manifestId, branch);
 
                     var job = InstallJob.Upgrade(_log, appId, depotId, installPath, localCache, manifest, installFilter, result.InstalledFiles, installPrefix);
                     using (var timer = new Timer(3000) { AutoReset = true })
@@ -330,7 +341,7 @@ namespace Meds.Watchdog.Steam
                 throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName})");
 
             await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
-                debugName, null, null, "");
+                debugName, null, "");
             _log.ZLogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
             return result;
         }

@@ -252,6 +252,11 @@ namespace Meds.Watchdog.Utils
                 : FormatData(result.Key, result.Data);
         }
 
+        protected virtual object FormatArgument(T data)
+        {
+            return data;
+        }
+
         public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -259,7 +264,7 @@ namespace Meds.Watchdog.Utils
             var autoCompleted = Provide(ctx, prefix).OrderBy(x => x.Key);
             var formatted = autoCompleted.Select(result => new DiscordAutoCompleteChoice(
                 Format(result),
-                result.Key));
+                EqualityComparer.Equals(result.Data, default) ? result.Key : FormatArgument(result.Data)));
             return Task.FromResult(formatted);
         }
     }

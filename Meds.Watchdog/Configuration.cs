@@ -110,8 +110,11 @@ namespace Meds.Watchdog
         {
             [XmlAttribute]
             public string Branch = "communityedition";
+
+            [XmlAttribute]
+            public string BranchPassword;
         }
-        
+
         private static readonly MemberwiseEqualityComparer<Configuration> EqualityComparer = MemberwiseEqualityComparer<Configuration>.ByFields;
 
         public bool Equals(Configuration other) => EqualityComparer.Equals(this, other);

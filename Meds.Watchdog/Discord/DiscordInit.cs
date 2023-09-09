@@ -77,6 +77,7 @@ namespace Meds.Watchdog.Discord
                 commands.RegisterCommands<DiscordCmdSave>();
                 commands.RegisterCommands<DiscordCmdSaveSearch>();
                 commands.RegisterCommands<DiscordCmdStatus>();
+                commands.RegisterCommands<DiscordCmdPlayers>();
             }
         }
 

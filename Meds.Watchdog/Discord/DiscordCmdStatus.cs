@@ -1,12 +1,10 @@
 using System;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 using Meds.Shared;
-using Meds.Shared.Data;
 
 namespace Meds.Watchdog.Discord
 {
@@ -15,15 +13,10 @@ namespace Meds.Watchdog.Discord
     {
         private readonly LifecycleController _lifetimeController;
         private readonly HealthTracker _healthTracker;
-        private readonly ISubscriber<PlayersResponse> _playersSubscriber;
-        private readonly IPublisher<PlayersRequest> _playersRequest;
 
-        public DiscordCmdStatus(LifecycleController lifetimeController, ISubscriber<PlayersResponse> playersSubscriber,
-            IPublisher<PlayersRequest> playersRequest, HealthTracker healthTracker)
+        public DiscordCmdStatus(LifecycleController lifetimeController, HealthTracker healthTracker)
         {
             _lifetimeController = lifetimeController;
-            _playersSubscriber = playersSubscriber;
-            _playersRequest = playersRequest;
             _healthTracker = healthTracker;
         }
 
@@ -122,55 +115,6 @@ namespace Meds.Watchdog.Discord
                 builder.AddField("Medieval Version", wrapperVersion.Value.Medieval);
 
             await context.CreateResponseAsync(builder.Build());
-        }
-
-
-        [SlashCommand("players", "Lists online players")]
-        [SlashCommandPermissions(Permissions.UseApplicationCommands)]
-        public async Task PlayersCommand(InteractionContext context)
-        {
-            await context.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
-            try
-            {
-                var response = await _playersSubscriber.AwaitResponse(msg =>
-                {
-                    var response = new StringBuilder();
-                    response.Append($"{msg.PlayersLength} Online Players");
-                    for (var i = 0; i < msg.PlayersLength; i++)
-                    {
-                        response.Append("\n");
-                        // ReSharper disable once PossibleInvalidOperationException
-                        var player = msg.Players(i).Value;
-                        if (player.FactionTag != null)
-                            response.Append("[").Append(player.FactionTag).Append("] ");
-                        response.Append(player.Name);
-                        switch (player.Promotion)
-                        {
-                            case PlayerPromotionLevel.Moderator:
-                                response.Append(" (Moderator)");
-                                break;
-                            case PlayerPromotionLevel.Admin:
-                                response.Append(" (Admin)");
-                                break;
-                            case PlayerPromotionLevel.None:
-                            default:
-                                break;
-                        }
-                    }
-
-                    return response.ToString();
-                }, sendRequest: () =>
-                {
-                    using var token = _playersRequest.Publish();
-                    PlayersRequest.StartPlayersRequest(token.Builder);
-                    token.Send(PlayersRequest.EndPlayersRequest(token.Builder));
-                });
-                await context.EditResponseAsync(response);
-            }
-            catch (TimeoutException)
-            {
-                await context.EditResponseAsync("Server did not respond to players request.  Is it offline?");
-            }
         }
     }
 }
