@@ -252,10 +252,7 @@ namespace Meds.Watchdog.Utils
                 : FormatData(result.Key, result.Data);
         }
 
-        protected virtual object FormatArgument(T data)
-        {
-            return data;
-        }
+        protected abstract string FormatArgument(T data);
 
         public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {

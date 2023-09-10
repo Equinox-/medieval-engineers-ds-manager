@@ -36,7 +36,7 @@ namespace Meds.Watchdog
         /// Timeout for server readiness after startup, in seconds.
         /// </summary>
         [XmlElement]
-        public double ReadinessTimeout = 60 * 5;
+        public double ReadinessTimeout = 60 * 15;
 
         /// <summary>
         /// In-game channel to send status change messages to. 

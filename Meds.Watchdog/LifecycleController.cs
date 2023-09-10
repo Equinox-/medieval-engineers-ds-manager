@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Watchdog.Utils;
@@ -31,6 +32,8 @@ namespace Meds.Watchdog
         private readonly ConfigRenderer _configRenderer;
         private readonly Refreshable<List<CrontabEntry>> _scheduled;
         private readonly DiagnosticController _diagnostics;
+        private readonly List<TaskCompletionSource<bool>> _pinRequests = new List<TaskCompletionSource<bool>>();
+        private readonly DataStore _dataStore;
 
         private readonly struct CrontabEntry
         {
@@ -64,18 +67,20 @@ namespace Meds.Watchdog
             Froze
         }
 
-        private LifecycleState _active = new LifecycleState(LifecycleStateCase.Running);
+        private LifecycleState _active;
 
         public LifecycleState Active
         {
             get => _active;
-            set
+            private set
             {
                 if (value.Equals(_active))
                     return;
                 var prev = _active;
                 _active = value;
                 StateChanged?.Invoke(prev, _active);
+                using var tok = _dataStore.Write(out var data);
+                tok.Update(ref data.LifecycleState, value);
             }
         }
 
@@ -105,13 +110,15 @@ namespace Meds.Watchdog
             }
         }
 
+        public LifecycleStateRequest? ProcessingRequest { get; private set; }
+
         public LifecycleController(ILogger<LifecycleController> logger,
             HealthTracker health,
             InstallConfiguration installConfig,
             Refreshable<Configuration> runtimeConfig,
             IPublisher<ShutdownRequest> shutdownPublisher,
             Updater updater,
-            ConfigRenderer configRenderer, IPublisher<ChatMessage> sendChatMessagePublisher, DiagnosticController diagnostics)
+            ConfigRenderer configRenderer, IPublisher<ChatMessage> sendChatMessagePublisher, DiagnosticController diagnostics, DataStore dataStore)
         {
             _log = logger;
             _healthTracker = health;
@@ -122,6 +129,9 @@ namespace Meds.Watchdog
             _configRenderer = configRenderer;
             _sendChatMessagePublisher = sendChatMessagePublisher;
             _diagnostics = diagnostics;
+            _dataStore = dataStore;
+            using (_dataStore.Read(out var data))
+                _active = data.LifecycleState != null ? (LifecycleState) data.LifecycleState : new LifecycleState(LifecycleStateCase.Running);
 
             _scheduled = runtimeConfig
                 .Map(cfg => cfg.ScheduledTasks, CollectionEquality<Configuration.ScheduledTaskConfig>.List())
@@ -149,15 +159,34 @@ namespace Meds.Watchdog
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var pinRequestsCopy = new List<TaskCompletionSource<bool>>();
             while (!stoppingToken.IsCancellationRequested)
             {
-                if (Request.HasValue && HandleRequest(Request.Value))
+                bool pinned;
+                pinRequestsCopy.Clear();
+                lock (_pinRequests)
                 {
-                    Active = Request.Value.State;
-                    _request = null;
+                    pinned = _pinRequests.Count > 0;
+                    if (pinned)
+                    {
+                        foreach (var pin in _pinRequests)
+                            pinRequestsCopy.Add(pin);
+                        foreach (var pin in pinRequestsCopy)
+                            pin.TrySetResult(true);
+                    }
                 }
 
-                await KeepInActiveState(stoppingToken);
+                if (!pinned)
+                {
+                    var request = Request;
+                    if (request.HasValue && HandleRequest(request.Value))
+                    {
+                        Active = request.Value.State;
+                        _request = null;
+                    }
+
+                    await KeepInActiveState(stoppingToken);
+                }
                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
@@ -256,11 +285,6 @@ namespace Meds.Watchdog
             }
         }
 
-        public override async Task StopAsync(CancellationToken cancellationToken)
-        {
-            await base.StopAsync(cancellationToken);
-        }
-
         private bool NeedsRestart(out bool frozen)
         {
             frozen = false;
@@ -286,7 +310,7 @@ namespace Meds.Watchdog
             if (!_healthTracker.Liveness.State && _healthTracker.Liveness.TimeInState.TotalSeconds > _runtimeConfig.Current.LivenessTimeout)
             {
                 _log.ZLogError(
-                    "Server has been up for {0:g} and has not been not life for {TimeNotLive:g}.  Restarting",
+                    "Server has been up for {0:g} and has not been not life for {1:g}.  Restarting",
                     uptime,
                     _healthTracker.Liveness.TimeInState);
                 _healthTracker.Reset();
@@ -308,7 +332,7 @@ namespace Meds.Watchdog
             if (!_healthTracker.Readiness.State && _healthTracker.Readiness.TimeInState.TotalSeconds > _runtimeConfig.Current.ReadinessTimeout)
             {
                 _log.ZLogError(
-                    "Server has been up for {0:g} and has not been ready for {TimeNotReady:g}.  Restarting",
+                    "Server has been up for {0:g} and has not been ready for {1:g}.  Restarting",
                     uptime,
                     _healthTracker.Readiness.TimeInState);
                 frozen = true;
@@ -441,6 +465,32 @@ namespace Meds.Watchdog
 
             return false;
         }
+
+        public PinStateToken PinState() => new PinStateToken(this);
+
+        public readonly struct PinStateToken : IDisposable
+        {
+            private readonly LifecycleController _controller;
+            private readonly TaskCompletionSource<bool> _task;
+
+            internal PinStateToken(LifecycleController ctl)
+            {
+                _controller = ctl;
+                _task = new TaskCompletionSource<bool>();
+                var task = _task;
+                lock (ctl._pinRequests)
+                    ctl._pinRequests.Add(task);
+            }
+
+            public Task Task => _task.Task;
+
+            public void Dispose()
+            {
+                var task = _task;
+                lock (_controller._pinRequests)
+                    _controller._pinRequests.Remove(task);
+            }
+        }
     }
 
     public readonly struct LifecycleStateRequest
@@ -482,6 +532,33 @@ namespace Meds.Watchdog
                 return hashCode;
             }
         }
+    }
+
+    public class LifecycleStateSerialized : IEquatable<LifecycleStateSerialized>
+    {
+        [XmlAttribute]
+        public LifecycleStateCase State;
+
+        [XmlAttribute]
+        public string Icon;
+
+        [XmlAttribute]
+        public string Reason;
+
+        public static implicit operator LifecycleState(LifecycleStateSerialized ser) => new LifecycleState(ser.State, ser.Icon, ser.Reason);
+
+        public static implicit operator LifecycleStateSerialized(LifecycleState state) => new LifecycleStateSerialized
+        {
+            State = state.State,
+            Icon = state.Icon,
+            Reason = state.Reason
+        };
+
+        public bool Equals(LifecycleStateSerialized other) => ((LifecycleState)this).Equals(other);
+
+        public override bool Equals(object obj) => obj is LifecycleStateSerialized ser && Equals(ser);
+
+        public override int GetHashCode() => ((LifecycleState)this).GetHashCode();
     }
 
     public enum LifecycleStateCase

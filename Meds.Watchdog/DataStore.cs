@@ -21,6 +21,9 @@ namespace Meds.Watchdog
 
         [XmlElement]
         public GridDatabaseConfig GridDatabase = new GridDatabaseConfig();
+
+        [XmlElement]
+        public LifecycleStateSerialized LifecycleState;
     }
 
     public sealed class DataStore : BackgroundService
@@ -147,7 +150,7 @@ namespace Meds.Watchdog
             {
                 // ReSharper disable once HeapView.PossibleBoxingAllocation
                 if (!_updated)
-                    _updated = typeof(T).IsValueType ? newValue.Equals(value) : Equals(newValue, value);
+                    _updated = typeof(T).IsValueType ? !newValue.Equals(value) : !Equals(newValue, value);
                 value = newValue;
             }
 

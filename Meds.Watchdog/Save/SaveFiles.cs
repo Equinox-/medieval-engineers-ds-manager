@@ -15,6 +15,9 @@ namespace Meds.Watchdog.Save
 {
     public class SaveFiles
     {
+        public const string WorldFolder = "world";
+        public const string BackupFolder = "Backup";
+        
         private readonly ILoggerFactory _loggerFactory;
         private readonly InstallConfiguration _installConfig;
         private readonly IReadOnlyDictionary<SaveType, string> _saveRoots;
@@ -25,7 +28,8 @@ namespace Meds.Watchdog.Save
             ["cacheMemoryLimitMegabytes"] = "32"
         });
 
-        public SaveFiles(ILoggerFactory loggerFactory,
+        public SaveFiles(
+            ILoggerFactory loggerFactory,
             ILogger<SaveFiles> log,
             InstallConfiguration installConfig)
         {
@@ -35,8 +39,14 @@ namespace Meds.Watchdog.Save
             _saveRoots = new Dictionary<SaveType, string>
             {
                 [SaveType.Archived] = _installConfig.ArchivedBackupsDirectory,
-                [SaveType.Automatic] = Path.Combine(_installConfig.RuntimeDirectory, "world", "Backup")
+                [SaveType.Automatic] = Path.Combine(_installConfig.RuntimeDirectory, WorldFolder, BackupFolder)
             };
+        }
+
+        public bool TryOpenLiveSave(out SaveFile save)
+        {
+            var realSavePath = Path.Combine(_installConfig.RuntimeDirectory, WorldFolder);
+            return TryOpenSaveAbsolute(realSavePath, SaveType.Live, out save);
         }
 
         public string GetArchivePath(string name, DateTime? now = null)

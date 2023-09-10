@@ -111,7 +111,7 @@ namespace Meds.Watchdog.Discord
                 results.Select(match => (match.ObjectId, (IEnumerable<Match>)match.Matches)),
                 objectHeaders, objectFormatter,
                 matchHeaders, MatchFormatter);
-            await progress.ReportingTask;
+            await progress.Finish();
             if (formatted.RowCount > 1)
                 await context.RespondLongText(formatted.Lines());
             else
@@ -182,14 +182,14 @@ namespace Meds.Watchdog.Discord
                     var entities = SaveFileGeoSearch.Entities(save, lodSearch);
                     objectCount = entities.Count;
                     objectIds = entities
-                        .OrderByDescending(x => save.TryGetEntityFileInfo(x, out var length) ? length : 0)
+                        .OrderByDescending(x => save.TryGetEntityFileInfo(x, out var info) ? info.Size : 0)
                         .Select(x => x.Value);
                     break;
                 case SearchObjectType.Group:
                     var groups = SaveFileGeoSearch.Groups(save, lodSearch);
                     objectCount = groups.Count;
                     objectIds = groups
-                        .OrderByDescending(x => save.TryGetGroupFileInfo(x, out var length) ? length : 0)
+                        .OrderByDescending(x => save.TryGetGroupFileInfo(x, out var info) ? info.Size : 0)
                         .Select(x => x.Value);
                     break;
                 default:

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using DSharpPlus.SlashCommands;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Watchdog.Save;
+using Microsoft.Extensions.Logging;
 
 // ReSharper disable HeapView.ClosureAllocation
 // ReSharper disable HeapView.ObjectAllocation
@@ -22,6 +24,7 @@ namespace Meds.Watchdog.Discord
     // Not using command groups for discrete permissions.
     public class DiscordCmdSave : ApplicationCommandModule
     {
+        private readonly ILogger<DiscordCmdSave> _log;
         private readonly HealthTracker _healthTracker;
         private readonly ISubscriber<SaveResponse> _saveResponse;
         private readonly IPublisher<SaveRequest> _saveRequest;
@@ -29,15 +32,19 @@ namespace Meds.Watchdog.Discord
         private readonly DataStore _dataStore;
         private readonly ISubscriber<RestoreSceneResponse> _restoreSceneResponse;
         private readonly IPublisher<RestoreSceneRequest> _restoreSceneRequest;
+        private readonly LifecycleController _lifecycle;
 
         public DiscordCmdSave(HealthTracker healthTracker, ISubscriber<SaveResponse> saveResponse, IPublisher<SaveRequest> saveRequest, SaveFiles saves,
-            DataStore dataStore, ISubscriber<RestoreSceneResponse> restoreSceneResponse, IPublisher<RestoreSceneRequest> restoreSceneRequest)
+            DataStore dataStore, ISubscriber<RestoreSceneResponse> restoreSceneResponse, IPublisher<RestoreSceneRequest> restoreSceneRequest,
+            LifecycleController lifecycle, ILogger<DiscordCmdSave> log)
         {
             _healthTracker = healthTracker;
             _saveResponse = saveResponse;
             _saveRequest = saveRequest;
             _restoreSceneResponse = restoreSceneResponse;
             _restoreSceneRequest = restoreSceneRequest;
+            _lifecycle = lifecycle;
+            _log = log;
             _saves = saves;
             _dataStore = dataStore;
         }
@@ -209,14 +216,14 @@ namespace Meds.Watchdog.Discord
             foreach (var saveFile in saves)
             {
                 using var save = saveFile.Open();
-                long size;
+                SaveEntryInfo info;
                 var isPresent = target switch
                 {
-                    BisectObjectType.Entity => save.TryGetEntityFileInfo(objectId, out size),
-                    BisectObjectType.Group => save.TryGetGroupFileInfo(objectId, out size),
+                    BisectObjectType.Entity => save.TryGetEntityFileInfo(objectId, out info),
+                    BisectObjectType.Group => save.TryGetGroupFileInfo(objectId, out info),
                     _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
                 };
-                var curr = new BisectState(isPresent, size, saveFile);
+                var curr = new BisectState(isPresent, info.Size, saveFile);
                 var sizeChange = Math.Abs(prevRecorded.Size - curr.Size);
                 if (curr.Present != prevRecorded.Present || (sizeChange > sizeChangeThreshold && sizeChange > curr.Size * sizeChangeFactor))
                 {
@@ -529,6 +536,106 @@ namespace Meds.Watchdog.Discord
                     // ignore deletion errors
                 }
             }
+        }
+
+        [SlashCommand("save-restore", "Restores an entire backup save")]
+        [SlashCommandPermissions(Permissions.Administrator)]
+        public async Task RestoreFull(InteractionContext context,
+            [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
+            string saveName)
+        {
+            await context.CreateResponseAsync($"Loading save `{saveName}`...");
+            if (!_saves.TryOpenSave(saveName, out var saveFile))
+            {
+                await context.EditResponseAsync($"Failed to load save `{saveFile}`");
+                return;
+            }
+
+            if (_lifecycle.Active.State != LifecycleStateCase.Shutdown)
+            {
+                await context.EditResponseAsync("Server must be shutdown to restore a backup");
+                return;
+            }
+
+            using var token = _lifecycle.PinState();
+            await context.EditResponseAsync("Preventing server from restarting...");
+            await token.Task;
+            if (_lifecycle.Active.State != LifecycleStateCase.Shutdown)
+            {
+                await context.EditResponseAsync("Failed to prevent server from restarting");
+                return;
+            }
+
+            if (!_saves.TryOpenLiveSave(out var liveSave))
+            {
+                await context.EditResponseAsync("Failed to open the live save file");
+                return;
+            }
+
+            // Trash everything except the backup folder
+            var archivePath = _saves.GetArchivePath("pre-restore");
+            await ArchiveCurrentSaveFiles(context, liveSave, archivePath);
+
+            // Restore files in backup
+            await RestoreSaveFiles(context, saveFile, liveSave);
+        }
+
+        private static async Task ArchiveCurrentSaveFiles(InteractionContext context, SaveFile saveFile, string archivePath)
+        {
+            using var saveAccess = saveFile.Open();
+            var filesToArchive = saveAccess.AllFiles().ToList();
+
+            using (var archive = new ZipArchive(new FileStream(archivePath, FileMode.CreateNew), ZipArchiveMode.Create))
+            {
+                await context.EditResponseAsync("Archiving current save files...");
+                var progress = new ProgressReporter(context, "Archiving current save files");
+                for (var i = 0; i < filesToArchive.Count; i++)
+                {
+                    var srcEntry = filesToArchive[i];
+                    var destEntry = archive.CreateEntry(srcEntry.RelativePath);
+                    using var src = srcEntry.Open();
+                    using var dst = destEntry.Open();
+                    await src.CopyToAsync(dst);
+                    progress.Reporter(filesToArchive.Count, i + 1, 0);
+                }
+
+                await progress.Finish("Archived current save files");
+            }
+
+            {
+                await context.EditResponseAsync("Deleting current save files...");
+                var progress = new ProgressReporter(context, "Deleting current save files");
+                for (var i = 0; i < filesToArchive.Count; i++)
+                {
+                    var srcEntry = filesToArchive[i];
+                    File.Delete(Path.Combine(saveFile.SavePath, srcEntry.RelativePath));
+                    progress.Reporter(filesToArchive.Count, i + 1, 0);
+                }
+
+                await progress.Finish("Deleted current save files");
+            }
+        }
+
+        private static async Task RestoreSaveFiles(InteractionContext context, SaveFile saveFile, SaveFile destSave)
+        {
+            await context.EditResponseAsync("Restoring backup save files...");
+            var progress = new ProgressReporter(context, "Restoring backup save files");
+            using var saveAccess = saveFile.Open();
+            var filesToRestore = saveAccess.AllFiles().ToList();
+            for (var i = 0; i < filesToRestore.Count; i++)
+            {
+                var srcEntry = filesToRestore[i];
+                var destPath = Path.Combine(destSave.SavePath, srcEntry.RelativePath);
+                var destDir = Path.GetDirectoryName(destPath) ?? throw new Exception();
+                if (!Directory.Exists(destDir))
+                    Directory.CreateDirectory(destDir);
+                using var src = srcEntry.Open();
+                using var dst = new FileStream(destPath, FileMode.CreateNew);
+                await src.CopyToAsync(dst);
+                progress.Reporter(filesToRestore.Count, i + 1, 0);
+            }
+
+            await progress.Finish("Restored backup save files");
         }
 
         private static string RenderEntityList(

@@ -34,27 +34,26 @@ namespace Meds.Watchdog.Save
                     ZipArchiveMode.Read), true);
         }
 
-        private bool TryGetFileInfo(string path, out long size)
+        private bool TryGetFileInfo(string path, out SaveEntryInfo info)
         {
+            info = default;
             if (_zip != null)
             {
                 var entry = _zip.Value.GetEntry(path);
-                size = entry?.Length ?? 0;
-                return entry != null;
-            }
-
-            var info = new FileInfo(Path.Combine(SavePath, path));
-            if (info.Exists)
-            {
-                size = info.Length;
+                if (entry == null)
+                    return false;
+                info = new SaveEntryInfo(this, path, entry.Length);
                 return true;
             }
 
-            size = 0;
-            return false;
+            var fileInfo = new FileInfo(Path.Combine(SavePath, path));
+            if (!fileInfo.Exists)
+                return false;
+            info = new SaveEntryInfo(this, path, fileInfo.Length);
+            return true;
         }
 
-        private bool TryGetStream(string path, out Stream stream)
+        internal bool TryGetStream(string path, out Stream stream)
         {
             stream = null;
             if (_zip != null)
@@ -139,9 +138,9 @@ namespace Meds.Watchdog.Save
         private static string ChunkPath(ChunkId id) =>
             Path.Combine(ChunksFolder, $"{id.DatabaseHash() >> 24:X02}", $"{id.X}_{id.Y}_{id.Z}_{id.Lod}{ChunkExtension}");
 
-        public bool TryGetEntityFileInfo(EntityId id, out long length) => TryGetFileInfo(EntityPath(id), out length);
-        public bool TryGetGroupFileInfo(GroupId id, out long length) => TryGetFileInfo(GroupPath(id), out length);
-        public bool TryGetChunkFileInfo(ChunkId id, out long length) => TryGetFileInfo(ChunkPath(id), out length);
+        public bool TryGetEntityFileInfo(EntityId id, out SaveEntryInfo info) => TryGetFileInfo(EntityPath(id), out info);
+        public bool TryGetGroupFileInfo(GroupId id, out SaveEntryInfo info) => TryGetFileInfo(GroupPath(id), out info);
+        public bool TryGetChunkFileInfo(ChunkId id, out SaveEntryInfo info) => TryGetFileInfo(ChunkPath(id), out info);
 
         private readonly DelTryParseObject<EntityAccessor> _entityParser = (string path, ulong id, Stream stream, out EntityAccessor result) =>
         {
@@ -345,11 +344,54 @@ namespace Meds.Watchdog.Save
 
             return false;
         }
+        
+        public IEnumerable<SaveEntryInfo> AllFiles()
+        {
+            if (_zip != null)
+            {
+                return _zip.Value.Entries
+                    .Where(entry => !entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
+                    .Select(entry => new SaveEntryInfo(this, entry.FullName, entry.Length));
+            }
+
+            return Directory.GetFiles(SavePath, "*", SearchOption.AllDirectories)
+                .Where(fullPath => File.Exists(fullPath) && !Directory.Exists(fullPath))
+                .Select(fullPath =>
+                {
+                    if (!fullPath.StartsWith(SavePath, StringComparison.OrdinalIgnoreCase))
+                        throw new ArgumentException("Does not start with save path");
+                    return fullPath.Substring(SavePath.Length).TrimStart('/', '\\');
+                })
+                .Where(relPath => !relPath.StartsWith(SaveFiles.BackupFolder, StringComparison.OrdinalIgnoreCase))
+                .Select(relPath => new SaveEntryInfo(this, relPath, new FileInfo(Path.Combine(SavePath, relPath)).Length));
+        }
 
         public void Dispose()
         {
+            if (_zip == null) return;
             foreach (var zip in _zip.Values)
                 zip.Dispose();
+        }
+    }
+
+    public readonly struct SaveEntryInfo
+    {
+        private readonly SaveFileAccessor _owner;
+        public readonly string RelativePath;
+        public readonly long Size;
+
+        internal SaveEntryInfo(SaveFileAccessor owner, string relativePath, long size)
+        {
+            _owner = owner;
+            RelativePath = relativePath;
+            Size = size;
+        }
+
+        public Stream Open()
+        {
+            if (_owner.TryGetStream(RelativePath, out var stream))
+                return stream;
+            throw new Exception("Failed to open save entry");
         }
     }
 }

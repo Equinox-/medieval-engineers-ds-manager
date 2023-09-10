@@ -11,6 +11,7 @@ namespace Meds.Watchdog.Save
     {
         Archived,
         Automatic,
+        Live,
     }
     
     public sealed class SaveFile : IEquatable<SaveFile>
@@ -64,7 +65,9 @@ namespace Meds.Watchdog.Save
             saveFile = null;
             try
             {
-                var info = new FileInfo(savePath);
+                FileSystemInfo info = new FileInfo(savePath);
+                if (!info.Exists)
+                    info = new DirectoryInfo(savePath);
                 if (!info.Exists)
                     return false;
                 var timeUtc = info.LastWriteTimeUtc;

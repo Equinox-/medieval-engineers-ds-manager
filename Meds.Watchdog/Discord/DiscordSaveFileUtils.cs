@@ -20,6 +20,8 @@ namespace Meds.Watchdog.Discord
         }
 
         protected override string FormatData(string key, SaveFile data) => key;
+
+        protected override string FormatArgument(SaveFile data) => data.SaveName;
     }
 
     public sealed class AllSaveFilesAutoCompleter : SaveFilesAutoCompleter
@@ -35,17 +37,34 @@ namespace Meds.Watchdog.Discord
     public sealed class ProgressReporter
     {
         private static readonly long ReportInterval = (long)TimeSpan.FromSeconds(5).TotalSeconds * Stopwatch.Frequency;
-        private long _lastReporting = Stopwatch.GetTimestamp() + ReportInterval;
-        private volatile Task _reportingTask = Task.CompletedTask;
+        private readonly InteractionContext _ctx;
+        private readonly string _prefix;
+        private int _total, _successful, _failed;
 
-        public Task ReportingTask => _reportingTask;
+        private long _lastReporting = Stopwatch.GetTimestamp();
+        private volatile Task _reportingTask = Task.CompletedTask;
 
         public readonly DelReportProgress Reporter;
 
-        public ProgressReporter(InteractionContext ctx)
+        private string Message(string prefix = null)
         {
+            lock (this)
+            {
+                var total = _total;
+                var complete = _successful + _failed;
+                return $"{prefix ?? _prefix} {(total == 0 ? 100 : complete * 100 / total):D}% ({complete} / {total})";
+            }
+        }
+
+        public ProgressReporter(InteractionContext ctx, string prefix = "Processed")
+        {
+            _ctx = ctx;
+            _prefix = prefix;
             Reporter = (total, successful, failed) =>
             {
+                Volatile.Write(ref _total, total);
+                Volatile.Write(ref _successful, successful);
+                Volatile.Write(ref _failed, failed);
                 var last = Volatile.Read(ref _lastReporting);
                 var now = Stopwatch.GetTimestamp();
                 if (last + ReportInterval >= now)
@@ -54,11 +73,16 @@ namespace Meds.Watchdog.Discord
                     return;
                 lock (this)
                 {
-                    var complete = successful + failed;
                     if (!_reportingTask.IsCompleted) return;
-                    _reportingTask = ctx.EditResponseAsync($"Processed {complete * 100 / total:D}% ({complete} / {total})");
+                    _reportingTask = _ctx.EditResponseAsync(Message());
                 }
             };
+        }
+
+        public async Task Finish(string prefix = null)
+        {
+            await _reportingTask;
+            await _ctx.EditResponseAsync(Message(prefix));
         }
     }
 }
