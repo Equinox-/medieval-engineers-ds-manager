@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -8,9 +9,12 @@ using HarmonyLib;
 using Meds.Metrics;
 using Meds.Metrics.Group;
 using Meds.Wrapper.Shim;
+using VRage.Game;
 using VRage.Library;
 using VRage.Network;
+using VRage.ObjectBuilders;
 using VRage.Steam;
+// ReSharper disable InconsistentNaming
 
 namespace Meds.Wrapper.Metrics
 {
@@ -22,6 +26,9 @@ namespace Meds.Wrapper.Metrics
         private const string ReplicationStreamingTime = ReplicationStreamingPrefix + "time";
         private const string ReplicationStreamingByteCount = ReplicationStreamingPrefix + "bytes";
         private const string ReplicationStreamingEntityCount = ReplicationStreamingPrefix + "entities";
+        private const string WorldDownloadPrefix = "me.network.world.";
+        private const string WorldDownloadSentBytes = WorldDownloadPrefix + "sent";
+        private const string WorldDownloadFragmentBytes = WorldDownloadPrefix + "fragments";
 
         // for RPC sends: MyReplicationServer.DispatchEvent(BitStream stream, CallSite site, EndpointId target, IMyNetObject eventInstance, float unreliablePriority
         // for RPC rx: MyReplicationLayer.Invoke(BitStream stream, CallSite site, object obj, IMyNetObject sendAs, EndpointId source) -- return value has validation
@@ -34,6 +41,7 @@ namespace Meds.Wrapper.Metrics
                 PatchHelper.Patch(typeof(SteamPeer2PeerReceive));
                 PatchHelper.Patch(typeof(StateSync));
                 PatchHelper.Patch(typeof(ReplicableSerialize));
+                PatchHelper.Patch(typeof(WorldDataSize));
             }
             catch (Exception err)
             {
@@ -247,6 +255,39 @@ namespace Meds.Wrapper.Metrics
 
                     yield return i;
                 }
+            }
+        }
+
+        [HarmonyPatch(typeof(MyObjectBuilderSerializer),
+            "SerializeXML",
+            typeof(Stream),
+            typeof(MyObjectBuilder_Base),
+            typeof(MyObjectBuilderSerializer.XmlCompression),
+            typeof(Type))]
+        public static class WorldDataSize
+        {
+            private static readonly Histogram WorldSendSize = MetricRegistry.Histogram(MetricName.Of(WorldDownloadSentBytes));
+            private static readonly Histogram VoxelSize = MetricRegistry.Histogram(MetricName.Of(WorldDownloadFragmentBytes, "fragment", "voxel"));
+            private static readonly Histogram SectorSize = MetricRegistry.Histogram(MetricName.Of(WorldDownloadFragmentBytes, "fragment", "sector"));
+
+            public static void Prefix(Stream writeTo, out long __state)
+            {
+                __state = writeTo.Position;
+            }
+
+            public static void Postfix(Stream writeTo, MyObjectBuilder_Base objectBuilder, long __state)
+            {
+                if (!(objectBuilder is MyObjectBuilder_World world))
+                    return;
+                WorldSendSize.Record(writeTo.Position - __state);
+                long voxelSize = 0;
+                if (world.VoxelMaps != null)
+                    foreach (var voxel in world.VoxelMaps.Dictionary)
+                        voxelSize += voxel.Value.LongLength;
+                VoxelSize.Record(voxelSize);
+                var sectorSize = world.SerializedSector?.LongLength;
+                if (sectorSize.HasValue)
+                    SectorSize.Record(sectorSize.Value);
             }
         }
     }
