@@ -64,12 +64,6 @@ namespace Meds.Wrapper.Metrics
         private static class GameTickProfiler
         {
             private static readonly Timer TickTimer = MetricRegistry.Timer(in GameTickSeries);
-            private static readonly long SlowTickStartupDelay = Stopwatch.Frequency * 600; // 10 minutes
-            private static readonly long SlowTickSpacing = Stopwatch.Frequency * 300; // 5 minutes
-            private static readonly double MillisPerTick = 1000.0 / Stopwatch.Frequency;
-            private static readonly long MinSlowTickDuration = Stopwatch.Frequency * 5 / 1000; // 5ms
-
-            private static long? _nextSlowTickMessage;
 
             public static IEnumerable<MethodBase> TargetMethods()
             {
@@ -86,32 +80,6 @@ namespace Meds.Wrapper.Metrics
                 var now = Stopwatch.GetTimestamp();
                 var dt = now - __state;
                 TickTimer.Record(dt);
-                if (dt < MinSlowTickDuration)
-                    return;
-                var nextSlowTick = _nextSlowTickMessage ??= now + SlowTickStartupDelay;
-                if (now < nextSlowTick)
-                    return;
-
-                try
-                {
-                    var p99 = TickTimer.Percentile(.99);
-                    if (dt <= p99)
-                        return;
-                    Entrypoint.LoggerFor(typeof(GameTickProfiler)).ZLogWarning(
-                        "Tick was slower than 99% of ticks (tick={0} ms, p90={1} ms, p95={2} ms, p99={3} ms, max={4} ms)",
-                        dt * MillisPerTick,
-                        TickTimer.Percentile(.9) * MillisPerTick,
-                        TickTimer.Percentile(.95) * MillisPerTick,
-                        p99 * MillisPerTick,
-                        TickTimer.Percentile(1) * MillisPerTick);
-                }
-                catch (Exception error)
-                {
-                    Entrypoint.LoggerFor(typeof(GameTickProfiler)).ZLogWarning(
-                        error,
-                        "Failed to check game tick slowness");
-                }
-                _nextSlowTickMessage = now + SlowTickSpacing;
             }
         }
     }

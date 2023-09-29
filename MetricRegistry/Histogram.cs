@@ -12,36 +12,29 @@ namespace Meds.Metrics
         public static readonly int HighestTrackableValue = int.MaxValue / 2;
         public static readonly int NumberOfSignificantValueDigits = 3;
 
+        private static readonly HistogramFactoryDelegate HistogramFactory = (instance, lowest, highest, significantValueDigits) =>
+            new IntConcurrentHistogram(instance, lowest, highest, significantValueDigits);
+
         private long _countAccumulator;
         private long _sumAccumulator;
-        private readonly FastResourceLock _lock;
-        private readonly HistogramBase _histogram;
+        private readonly Recorder _histogram;
         private readonly double _scale;
 
-        public HistogramMetricBase(MetricName name, double scale) : base(name)
+        protected HistogramMetricBase(MetricName name, double scale) : base(name)
         {
-            _lock = new FastResourceLock();
-            _histogram = new IntConcurrentHistogram(LowestTrackableValue, HighestTrackableValue, NumberOfSignificantValueDigits);
+            _histogram = new Recorder(LowestTrackableValue, HighestTrackableValue, NumberOfSignificantValueDigits, HistogramFactory);
             _scale = scale;
             UpdateRate = 5;
         }
-        
-        public long Percentile(double percentile)
-        {
-            using (_lock.AcquireExclusiveUsing())
-            {
-                return _histogram.GetValueAtPercentile(percentile * 100);
-            }
-        }
 
-        public void Record(long value)
+        public void Record(long value, int count = 1)
         {
-            using (_lock.AcquireSharedUsing())
-            {
-                _histogram.RecordValue(value);
-            }
-
-            Interlocked.Add(ref _sumAccumulator, value);
+            _histogram.RecordValueWithCount(
+                value < LowestTrackableValue ? LowestTrackableValue :
+                value > HighestTrackableValue ? HighestTrackableValue :
+                value,
+                count);
+            Interlocked.Add(ref _sumAccumulator, value * count);
             LastModification = MetricRegistry.GcCounter;
         }
 
@@ -62,18 +55,12 @@ namespace Meds.Metrics
 
         public override void WriteTo(MetricWriter writer)
         {
-            HistogramReader reader;
-            long sum;
-            long count;
-            using (_lock.AcquireExclusiveUsing())
-            {
-                reader = HistogramReader.Read(_histogram);
-                if (reader.SampleCount <= 0)
-                    return;
-                Interlocked.Add(ref _countAccumulator, reader.SampleCount);
-                count = HandleReset(ref _countAccumulator);
-                sum = HandleReset(ref _sumAccumulator);
-            }
+            var reader = HistogramReader.Read(_histogram);
+            if (reader.SampleCount <= 0)
+                return;
+            Interlocked.Add(ref _countAccumulator, reader.SampleCount);
+            var count = HandleReset(ref _countAccumulator);
+            var sum = HandleReset(ref _sumAccumulator);
 
             // ReSharper disable ArgumentsStyleNamedExpression
             // ReSharper disable ArgumentsStyleOther

@@ -36,7 +36,17 @@ namespace Meds.Metrics
         public static HistogramReader Read(HistogramBase src)
         {
             var reader = Instances.Value;
-            reader.Set(src);
+            src.CopyInto(reader.Histogram);
+            src.Reset();
+            reader.UpdateFields();
+            return reader;
+        }
+
+        public static HistogramReader Read(Recorder src)
+        {
+            var reader = Instances.Value;
+            src.GetIntervalHistogramInto(reader.Histogram);
+            reader.UpdateFields();
             return reader;
         }
 
@@ -56,11 +66,8 @@ namespace Meds.Metrics
         public long P99 { get; private set; }
         public long P999 { get; private set; }
 
-        private void Set(HistogramBase src)
+        private void UpdateFields()
         {
-            src.CopyInto(Histogram);
-            src.Reset();
-
             HistogramIterationValue? last = null;
             _histogramRecorded.Reset();
             for (var itr = _histogramRecorded; itr.MoveNext();)
@@ -83,7 +90,7 @@ namespace Meds.Metrics
 
             SampleCount = last.Value.TotalCountToThisValue;
             Max = Histogram.HighestEquivalentValue(last.Value.ValueIteratedTo);
-            Mean = last.Value.TotalValueToThisValue / (double) last.Value.TotalCountToThisValue;
+            Mean = last.Value.TotalValueToThisValue / (double)last.Value.TotalCountToThisValue;
             StdDev = ComputeStdDev(Mean);
 
             var currPercentile = 0;
