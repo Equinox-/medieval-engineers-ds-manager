@@ -8,6 +8,7 @@ using Meds.Watchdog.Steam;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SteamKit2;
 
 namespace Meds.Watchdog
@@ -55,6 +56,7 @@ namespace Meds.Watchdog
                     services.AddSingletonAndHost<DataStore>();
                     services.AddSingleton<SaveFiles>();
                     services.AddSingleton<DiagnosticController>();
+                    services.AddSingleton<RtcFileSharing>();
                 })
                 .Build(installConfig.WatchdogLogs);
             using (host)

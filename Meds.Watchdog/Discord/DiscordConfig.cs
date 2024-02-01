@@ -6,7 +6,11 @@ namespace Meds.Watchdog.Discord
 {
     public class DiscordConfig : MemberwiseEquatable<DiscordConfig>
     {
+        [XmlElement]
         public string Token;
+
+        [XmlElement]
+        public string SaveSharingPassword;
 
         [XmlElement("ChannelSync")]
         public List<DiscordChannelSync> ChannelSyncs;

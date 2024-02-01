@@ -13,6 +13,7 @@ using DSharpPlus.SlashCommands;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Watchdog.Save;
+using Meds.Watchdog.Utils;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable HeapView.ClosureAllocation
@@ -33,10 +34,11 @@ namespace Meds.Watchdog.Discord
         private readonly ISubscriber<RestoreSceneResponse> _restoreSceneResponse;
         private readonly IPublisher<RestoreSceneRequest> _restoreSceneRequest;
         private readonly LifecycleController _lifecycle;
+        private readonly RtcFileSharing _rtcFileSharing;
 
         public DiscordCmdSave(HealthTracker healthTracker, ISubscriber<SaveResponse> saveResponse, IPublisher<SaveRequest> saveRequest, SaveFiles saves,
             DataStore dataStore, ISubscriber<RestoreSceneResponse> restoreSceneResponse, IPublisher<RestoreSceneRequest> restoreSceneRequest,
-            LifecycleController lifecycle, ILogger<DiscordCmdSave> log)
+            LifecycleController lifecycle, ILogger<DiscordCmdSave> log, RtcFileSharing rtcFileSharing)
         {
             _healthTracker = healthTracker;
             _saveResponse = saveResponse;
@@ -45,6 +47,7 @@ namespace Meds.Watchdog.Discord
             _restoreSceneRequest = restoreSceneRequest;
             _lifecycle = lifecycle;
             _log = log;
+            _rtcFileSharing = rtcFileSharing;
             _saves = saves;
             _dataStore = dataStore;
         }
@@ -578,6 +581,97 @@ namespace Meds.Watchdog.Discord
 
             // Restore files in backup
             await RestoreSaveFiles(context, saveFile, liveSave);
+        }
+
+        [SlashCommand("save-download", "Downloads a save file from the server to the local machine.")]
+        [SlashCommandPermissions(Permissions.Administrator)]
+        public async Task ShareDownload(InteractionContext context,
+            [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
+            string saveName)
+        {
+            if (!_rtcFileSharing.Enabled)
+            {
+                await context.CreateResponseAsync("Save file sharing is not enabled");
+                return;
+            }
+
+            await context.CreateResponseAsync($"Loading save `{saveName}`...");
+            if (!_saves.TryOpenSave(saveName, out var saveFile))
+            {
+                await context.EditResponseAsync($"Failed to load save `{saveFile}`");
+                return;
+            }
+
+            if (!saveFile.IsZip)
+            {
+                await context.EditResponseAsync($"Save file `{saveFile}` is not zipped");
+                return;
+            }
+
+            try
+            {
+                var progress = new ProgressReporter(context, "Downloaded", "KiB");
+                await _rtcFileSharing.Offer(saveFile.SavePath,
+                    async (uri, size) => await context.EditResponseAsync($"Will download `{saveFile}` ({size / 1024.0} KiB) at {uri}"),
+                    (name, bytes, totalBytes) =>
+                    {
+                        progress.Reporter((int)(totalBytes / 1024), (int)(bytes / 1024), 0);
+                        return default;
+                    });
+                await context.EditResponseAsync("No longer available for download");
+            }
+            catch (RtcTimedOutException)
+            {
+                await context.EditResponseAsync("Transfer timed out");
+            }
+        }
+
+        [SlashCommand("save-upload", "Uploads a save file from the local machine into the server's backups.")]
+        [SlashCommandPermissions(Permissions.Administrator)]
+        public async Task ShareUpload(InteractionContext context,
+            [Option("transfer", "Transfer URL from sendfiles.dev")]
+            string transferUrl)
+        {
+            if (!_rtcFileSharing.Enabled)
+            {
+                await context.CreateResponseAsync("Save file sharing is not enabled");
+                return;
+            }
+
+            if (!transferUrl.StartsWith(RtcFileSharing.TransferPrefix))
+            {
+                await context.CreateResponseAsync($"Valid transfer URL should start with `{RtcFileSharing.TransferPrefix}`");
+                return;
+            }
+
+            var transferId = transferUrl.Substring(RtcFileSharing.TransferPrefix.Length);
+
+            await context.CreateResponseAsync("Attempting to upload save...");
+
+            var progress = new ProgressReporter(context, "Uploaded", "KiB");
+            try
+            {
+                var outputPath = await _rtcFileSharing.Download(_saves.ArchivedBackupsDirectory, transferId,
+                    async (name, size) => await context.EditResponseAsync($"Attempting to upload `{name}` ({size / 1024.0} KiB)"),
+                    (name, bytes, totalBytes) =>
+                    {
+                        progress.Reporter((int)(totalBytes / 1024), (int)(bytes / 1024), 0);
+                        return default;
+                    });
+                await context.EditResponseAsync($"Upload complete {Path.GetFileName(outputPath)}");
+            }
+            catch (RtcInvalidPasswordException)
+            {
+                await context.EditResponseAsync("File was not transferred using the correct password");
+            }
+            catch (RtcFileAlreadyExistsException)
+            {
+                await context.EditResponseAsync("File already exists");
+            }
+            catch (RtcTimedOutException)
+            {
+                await context.EditResponseAsync("Transfer timed out");
+            }
         }
 
         private static async Task ArchiveCurrentSaveFiles(InteractionContext context, SaveFile saveFile, string archivePath)

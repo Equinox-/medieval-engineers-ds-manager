@@ -39,6 +39,7 @@ namespace Meds.Watchdog.Discord
         private static readonly long ReportInterval = (long)TimeSpan.FromSeconds(5).TotalSeconds * Stopwatch.Frequency;
         private readonly InteractionContext _ctx;
         private readonly string _prefix;
+        private readonly string _unit;
         private int _total, _successful, _failed;
 
         private long _lastReporting = Stopwatch.GetTimestamp();
@@ -52,14 +53,15 @@ namespace Meds.Watchdog.Discord
             {
                 var total = _total;
                 var complete = _successful + _failed;
-                return $"{prefix ?? _prefix} {(total == 0 ? 100 : complete * 100 / total):D}% ({complete} / {total})";
+                return $"{prefix ?? _prefix} {(total == 0 ? 100 : complete * 100 / total):D}% ({complete} / {total}{_unit})";
             }
         }
 
-        public ProgressReporter(InteractionContext ctx, string prefix = "Processed")
+        public ProgressReporter(InteractionContext ctx, string prefix = "Processed", string unit = "")
         {
             _ctx = ctx;
             _prefix = prefix;
+            _unit = string.IsNullOrEmpty(unit) ? "" : " " + unit;
             Reporter = (total, successful, failed) =>
             {
                 Volatile.Write(ref _total, total);

@@ -43,6 +43,8 @@ namespace Meds.Watchdog.Save
             };
         }
 
+        public string ArchivedBackupsDirectory => _installConfig.ArchivedBackupsDirectory;
+
         public bool TryOpenLiveSave(out SaveFile save)
         {
             var realSavePath = Path.Combine(_installConfig.RuntimeDirectory, WorldFolder);
@@ -54,7 +56,7 @@ namespace Meds.Watchdog.Save
             const string stripPrefix = ".zip";
             if (name.EndsWith(stripPrefix, StringComparison.OrdinalIgnoreCase))
                 name = name.Substring(0, name.Length - stripPrefix.Length);
-            return Path.Combine(_installConfig.ArchivedBackupsDirectory,
+            return Path.Combine(ArchivedBackupsDirectory,
                 $"{(now ?? DateTime.Now).ToString(SaveFile.SessionBackupNameFormat, CultureInfo.InvariantCulture)}_{PathUtils.CleanFileName(name)}.zip");
         }
 
