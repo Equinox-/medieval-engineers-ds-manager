@@ -360,22 +360,22 @@ namespace Meds.Watchdog.Utils
             public async ValueTask Connect()
             {
                 await _ws.Connect();
+                await ConnectInternal();
                 Rtc.onicecandidate += candidate =>
                 {
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                     SendMessage(new WsAddIceCandidate
                     {
-                        Candidate = new RTCIceCandidateInit
+                        Candidate = new RTCIceCandidateInit()
                         {
-                            candidate = candidate.candidate,
-                            sdpMid = candidate.sdpMid,
+                            sdpMid = candidate.sdpMid ?? candidate.sdpMLineIndex.ToString(),
                             sdpMLineIndex = candidate.sdpMLineIndex,
                             usernameFragment = candidate.usernameFragment,
+                            candidate = ("candidate:" + candidate)
                         }
                     });
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 };
-                await ConnectInternal();
             }
 
             protected abstract ValueTask ConnectInternal();
