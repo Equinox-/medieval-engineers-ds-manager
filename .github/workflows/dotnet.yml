@@ -77,6 +77,8 @@ jobs:
         path: Meds.Wrapper/bin/Release
         destination: "meds-dist/${{github.ref}}/wrapper"
         parent: false
+        headers: |-
+          cache-control: public, max-age=300, must-revalidate
     - name: Upload Watchdog Release
       uses: 'google-github-actions/upload-cloud-storage@v1'
       if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event_name != 'pull_request'
@@ -84,3 +86,5 @@ jobs:
         path: Meds.Watchdog/bin/Release
         destination: "meds-dist/${{github.ref}}/watchdog"
         parent: false
+        headers: |-
+          cache-control: public, max-age=300, must-revalidate
