@@ -1,8 +1,9 @@
 using System.Xml.Serialization;
+using Equ;
 
 namespace Meds.Shared
 {
-    public class MessagePipe
+    public class MessagePipe : MemberwiseEquatable<MessagePipe>
     {
         [XmlAttribute]
         public ushort WatchdogToServer;

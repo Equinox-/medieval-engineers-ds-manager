@@ -38,6 +38,7 @@ namespace Meds.Watchdog
                 .ConfigureServices(services =>
                 {
                     services.AddSingleton(cfg);
+                    services.AddHostedService(svc => cfg.Refreshing(svc));
                     services.AddSingleton(installConfig);
                     services.AddSingleton<Refreshable<Configuration>>(cfg);
                     services.AddHostedService(svc => cfg.Refreshing(svc));
