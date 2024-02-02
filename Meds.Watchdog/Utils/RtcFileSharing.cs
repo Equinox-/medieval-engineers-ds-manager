@@ -84,32 +84,23 @@ namespace Meds.Watchdog.Utils
             })).Deserialize<TransferResponse>();
             _logger.ZLogInformation("Offering file {0} with length {1} MiB as {2}", fileName, length / 1024.0 / 1024.0, response.Id);
 
-            using var sender = await OfferAndWaitForSender(path, length, response.Id, key, offered, onProgress);
-            var completion = sender.Completion;
-            await Task.WhenAny(Task.Delay(DefaultTransferTimeout), completion);
-            if (!completion.IsCompleted || !completion.Result)
-                throw new RtcTimedOutException();
-        }
-
-        private async Task<RtcSender> OfferAndWaitForSender(
-            string path,
-            long length,
-            string transferId,
-            byte[] key,
-            DelOffered offered = null,
-            DelOnProgress onProgress = null)
-        {
-            var completionSource = new TaskCompletionSource<RtcSender>();
-            using var offer = new SimpleWebsocket(_logger, $"wss://{CoordHost}/?role=offerer&transfer_id={transferId}", HandleOffer);
+            var offerCompletionSource = new TaskCompletionSource<RtcSender>();
+            using var offer = new SimpleWebsocket(_logger, $"wss://{CoordHost}/?role=offerer&transfer_id={response.Id}", HandleOffer);
             await offer.Connect();
 
             await (offered?.Invoke($"{TransferPrefix}{transferId}", length) ?? default);
 
-            var completion = completionSource.Task;
-            await Task.WhenAny(Task.Delay(DefaultPeerTimeout), completion);
-            if (!completion.IsCompleted)
+            var offerCompletion = offerCompletionSource.Task;
+            await Task.WhenAny(Task.Delay(DefaultPeerTimeout), offerCompletion);
+            if (!offerCompletion.IsCompleted)
                 throw new RtcTimedOutException();
-            return completion.Result;
+            using var sender = await offerCompletion;
+
+            var senderCompletion = sender.Completion;
+            await Task.WhenAny(Task.Delay(DefaultTransferTimeout), senderCompletion);
+            if (!senderCompletion.IsCompleted || !senderCompletion.Result)
+                throw new RtcTimedOutException();
+            return;
 
             async ValueTask HandleOffer(Stream arg)
             {
@@ -117,11 +108,11 @@ namespace Meds.Watchdog.Utils
                 if (IsNewRecipient(msg.Body))
                 {
                     var sender = new RtcSender(
-                        new RtcState(_logger, transferId, onProgress),
+                        new RtcState(_logger, response.Id, onProgress),
                         msg.SenderAddress,
                         path, () => InitializeCipher(key, true));
                     await sender.Connect();
-                    if (!completionSource.TrySetResult(sender))
+                    if (!offerCompletionSource.TrySetResult(sender))
                         sender.Dispose();
                     return;
                 }
