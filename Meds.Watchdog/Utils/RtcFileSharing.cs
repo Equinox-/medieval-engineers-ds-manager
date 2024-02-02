@@ -6,7 +6,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
 using Meds.Shared;
 using Microsoft.Extensions.Logging;
@@ -31,6 +30,7 @@ namespace Meds.Watchdog.Utils
 
         private static readonly TimeSpan DefaultPeerTimeout = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan DefaultTransferTimeout = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan CloseTimeout = TimeSpan.FromMinutes(1);
 
         private static readonly JsonSerializerOptions JsonOpts = new JsonSerializerOptions
         {
@@ -454,41 +454,41 @@ namespace Meds.Watchdog.Utils
                     var rawBlock = new byte[ChunkSize];
                     var cryptBlock = new byte[cipher.GetOutputSize(ChunkSize)];
                     var totalSent = 0L;
-
-                    var estimatedBufferSize = 0UL;
-
-                    while (true)
+                    while (channel.IsOpened)
                     {
                         var rawBytes = await reader.ReadAsync(rawBlock, 0, ChunkSize);
                         if (rawBytes == 0)
                             break;
 
-                        while (estimatedBufferSize > waitAtBufferSize)
-                        {
-                            estimatedBufferSize = channel.bufferedAmount;
-                            if (estimatedBufferSize <= waitAtBufferSize)
-                                break;
+                        while (channel.bufferedAmount > waitAtBufferSize)
                             await Task.Delay(TimeSpan.FromMilliseconds(100));
-                        }
 
                         var cryptBytes = cipher.ProcessBytes(rawBlock, 0, rawBytes, cryptBlock, 0);
                         channel.Send(cryptBlock, 0, cryptBytes);
                         totalSent += cryptBytes;
                         await (State.OnProgress?.Invoke(fileName, totalSent, reader.Length) ?? default);
-                        estimatedBufferSize += (ulong) cryptBytes;
                     }
 
                     var finalBytes = cipher.DoFinal(cryptBlock, 0);
                     channel.Send(cryptBlock, 0, finalBytes);
 
-                    // Wait for the channel to close.
-                    while (channel.IsOpened)
+                    // Wait for buffer to drain.
+                    while (channel.bufferedAmount > 0)
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+
+                    // Wait for the channel to close, or the close timeout.
+                    var start = DateTime.UtcNow;
+                    while (channel.IsOpened || (DateTime.UtcNow - start) > CloseTimeout)
                         await Task.Delay(TimeSpan.FromSeconds(1));
                     _completion.SetResult(true);
                 }
                 catch (Exception err)
                 {
                     Logger.ZLogWarning(err, "Sending file {0} failed", fileName);
+                }
+                finally
+                {
+                    channel.close();
                 }
             }
 
