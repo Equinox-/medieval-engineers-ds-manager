@@ -442,30 +442,54 @@ namespace Meds.Watchdog.Utils
 
             private async Task SendTask(RTCDataChannel channel)
             {
+                const ulong waitAtBufferSize = 1024 * 1024;
+
                 var fileName = Path.GetFileName(_file);
-                Logger.ZLogInformation("Sending file {0} over RTC channel", fileName);
-                var cipher = _cipher();
-                using var reader = new FileStream(_file, FileMode.Open, FileAccess.Read);
-
-                var rawBlock = new byte[ChunkSize];
-                var cryptBlock = new byte[cipher.GetOutputSize(ChunkSize)];
-                var totalSent = 0L;
-
-                while (true)
+                try
                 {
-                    var rawBytes = await reader.ReadAsync(rawBlock, 0, ChunkSize);
-                    if (rawBytes == 0)
-                        break;
+                    Logger.ZLogInformation("Sending file {0} over RTC channel", fileName);
+                    var cipher = _cipher();
+                    using var reader = new FileStream(_file, FileMode.Open, FileAccess.Read);
 
-                    var cryptBytes = cipher.ProcessBytes(rawBlock, 0, rawBytes, cryptBlock, 0);
-                    channel.Send(cryptBlock, 0, cryptBytes);
-                    totalSent += cryptBytes;
-                    await (State.OnProgress?.Invoke(fileName, totalSent, reader.Length) ?? default);
+                    var rawBlock = new byte[ChunkSize];
+                    var cryptBlock = new byte[cipher.GetOutputSize(ChunkSize)];
+                    var totalSent = 0L;
+
+                    var estimatedBufferSize = 0UL;
+
+                    while (true)
+                    {
+                        var rawBytes = await reader.ReadAsync(rawBlock, 0, ChunkSize);
+                        if (rawBytes == 0)
+                            break;
+
+                        while (estimatedBufferSize > waitAtBufferSize)
+                        {
+                            estimatedBufferSize = channel.bufferedAmount;
+                            if (estimatedBufferSize <= waitAtBufferSize)
+                                break;
+                            await Task.Delay(TimeSpan.FromMilliseconds(100));
+                        }
+
+                        var cryptBytes = cipher.ProcessBytes(rawBlock, 0, rawBytes, cryptBlock, 0);
+                        channel.Send(cryptBlock, 0, cryptBytes);
+                        totalSent += cryptBytes;
+                        await (State.OnProgress?.Invoke(fileName, totalSent, reader.Length) ?? default);
+                        estimatedBufferSize += (ulong) cryptBytes;
+                    }
+
+                    var finalBytes = cipher.DoFinal(cryptBlock, 0);
+                    channel.Send(cryptBlock, 0, finalBytes);
+
+                    // Wait for the channel to close.
+                    while (channel.IsOpened)
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+                    _completion.SetResult(true);
                 }
-
-                var finalBytes = cipher.DoFinal(cryptBlock, 0);
-                channel.Send(cryptBlock, 0, finalBytes);
-                _completion.SetResult(true);
+                catch (Exception err)
+                {
+                    Logger.ZLogWarning(err, "Sending file {0} failed", fileName);
+                }
             }
 
             protected override ValueTask HandleMessage(WsMessage arg)
