@@ -87,8 +87,7 @@ namespace Meds.Watchdog.Utils
             var offerCompletionSource = new TaskCompletionSource<RtcSender>();
             using var offer = new SimpleWebsocket(_logger, $"wss://{CoordHost}/?role=offerer&transfer_id={response.Id}", HandleOffer);
             await offer.Connect();
-
-            await (offered?.Invoke($"{TransferPrefix}{transferId}", length) ?? default);
+            await (offered?.Invoke($"{TransferPrefix}{response.Id}", length) ?? default);
 
             var offerCompletion = offerCompletionSource.Task;
             await Task.WhenAny(Task.Delay(DefaultPeerTimeout), offerCompletion);
