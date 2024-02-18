@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -444,6 +445,17 @@ namespace Meds.Watchdog.Utils
             {
                 const ulong waitAtBufferSize = 1024 * 1024;
 
+                async void DrainBufferTo(ulong size)
+                {
+                    var timeout = Stopwatch.GetTimestamp() + DefaultPeerTimeout.TotalSeconds * Stopwatch.Frequency;
+                    while (channel.bufferedAmount > size)
+                    {
+                        if (Stopwatch.GetTimestamp() > timeout)
+                            throw new RtcTimedOutException();
+                        await Task.Delay(TimeSpan.FromMilliseconds(100));
+                    }
+                }
+
                 var fileName = Path.GetFileName(_file);
                 try
                 {
@@ -454,14 +466,15 @@ namespace Meds.Watchdog.Utils
                     var rawBlock = new byte[ChunkSize];
                     var cryptBlock = new byte[cipher.GetOutputSize(ChunkSize)];
                     var totalSent = 0L;
-                    while (channel.IsOpened)
+                    while (true)
                     {
+                        if (!channel.IsOpened)
+                            throw new Exception("channel closed");
                         var rawBytes = await reader.ReadAsync(rawBlock, 0, ChunkSize);
                         if (rawBytes == 0)
                             break;
 
-                        while (channel.bufferedAmount > waitAtBufferSize)
-                            await Task.Delay(TimeSpan.FromMilliseconds(100));
+                        DrainBufferTo(waitAtBufferSize);
 
                         var cryptBytes = cipher.ProcessBytes(rawBlock, 0, rawBytes, cryptBlock, 0);
                         channel.Send(cryptBlock, 0, cryptBytes);
@@ -473,8 +486,7 @@ namespace Meds.Watchdog.Utils
                     channel.Send(cryptBlock, 0, finalBytes);
 
                     // Wait for buffer to drain.
-                    while (channel.bufferedAmount > 0)
-                        await Task.Delay(TimeSpan.FromSeconds(1));
+                    DrainBufferTo(0);
 
                     // Wait for the channel to close, or the close timeout.
                     var start = DateTime.UtcNow;
@@ -485,10 +497,12 @@ namespace Meds.Watchdog.Utils
                 catch (Exception err)
                 {
                     Logger.ZLogWarning(err, "Sending file {0} failed", fileName);
+                    _completion.TrySetException(err);
                 }
                 finally
                 {
                     channel.close();
+                    _completion.TrySetResult(false);
                 }
             }
 
