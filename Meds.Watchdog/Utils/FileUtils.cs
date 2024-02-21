@@ -12,7 +12,7 @@ namespace Meds.Watchdog.Utils
             var path = Path.GetDirectoryName(target);
             if (path != null && !Directory.Exists(path))
                 Directory.CreateDirectory(path);
-            var temp = Path.GetTempFileName();
+            var temp = Path.Combine(path ?? "", Path.GetFileName(target) + ".tmp");
             try
             {
                 using (var stream = File.Create(temp))
