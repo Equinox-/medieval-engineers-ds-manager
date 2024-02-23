@@ -14,13 +14,13 @@ using Meds.Watchdog.Save;
 namespace Meds.Watchdog.Discord
 {
     // Not using command groups for discrete permissions.
-    public class DiscordCmdSaveSearch : ApplicationCommandModule
+    public class DiscordCmdSaveSearch : DiscordCmdBase
     {
         private readonly SaveFiles _saves;
         private readonly DataStore _dataStore;
 
         public DiscordCmdSaveSearch(SaveFiles saves,
-            DataStore dataStore)
+            DataStore dataStore, DiscordService discord) : base(discord)
         {
             _saves = saves;
             _dataStore = dataStore;

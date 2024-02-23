@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,10 @@ namespace Meds.Watchdog.Discord
         private readonly ILoggerFactory _rootLogger;
         private readonly IServiceProvider _services;
         private readonly ILogger<DiscordService> _log;
+        private readonly Refreshable<HashSet<ulong>> _requiredGuilds;
+        private readonly Refreshable<HashSet<ulong>> _requiredChannels;
+
+        private IDisposable _clientConnector;
 
         public DiscordClient Client => _state?.Client;
 
@@ -30,6 +35,8 @@ namespace Meds.Watchdog.Discord
             _rootLogger = rootLogger;
             _services = provider;
             _log = log;
+            _requiredGuilds = _config.Map(x => new HashSet<ulong>(x.RequireGuild ?? new List<ulong>()));
+            _requiredChannels = _config.Map(x => new HashSet<ulong>(x.RequireChannel ?? new List<ulong>()));
         }
 
         private volatile State _state;
@@ -54,7 +61,6 @@ namespace Meds.Watchdog.Discord
                     ButtonBehavior = ButtonPaginationBehavior.DeleteButtons,
                     PaginationBehaviour = PaginationBehaviour.Ignore,
                     ResponseBehavior = InteractionResponseBehavior.Ack,
-                    AckPaginationButtons = true,
                 });
 
                 var commands = Client.UseSlashCommands(new SlashCommandsConfiguration
@@ -68,8 +74,7 @@ namespace Meds.Watchdog.Discord
                         args.Context.CommandName,
                         string.Join(", ", args.Context.Interaction?.Data?.Options?.Select(x => x.Name + " " + x.Value) ?? Array.Empty<string>()),
                         uuid);
-                    args.Context.FollowUpAsync(new DiscordFollowupMessageBuilder { Content = $"Command processing failed!  Error ID = {uuid}" });
-                    return Task.CompletedTask;
+                    return args.Context.FollowUpAsync(new DiscordFollowupMessageBuilder { Content = $"Command processing failed!  Error ID = {uuid}" });
                 };
 
                 commands.RegisterCommands<DiscordCmdDiagnostic>();
@@ -100,9 +105,6 @@ namespace Meds.Watchdog.Discord
             await _state.Client.ConnectAsync();
         }
 
-
-        private IDisposable _clientConnector;
-
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _clientConnector = _config
@@ -123,6 +125,27 @@ namespace Meds.Watchdog.Discord
         public void Dispose()
         {
             Client?.Dispose();
+        }
+
+        private bool CheckRequirements(BaseContext ctx)
+        {
+            var guilds = _requiredGuilds.Current;
+            var channels = _requiredChannels.Current;
+            if (guilds.Count == 0 && channels.Count == 0)
+                return true;
+            if (ctx.Guild != null && guilds.Contains(ctx.Guild.Id))
+                return true;
+            if (channels.Contains(ctx.Channel.Id))
+                return true;
+            return false;
+        }
+
+        internal async Task<bool> VerifyRequirements(BaseContext ctx)
+        {
+            if (CheckRequirements(ctx)) return true;
+            _log.ZLogWarning("Command {0} was used from an invalid location", ctx.CommandName);
+            await ctx.CreateResponseAsync("Command used from invalid location");
+            return false;
         }
     }
 }

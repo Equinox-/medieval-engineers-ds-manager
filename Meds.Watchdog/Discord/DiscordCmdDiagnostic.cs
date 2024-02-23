@@ -8,12 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace Meds.Watchdog.Discord
 {
     // Not using command groups to allow for discrete permissions.
-    public class DiscordCmdDiagnostic : ApplicationCommandModule
+    public class DiscordCmdDiagnostic : DiscordCmdBase
     {
         private readonly DiagnosticController _diagnostic;
         private readonly ILogger<DiscordCmdDiagnostic> _log;
 
-        public DiscordCmdDiagnostic(DiagnosticController diagnostic, ILogger<DiscordCmdDiagnostic> log)
+        public DiscordCmdDiagnostic(DiagnosticController diagnostic, ILogger<DiscordCmdDiagnostic> log, DiscordService discord) : base(discord)
         {
             _diagnostic = diagnostic;
             _log = log;

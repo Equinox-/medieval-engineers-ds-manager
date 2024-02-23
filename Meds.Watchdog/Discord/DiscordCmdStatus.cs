@@ -9,12 +9,12 @@ using Meds.Shared;
 namespace Meds.Watchdog.Discord
 {
     // Not using command groups for discrete permissions
-    public class DiscordCmdStatus : ApplicationCommandModule
+    public class DiscordCmdStatus : DiscordCmdBase
     {
         private readonly LifecycleController _lifetimeController;
         private readonly HealthTracker _healthTracker;
 
-        public DiscordCmdStatus(LifecycleController lifetimeController, HealthTracker healthTracker)
+        public DiscordCmdStatus(LifecycleController lifetimeController, HealthTracker healthTracker, DiscordService discord) : base(discord)
         {
             _lifetimeController = lifetimeController;
             _healthTracker = healthTracker;

@@ -14,6 +14,12 @@ namespace Meds.Watchdog.Discord
 
         [XmlElement("ChannelSync")]
         public List<DiscordChannelSync> ChannelSyncs;
+
+        [XmlElement("RequireGuild")]
+        public List<ulong> RequireGuild;
+
+        [XmlElement("RequireChannel")]
+        public List<ulong> RequireChannel;
     }
 
     public class DiscordChannelSync : MemberwiseEquatable<DiscordChannelSync>

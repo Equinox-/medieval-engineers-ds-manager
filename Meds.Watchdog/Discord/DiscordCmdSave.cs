@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging;
 namespace Meds.Watchdog.Discord
 {
     // Not using command groups for discrete permissions.
-    public class DiscordCmdSave : ApplicationCommandModule
+    public class DiscordCmdSave : DiscordCmdBase
     {
         private readonly ILogger<DiscordCmdSave> _log;
         private readonly HealthTracker _healthTracker;
@@ -38,7 +38,7 @@ namespace Meds.Watchdog.Discord
 
         public DiscordCmdSave(HealthTracker healthTracker, ISubscriber<SaveResponse> saveResponse, IPublisher<SaveRequest> saveRequest, SaveFiles saves,
             DataStore dataStore, ISubscriber<RestoreSceneResponse> restoreSceneResponse, IPublisher<RestoreSceneRequest> restoreSceneRequest,
-            LifecycleController lifecycle, ILogger<DiscordCmdSave> log, RtcFileSharing rtcFileSharing)
+            LifecycleController lifecycle, ILogger<DiscordCmdSave> log, RtcFileSharing rtcFileSharing, DiscordService discord) : base(discord)
         {
             _healthTracker = healthTracker;
             _saveResponse = saveResponse;

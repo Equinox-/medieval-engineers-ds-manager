@@ -48,6 +48,7 @@
         <Compile Include="Configuration.cs" />
         <Compile Include="DataStore.cs" />
         <Compile Include="DiagnosticController.cs" />
+        <Compile Include="Discord\DiscordCmdBase.cs" />
         <Compile Include="Discord\DiscordCmdDiagnostic.cs" />
         <Compile Include="Discord\DiscordCmdPlayers.cs" />
         <Compile Include="Discord\DiscordCmdSave.cs" />

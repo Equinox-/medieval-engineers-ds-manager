@@ -11,7 +11,7 @@ using ZLogger;
 namespace Meds.Watchdog.Discord
 {
     // Not using permission groups since they can't have discrete permissions
-    public class DiscordCmdLifecycle : ApplicationCommandModule
+    public class DiscordCmdLifecycle : DiscordCmdBase
     {
         private readonly LifecycleController _lifetimeController;
         private readonly HealthTracker _healthTracker;
@@ -20,7 +20,7 @@ namespace Meds.Watchdog.Discord
         private readonly IHostApplicationLifetime _lifetime;
 
         public DiscordCmdLifecycle(LifecycleController lifetimeController, HealthTracker healthTracker,
-            InstallConfiguration configuration, ILogger<DiscordCmdLifecycle> log, IHostApplicationLifetime lifetime)
+            InstallConfiguration configuration, ILogger<DiscordCmdLifecycle> log, IHostApplicationLifetime lifetime, DiscordService discord) : base(discord)
         {
             _lifetimeController = lifetimeController;
             _healthTracker = healthTracker;

@@ -31,7 +31,7 @@ namespace Meds.Watchdog.Discord
                 case LifecycleStateCase.Restarting:
                     return $"{request.Icon ?? "♻️"} | {request.Reason ?? "Restarting"}";
                 case LifecycleStateCase.Faulted:
-                    return $"{request.Icon ?? "🪦"} | {request.Reason ?? "Faulted"}";
+                    return $"{request.Icon ?? "💀"} | {request.Reason ?? "Faulted"}";
                 default:
                     throw new ArgumentOutOfRangeException();
             }

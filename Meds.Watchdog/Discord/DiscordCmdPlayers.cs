@@ -8,7 +8,7 @@ using Meds.Shared.Data;
 
 namespace Meds.Watchdog.Discord
 {
-    public class DiscordCmdPlayers : ApplicationCommandModule
+    public class DiscordCmdPlayers : DiscordCmdBase
     {
         private readonly ISubscriber<PlayersResponse> _playersSubscriber;
         private readonly IPublisher<PlayersRequest> _playersRequest;
@@ -16,7 +16,7 @@ namespace Meds.Watchdog.Discord
         private readonly IPublisher<PromotePlayerRequest> _promoteRequest;
 
         public DiscordCmdPlayers(ISubscriber<PlayersResponse> playersSubscriber, IPublisher<PlayersRequest> playersRequest,
-            ISubscriber<PromotePlayerResponse> promoteSubscriber, IPublisher<PromotePlayerRequest> promoteRequest)
+            ISubscriber<PromotePlayerResponse> promoteSubscriber, IPublisher<PromotePlayerRequest> promoteRequest, DiscordService discord) : base(discord)
         {
             _playersSubscriber = playersSubscriber;
             _playersRequest = playersRequest;
