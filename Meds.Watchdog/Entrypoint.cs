@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
@@ -8,7 +10,6 @@ using Meds.Watchdog.Steam;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using SteamKit2;
 
 namespace Meds.Watchdog
@@ -17,6 +18,12 @@ namespace Meds.Watchdog
     {
         public static async Task Main(string[] args)
         {
+            var culture = CultureInfo.GetCultureInfo("en-US");
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+
             if (args.Length == 3 && args[0] == "restore-game-binaries")
             {
                 await CiUtils.RestoreGameBinaries(args[1], args[2]);

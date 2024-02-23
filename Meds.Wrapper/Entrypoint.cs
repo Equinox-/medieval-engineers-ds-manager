@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,12 @@ namespace Meds.Wrapper
 
         public static void Main(string[] args)
         {
+            var culture = CultureInfo.GetCultureInfo("en-US");
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+
             if (args.Length != 2)
                 throw new Exception("Wrapper should not be invoked manually.  [installConfig] [runtimeConfig]");
             var cfg = new Configuration(args[0], args[1]);

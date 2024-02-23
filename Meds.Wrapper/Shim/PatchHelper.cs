@@ -105,7 +105,14 @@ namespace Meds.Wrapper.Shim
 
         public static IEnumerable<(MyModContext mod, Type type)> ModTypes(string typeName)
         {
-            foreach (var kv in MySession.Static.ModManager.Assemblies)
+            var mods = MySession.Static?.ModManager;
+            if (mods == null)
+            {
+                Entrypoint.LoggerFor(typeof(PatchHelper))?
+                    .ZLogWarning("Tried to fetch mod types {0} but mod manager isn't initialized", typeName);
+                yield break;
+            }
+            foreach (var kv in mods.Assemblies)
             {
                 var type = kv.Value.GetType(typeName);
                 if (type == null) continue;
