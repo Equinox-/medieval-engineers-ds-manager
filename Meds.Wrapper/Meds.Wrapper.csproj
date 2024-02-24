@@ -173,7 +173,7 @@
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
       <PackageReference Include="System.Memory" Version="4.5.5" />
-      <PackageReference Include="ZLogger" Version="1.7.0" />
+      <PackageReference Include="ZLogger" Version="1.7.1" />
     </ItemGroup>
     <ItemGroup>
       <None Include="App.config" />
