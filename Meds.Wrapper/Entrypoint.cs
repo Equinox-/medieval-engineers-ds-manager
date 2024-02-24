@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +19,14 @@ namespace Meds.Wrapper
 
         public static ILogger LoggerFor(Type type) => Instance?.Services.GetRequiredService<ILoggerFactory>().CreateLogger(type);
 
+        [DllImport("kernel32.dll")]
+        private static extern uint SetErrorMode(uint uMode);
+
         public static void Main(string[] args)
         {
+            // fail critical errors & no fault error box
+            SetErrorMode(3);
+
             var culture = CultureInfo.GetCultureInfo("en-US");
             CultureInfo.CurrentUICulture = culture;
             CultureInfo.CurrentCulture = culture;

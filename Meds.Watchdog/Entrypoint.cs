@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Globalization;
-using System.Threading;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
@@ -16,8 +16,14 @@ namespace Meds.Watchdog
 {
     public sealed class Entrypoint
     {
+        [DllImport("kernel32.dll")]
+        private static extern uint SetErrorMode(uint uMode);
+
         public static async Task Main(string[] args)
         {
+            // fail critical errors & no fault error box
+            SetErrorMode(3);
+
             var culture = CultureInfo.GetCultureInfo("en-US");
             CultureInfo.CurrentUICulture = culture;
             CultureInfo.CurrentCulture = culture;
@@ -71,6 +77,7 @@ namespace Meds.Watchdog
             {
                 await host.RunAsync();
             }
+
             // Force exit in case a background thread is frozen.
             Environment.Exit(0);
         }
