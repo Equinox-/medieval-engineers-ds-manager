@@ -80,7 +80,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("player-promote", "Promotes or demotes a player")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task PromotePlayer(InteractionContext context,
             [Option("player", "Player steam ID")] [Autocomplete(typeof(DiscordPlayersAutocomplete))]
             string steamIdString,

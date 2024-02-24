@@ -20,7 +20,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("diagnostic-core-dump", "Takes a core dump of the server, capturing a full snapshot of its state")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task CoreDumpCommand(
             InteractionContext context,
             [Choice("now", "0")]
@@ -44,7 +44,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("diagnostic-profile", "Takes a performance profile of the server.")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task PerformanceProfileCommand(
             InteractionContext context,
             [Choice("1 minute", "1m")]

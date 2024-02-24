@@ -30,7 +30,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("lifecycle-restart", "Restarts and updates the server")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task RestartCommand(InteractionContext context,
             [Choice("now", "0")]
             [Choice("1 minute", "1m")]
@@ -44,7 +44,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("lifecycle-restart-watchdog", "Restarts and updates the watchdog")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task RestartWatchdogCommand(InteractionContext context)
         {
             var bootstrapPath = _configuration.BootstrapEntryPoint;
@@ -100,7 +100,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("lifecycle-shutdown", "Stops the server and keeps it stopped.")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task ShutdownCommand(InteractionContext context,
             [Choice("now", "0")]
             [Choice("1 minute", "1m")]
@@ -114,7 +114,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("lifecycle-start", "Starts the server.")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task StartCommand(InteractionContext context)
         {
             return ChangeState(context, new LifecycleState(LifecycleStateCase.Running));

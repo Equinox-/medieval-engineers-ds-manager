@@ -18,6 +18,7 @@ namespace Meds.Watchdog.Discord
 {
     public class DiscordService : IHostedService, IDisposable
     {
+        public const Permissions CommandPermission = Permissions.KickMembers;
         private readonly Refreshable<DiscordConfig> _config;
         private readonly ILoggerFactory _rootLogger;
         private readonly IServiceProvider _services;

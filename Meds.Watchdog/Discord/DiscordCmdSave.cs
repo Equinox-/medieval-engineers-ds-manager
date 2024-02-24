@@ -104,18 +104,18 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-now", "Saves the server's world file")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task SaveNow(InteractionContext context) => SaveInternal(context, null);
 
         [SlashCommand("save-backup", "Saves the server's world file, names, and archives it")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task SaveWithBackup(InteractionContext context, [Option("name", "Name of the backup to take")] string name)
         {
             return SaveInternal(context, name);
         }
 
         [SlashCommand("save-archive", "Names and archives an existing save")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task ArchiveSave(InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AutomaticSaveFilesAutoCompleter))]
             string save,
@@ -146,7 +146,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-list", "Lists existing backups")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task ListSaves(InteractionContext context)
         {
             await context.CreateResponseAsync("Loading saves...");
@@ -185,7 +185,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-bisect", "Determines the saves the entity or group majorly changes in")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task Bisect(
             InteractionContext context,
             [Option("target", "Type of object to bisect")]
@@ -261,7 +261,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-inspect", "Inspects a single object within a save")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task Inspect(
             InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
@@ -367,7 +367,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-export", "Exports a single object or closure within a save")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task Export(
             InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
@@ -447,7 +447,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-restore-subset", "Restores a single object or closure within a save")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task RestoreSubset(
             InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
@@ -542,7 +542,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-restore", "Restores an entire backup save")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task RestoreFull(InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
             string saveName)
@@ -584,7 +584,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-download", "Downloads a save file from the server to the local machine.")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task ShareDownload(InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
             string saveName)
@@ -627,7 +627,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-upload", "Uploads a save file from the local machine into the server's backups.")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task ShareUpload(InteractionContext context,
             [Option("transfer", "Transfer URL from sendfiles.dev")]
             string transferUrl)

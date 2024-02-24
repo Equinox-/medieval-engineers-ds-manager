@@ -36,7 +36,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-search-text", "Searches all objects in a save using a regular expression")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task SaveSearchText(
             InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
@@ -119,7 +119,7 @@ namespace Meds.Watchdog.Discord
         }
 
         [SlashCommand("save-search-geo", "Searches all objects in a save using an area")]
-        [SlashCommandPermissions(Permissions.Administrator)]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task SaveSearchGeo(
             InteractionContext context,
             [Option("save", "Save file name from /save list")] [Autocomplete(typeof(AllSaveFilesAutoCompleter))]
