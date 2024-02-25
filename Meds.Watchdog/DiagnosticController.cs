@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -11,6 +14,7 @@ using Meds.Shared;
 using Meds.Shared.Data;
 using Meds.Watchdog.Discord;
 using Meds.Watchdog.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32.SafeHandles;
 using ZLogger;
@@ -20,6 +24,7 @@ namespace Meds.Watchdog
     public sealed class DiagnosticController
     {
         private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+        private const string TempSuffix = ".tmp";
 
         private readonly IPublisher<ChatMessage> _chatPublisher;
         private readonly Refreshable<Configuration> _runtimeConfig;
@@ -38,13 +43,7 @@ namespace Meds.Watchdog
             _log = log;
         }
 
-        public struct MinidumpFile
-        {
-            public string Path;
-            public long Size;
-        }
-
-        public async Task<MinidumpFile?> CaptureCoreDump(DateTime atUtc, string reason = null, CancellationToken cancellationToken = default)
+        public async Task<DiagnosticOutput?> CaptureCoreDump(DateTime atUtc, string reason = null, CancellationToken cancellationToken = default)
         {
             string prevMessage = null;
             Process process;
@@ -75,14 +74,14 @@ namespace Meds.Watchdog
                 await Task.Delay(PollInterval, cancellationToken);
             }
 
+            var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}.dmp";
+            var dir = _installConfig.DiagnosticsDirectory;
+            Directory.CreateDirectory(dir);
+            var finalPath = Path.Combine(dir, name);
+            var tempPath = Path.Combine(dir, name + TempSuffix);
             try
             {
-                var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}.dmp";
-                var dir = _installConfig.DiagnosticsDirectory;
-                Directory.CreateDirectory(dir);
-                MinidumpFile info = default;
-                info.Path = Path.Combine(dir, name);
-                using (var stream = new FileStream(info.Path, FileMode.Create, FileAccess.ReadWrite, FileShare.Write))
+                using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write))
                 {
                     const MinidumpType type = MinidumpType.WithFullMemory | MinidumpType.WithProcessThreadData
                                                                           | MinidumpType.WithThreadInfo | MinidumpType.WithUnloadedModules;
@@ -94,31 +93,31 @@ namespace Meds.Watchdog
                     }
                 }
 
-                info.Size = new System.IO.FileInfo(info.Path).Length;
-                return info;
+                File.Move(tempPath, finalPath);
+                _autoCompleterAll = null;
+                return new DiagnosticOutput(new FileInfo(finalPath));
             }
             catch (Exception err)
             {
                 _log.ZLogWarning(err, "Failed to collect minidump");
                 return null;
             }
-        }
-
-        public struct ProfilingFile
-        {
-            public string Path;
-            public long Size;
+            finally
+            {
+                File.Delete(tempPath);
+            }
         }
 
         public enum ProfilingMode
         {
             [ChoiceName("Sampling")]
             Sampling,
+
             [ChoiceName("Timeline")]
             Timeline,
         }
 
-        public async Task<ProfilingFile?> CaptureProfiling(
+        public async Task<DiagnosticOutput?> CaptureProfiling(
             TimeSpan duration,
             ProfilingMode mode,
             string reason = null,
@@ -128,13 +127,13 @@ namespace Meds.Watchdog
             var process = _healthTracker.ActiveProcess;
             if (process == null || process.HasExited)
                 return null;
+            var name = $"prof_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}";
+            var finalDir = Path.Combine(_installConfig.DiagnosticsDirectory, name);
+            var tempDir = Path.Combine(_installConfig.DiagnosticsDirectory, name + TempSuffix);
+            Directory.CreateDirectory(tempDir);
             try
             {
-                var name = $"prof_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}";
-                var dir = Path.Combine(_installConfig.DiagnosticsDirectory, name);
-                Directory.CreateDirectory(dir);
-                var rootProfilePath = Path.Combine(dir, "prof.dtp");
-
+                var rootProfilePath = Path.Combine(tempDir, "prof.dtp");
                 await DotTrace.EnsurePrerequisiteAsync(cancellationToken);
                 var runnerField = typeof(DotTrace).GetField("ConsoleRunnerPackage", BindingFlags.Static | BindingFlags.NonPublic);
                 var runner = runnerField?.GetValue(null);
@@ -165,12 +164,14 @@ namespace Meds.Watchdog
                     default:
                         throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
                 }
+
                 var profiler = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = runnerPath,
-                        Arguments = $"attach {process.Id} {modeArgs} --collect-data-from-start=On \"--save-to={rootProfilePath}\" --timeout={duration.TotalSeconds}s",
+                        Arguments =
+                            $"attach {process.Id} {modeArgs} --collect-data-from-start=On \"--save-to={rootProfilePath}\" --timeout={duration.TotalSeconds}s",
                         CreateNoWindow = true,
                         UseShellExecute = false,
                     }
@@ -186,26 +187,27 @@ namespace Meds.Watchdog
                         return null;
                     await Task.Delay(PollInterval, cancellationToken);
                 }
+
                 _chatPublisher.SendGenericMessage(_runtimeConfig.Current.StatusChangeChannel, "Done profiling");
 
                 if (!File.Exists(rootProfilePath))
                 {
                     _log.ZLogWarning("Profiler output file missing");
-                    Directory.Delete(dir, true);
                     return null;
                 }
 
-                ProfilingFile info = default;
-                info.Path = dir;
-                info.Size = 0;
-                foreach (var file in Directory.GetFiles(info.Path))
-                    info.Size += new System.IO.FileInfo(file).Length;
-                return info;
+                File.Move(tempDir, finalDir);
+                _autoCompleterAll = null;
+                return new DiagnosticOutput(new FileInfo(finalDir));
             }
             catch (Exception err)
             {
                 _log.ZLogWarning(err, "Failed to collect profiling data");
                 return null;
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
             }
         }
 
@@ -251,5 +253,160 @@ namespace Meds.Watchdog
             FilterTriage = 0x00100000,
             ValidTypeFlags = 0x001fffff,
         }
+
+        #region Diagnostic List
+
+        public IEnumerable<DiagnosticOutput> AllDiagnostics
+        {
+            get
+            {
+                var dir = new DirectoryInfo(_installConfig.DiagnosticsDirectory);
+                if (!dir.Exists)
+                    return Enumerable.Empty<DiagnosticOutput>();
+                return dir.GetFiles()
+                    .Where(info => !info.Name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                    .Select(info => new DiagnosticOutput(info))
+                    .Where(info => info.Size > 0);
+            }
+        }
+
+        private readonly object _autoCompleteLock = new object();
+        private long _autoCompleterExpires;
+        private volatile AutoCompleteTree<DiagnosticOutput> _autoCompleterAll;
+
+        private bool AutoCompleteExpired => _autoCompleterAll == null || Volatile.Read(ref _autoCompleterExpires) <= Stopwatch.GetTimestamp();
+
+        private void EnsureAutoCompleter()
+        {
+            if (!AutoCompleteExpired)
+                return;
+            lock (_autoCompleteLock)
+            {
+                if (!AutoCompleteExpired) return;
+                _autoCompleterAll = new AutoCompleteTree<DiagnosticOutput>(AllDiagnostics.Select(x => (x.Info.Name, x)));
+                // 1 minute cache
+                _autoCompleterExpires = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 60;
+            }
+        }
+
+        public IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> AutoCompleteDiagnostic(string prompt, int? limit = null)
+        {
+            EnsureAutoCompleter();
+            return _autoCompleterAll.Apply(prompt, limit);
+        }
+
+        public bool TryGetDiagnostic(string name, out DiagnosticOutput diagnostic)
+        {
+            diagnostic = default;
+            if (name.StartsWith("/") || name.StartsWith("\\") || name.Contains("..") || name.EndsWith(TempSuffix, StringComparison.OrdinalIgnoreCase))
+                return false;
+            diagnostic = new DiagnosticOutput(new FileInfo(Path.Combine(_installConfig.DiagnosticsDirectory, name)));
+            return diagnostic.Size > 0;
+        }
+
+        private readonly object _zipDiagnosticLock = new object();
+
+        public DiagnosticOutput Zipped(DiagnosticOutput diagnostic)
+        {
+            if (diagnostic.IsZip)
+                return diagnostic;
+            var zippedName = diagnostic.Info.Name + ".zip";
+            var finalZipPath = Path.Combine(_installConfig.DiagnosticsDirectory, zippedName);
+            lock (_zipDiagnosticLock)
+            {
+                if (TryGetDiagnostic(zippedName, out var zipped))
+                    return zipped;
+                var tempZipPath = Path.Combine(_installConfig.DiagnosticsDirectory, zippedName + TempSuffix);
+                try
+                {
+                    using (var zipFile = new ZipArchive(new FileStream(tempZipPath, FileMode.CreateNew), ZipArchiveMode.Create))
+                    {
+                        var dir = diagnostic.Directory;
+                        if (dir != null)
+                        {
+                            foreach (var file in dir.GetFiles("*", SearchOption.AllDirectories))
+                                if (!file.IsDirectory())
+                                    Add(file);
+                        }
+                        else
+                        {
+                            Add(diagnostic.Info);
+                        }
+
+                        void Add(FileInfo file)
+                        {
+                            var fullPath = file.FullName;
+                            if (!fullPath.StartsWith(_installConfig.DiagnosticsDirectory, StringComparison.OrdinalIgnoreCase))
+                                return;
+                            var relPath = fullPath.Substring(_installConfig.DiagnosticsDirectory.Length).TrimStart('/', '\\');
+                            var entry = zipFile.CreateEntry(relPath);
+                            using var source = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+                            using var target = entry.Open();
+                            source.CopyTo(target);
+                        }
+                    }
+
+                    File.Move(tempZipPath, finalZipPath);
+                    if (diagnostic.Info.IsDirectory())
+                        Directory.Delete(diagnostic.Info.FullName, true);
+                    else
+                        File.Delete(diagnostic.Info.FullName);
+                    _autoCompleterAll = null;
+                    return new DiagnosticOutput(new FileInfo(finalZipPath));
+                }
+                finally
+                {
+                    File.Delete(tempZipPath);
+                }
+            }
+        }
+
+        #endregion
+    }
+
+    public readonly struct DiagnosticOutput
+    {
+        public readonly FileInfo Info;
+        public readonly long Size;
+
+        public DirectoryInfo Directory => Info.IsDirectory() ? new DirectoryInfo(Info.FullName) : null;
+
+        public bool IsZip => Info.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
+        public DiagnosticOutput(FileInfo info)
+        {
+            Info = info;
+            if (!info.Exists)
+            {
+                Size = 0;
+                return;
+            }
+
+            if (!info.IsDirectory())
+            {
+                Size = info.Length;
+                return;
+            }
+
+            var dir = new DirectoryInfo(info.FullName);
+            Size = 0;
+            foreach (var file in dir.GetFiles("*", SearchOption.AllDirectories))
+                if (!file.IsDirectory())
+                    Size += file.Length;
+        }
+
+        public override string ToString() => Info.Name;
+    }
+
+    public sealed class DiagnosticFilesAutoCompleter : DiscordAutoCompleter<DiagnosticOutput>
+    {
+        protected override IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> Provide(AutocompleteContext ctx, string prefix)
+        {
+            return ctx.Services.GetRequiredService<DiagnosticController>().AutoCompleteDiagnostic(prefix);
+        }
+
+        protected override string FormatData(string key, DiagnosticOutput data) => key;
+
+        protected override string FormatArgument(DiagnosticOutput data) => data.Info.Name;
     }
 }

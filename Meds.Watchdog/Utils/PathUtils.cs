@@ -23,5 +23,7 @@ namespace Meds.Watchdog.Utils
 
             return clean.ToString();
         }
+
+        public static bool IsDirectory(this FileInfo file) => (file.Attributes & FileAttributes.Directory) != 0;
     }
 }
