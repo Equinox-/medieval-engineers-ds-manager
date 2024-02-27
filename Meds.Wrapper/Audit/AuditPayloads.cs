@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Players;
+using VRage.Components.Entity.CubeGrid;
 using VRage.Game;
+using VRage.Game.Entity;
 using VRage.Library.Utils;
 using VRageMath;
 using ZLogger;
@@ -28,6 +30,9 @@ namespace Meds.Wrapper.Audit
 
         MedievalMasterStart,
         MedievalMasterStop,
+
+        ClipboardCut,
+        ClipboardPaste,
     }
 
     public class AuditPayload
@@ -40,6 +45,8 @@ namespace Meds.Wrapper.Audit
         public InventoryOpPayload? InventoryOp;
 
         public ControlOpPayload? ControlOp;
+
+        public ClipboardOpPayload? ClipboardOp;
 
         public static AuditPayload Create(AuditEvent evt, MyPlayer acting, MyPlayer owning = null, Vector3D? owningLocation = null)
         {
@@ -83,6 +90,12 @@ namespace Meds.Wrapper.Audit
             return this;
         }
 
+        public AuditPayload ClipboardOpPayload(in ClipboardOpPayload payload)
+        {
+            ClipboardOp = payload;
+            return this;
+        }
+
         private static AuditLoggerHolder _logger;
 
         public void Emit()
@@ -104,8 +117,8 @@ namespace Meds.Wrapper.Audit
             }
 
             log.Logger.ZLogInformationWithPayload(this, "{0} by {1} on {2} ({3})", AuditEvent, ActingPlayer.DisplayName,
-                    InventoryOp?.ToEntity ?? InventoryOp?.FromEntity ?? ControlOp?.Entity,
-                    OwningPlayer?.DisplayName);
+                InventoryOp?.ToEntity ?? InventoryOp?.FromEntity ?? ControlOp?.Entity,
+                OwningPlayer?.DisplayName);
         }
 
         private sealed class AuditLoggerHolder
@@ -141,6 +154,24 @@ namespace Meds.Wrapper.Audit
         public string Entity;
         public string Component;
         public string Slot;
+    }
+
+    public struct ClipboardOpPayload
+    {
+        public int Grids;
+        public int Blocks;
+
+        public void Add(MyGridDataComponent grid)
+        {
+            Grids++;
+            Blocks += grid.BlockCount;
+        }
+
+        public void Add(MyEntity entity)
+        {
+            if (entity.Components.TryGet(out MyGridDataComponent grid))
+                Add(grid);
+        }
     }
 
     public struct PlayerPayload
