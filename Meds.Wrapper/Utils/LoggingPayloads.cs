@@ -13,10 +13,12 @@ using Sandbox.Game.Players;
 using Sandbox.Game.World;
 using VRage.Collections;
 using VRage.Components;
+using VRage.Components.Entity.CubeGrid;
 using VRage.Definitions;
 using VRage.Engine;
 using VRage.Game;
 using VRage.Game.Components;
+using VRage.Game.Entity;
 using VRageMath;
 
 namespace Meds.Wrapper.Utils
@@ -121,6 +123,25 @@ namespace Meds.Wrapper.Utils
             Package = new PackagePayload(comp.GetType());
             Type = comp.GetType().Name;
             Method = method;
+        }
+    }
+
+    public class EntityPayload
+    {
+        public long? EntityId;
+        public long? EntityRootId;
+        public string EntitySubtype;
+        public PositionPayload Position;
+        public int? BlockCount;
+
+        public EntityPayload(MyEntity entity)
+        {
+            EntityId = entity.EntityId;
+            EntityRootId = entity.GetTopMostParent()?.EntityId;
+            EntitySubtype = entity.DefinitionId?.SubtypeName;
+            PositionPayload.TryCreate(entity.GetPosition(), out Position);
+            if (entity.Components.TryGet(out MyGridDataComponent grid))
+                BlockCount = grid.BlockCount;
         }
     }
 

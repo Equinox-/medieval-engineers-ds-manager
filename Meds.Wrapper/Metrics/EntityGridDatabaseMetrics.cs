@@ -15,12 +15,10 @@ namespace Meds.Wrapper.Metrics
 {
     public static class GridDatabaseMetrics
     {
-        private static readonly MethodInfo DatabaseProperty = AccessTools.PropertyGetter(typeof(MyInfiniteWorldPersistence), "Database");
+        public static readonly MethodInfo DatabaseProperty = AccessTools.PropertyGetter(typeof(MyInfiniteWorldPersistence), "Database");
+        public static readonly FieldInfo EntitiesField = AccessTools.Field(typeof(MyEntityGridDatabase), "Entities");
+        public static readonly FieldInfo ChunksField = AccessTools.Field(typeof(MyEntityGridDatabase), "Chunks");
         private static readonly FieldInfo ViewsField = AccessTools.Field(typeof(MyInfiniteWorldPersistence), "m_views");
-        private static readonly FieldInfo ChunksField = AccessTools.Field(typeof(MyEntityGridDatabase), "Chunks");
-
-        private static readonly FieldInfo EntitiesField = AccessTools.Field(typeof(MyEntityGridDatabase), "Entities");
-
         private static readonly FieldInfo GroupsField = AccessTools.Field(typeof(MyEntityGridDatabase), "Groups");
 
         public static void Register()
