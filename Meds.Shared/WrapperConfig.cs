@@ -51,6 +51,9 @@ namespace Meds.Shared
 
         [XmlElement]
         public bool? ReplaceLogger;
+
+        [XmlElement("SuppressPatch")]
+        public List<string> SuppressPatch = new List<string>();
     }
 
     public class MetricConfig : MemberwiseEquatable<MetricConfig>

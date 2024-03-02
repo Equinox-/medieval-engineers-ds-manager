@@ -560,7 +560,8 @@ namespace Meds.Wrapper.Shim
         {
             foreach (var i in instructions)
             {
-                if (i.opcode == OpCodes.Call && i.operand is MethodBase method && method.DeclaringType == typeof(Enumerable) && method.Name == nameof(Enumerable.First))
+                if (i.opcode == OpCodes.Call && i.operand is MethodBase method && method.DeclaringType == typeof(Enumerable) &&
+                    method.Name == nameof(Enumerable.First))
                 {
                     // Change .First() call to .FirstOrDefault() to push crashes elsewhere.
                     // This doesn't come close to actually fixing everything, but it's better than nothing.
@@ -568,8 +569,118 @@ namespace Meds.Wrapper.Shim
                         .First(x => x.Name == nameof(Enumerable.FirstOrDefault) && x.GetParameters().Length == 1)
                         .MakeGenericMethod(method.GetGenericArguments());
                 }
+
                 yield return i;
             }
+        }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=419
+    [HarmonyPatch(typeof(WorkerManager), "NotifyWorkStart")]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
+    public static class Mec419RareDeadlock_NotifyWorkStart
+    {
+        private static ILogger Log => Entrypoint.LoggerFor(typeof(Mec419RareDeadlock_NotifyWorkStart));
+        private static readonly Type TrackerData = AccessTools.TypeByName("VRage.ParallelWorkers.WorkerManager+TrackerData, VRage.Library");
+        private static readonly FieldInfo ExecutionReferenceCount = AccessTools.Field(TrackerData, "ExecutionReferenceCount");
+
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream, ILGenerator ilg)
+        {
+            var instructions = stream.ToList();
+            var hash = instructions
+                .Aggregate(19L, (a, b) => a * 31 + b.opcode.Value.GetHashCode());
+            if (hash != 4003687741625888343 || ExecutionReferenceCount == null)
+            {
+                Log.ZLogInformation("Not patching NotifyWorkStart since the hash doesn't match ({0})", hash);
+                return instructions;
+            }
+
+            // arg1 is "workId"
+            // arg2 is "dequeue"
+            // local2 is "tracker data"
+            // local3 is "should run"
+
+            var labelReturnShouldRun = ilg.DefineLabel();
+            var labelSkipUpdate = ilg.DefineLabel();
+            var labelMaybeUpdate = ilg.DefineLabel();
+
+            instructions.AddRange(new[]
+            {
+                new CodeInstruction(OpCodes.Ldloc_3).WithLabels(labelReturnShouldRun),
+                new CodeInstruction(OpCodes.Ret)
+            });
+
+            // 80-85 (ldarg.0, ldfld, ldarg.1, ldloc.2, callvirt, leave) -- original "m_trackedWork[workId] = track;"
+            instructions[80].WithLabels(labelMaybeUpdate);
+            instructions.InsertRange(85, new[]
+            {
+                new CodeInstruction(OpCodes.Leave, labelReturnShouldRun),
+                // pop the ldarg.0 or dummy value
+                new CodeInstruction(OpCodes.Pop).WithLabels(labelSkipUpdate),
+                new CodeInstruction(OpCodes.Leave, labelReturnShouldRun),
+            });
+            instructions.InsertRange(81, new[]
+            {
+                // if (!(shouldRun || dequeue)) { goto skipUpdate; }
+                new CodeInstruction(OpCodes.Ldloc_3),
+                new CodeInstruction(OpCodes.Ldarg_2),
+                new CodeInstruction(OpCodes.Or),
+                new CodeInstruction(OpCodes.Brfalse, labelSkipUpdate),
+            });
+
+            // 77-79 (ldc.i4.0, stloc.3, leave.s) -- original "return false"
+            instructions.InsertRange(79, ReturnFalseReplacement());
+
+            // 65-67 (ldc.i4.0, stloc.3, leave.s) -- original "return false"
+            instructions.InsertRange(67, ReturnFalseReplacement());
+
+            // Adding: var shouldRun = true;
+            // 33... -- original "track.Queue != WorkerGroupId.Null"
+            instructions.InsertRange(34, new[]
+            {
+                new CodeInstruction(OpCodes.Ldc_I4_1),
+                new CodeInstruction(OpCodes.Stloc_3)
+            });
+
+            return instructions;
+
+            IEnumerable<CodeInstruction> ReturnFalseReplacement() => new[]
+            {
+                // track.ExecutionReferenceCount--;
+                new CodeInstruction(OpCodes.Ldloca_S, 2),
+                new CodeInstruction(OpCodes.Ldflda, ExecutionReferenceCount),
+                new CodeInstruction(OpCodes.Dup),
+                new CodeInstruction(OpCodes.Ldind_I4),
+                new CodeInstruction(OpCodes.Ldc_I4_1),
+                new CodeInstruction(OpCodes.Sub),
+                new CodeInstruction(OpCodes.Stind_I4),
+                // goto maybe update
+                new CodeInstruction(OpCodes.Br, labelMaybeUpdate),
+            };
+        }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=419a
+    [HarmonyPatch(typeof(WorkerManager), "VRage.ParallelWorkers.IWorkerManager.ExecutePendingWork")]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
+    public static class Mec419RareDeadlock_ExecutePendingWork
+    {
+        private static ILogger Log => Entrypoint.LoggerFor(typeof(Mec419RareDeadlock_ExecutePendingWork));
+
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream)
+        {
+            var instructions = stream.ToList();
+            var hash = instructions
+                .Aggregate(19L, (a, b) => a * 31 + b.opcode.Value.GetHashCode());
+            if (hash != -4260687172009927681L)
+            {
+                Log.ZLogInformation("Not patching ExecutePendingWork since the hash doesn't match ({0})", hash);
+                return instructions;
+            }
+
+            // Replace "track.Queue != WorkerGroupId.Null" with "track.Queue == WorkerGroupId.Null"
+            instructions[42].opcode = OpCodes.Brtrue;
+            return instructions;
         }
     }
 }

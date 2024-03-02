@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.ExceptionServices;
 using HarmonyLib;
 using Medieval.ObjectBuilders;
 using MedievalEngineersDedicated;
 using Meds.Metrics;
+using Meds.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sandbox;
@@ -30,6 +29,8 @@ namespace Meds.Wrapper.Shim
     {
         private static readonly Harmony _harmony = new Harmony("meds.wrapper.core");
         private static bool ReplaceLogger;
+        private static readonly HashSet<string> SuppressedPatches = new HashSet<string>();
+        private static ILogger Log => Entrypoint.LoggerFor(typeof(PatchHelper));
 
         static PatchHelper()
         {
@@ -54,13 +55,18 @@ namespace Meds.Wrapper.Shim
             }
         }
 
-        public static void PatchStartup(bool replaceLogger)
+        public static void PatchStartup(RenderedInstallConfig cfg)
         {
+            ReplaceLogger = cfg.Adjustments.ReplaceLogger ?? false;
+            SuppressedPatches.Clear();
+            if (cfg.Adjustments.SuppressPatch != null)
+                foreach (var patch in cfg.Adjustments.SuppressPatch)
+                    SuppressedPatches.Add(patch);
+
             Patch(typeof(PatchWaitForKey));
             Patch(typeof(PatchConfigSetup));
             Patch(typeof(PatchMinidump));
-            ReplaceLogger = replaceLogger;
-            if (replaceLogger)
+            if (ReplaceLogger)
                 Patch(typeof(LoggerPatches.PatchReplaceLogger));
         }
 
@@ -80,6 +86,13 @@ namespace Meds.Wrapper.Shim
 
         public static void Prefix(MethodBase target, MethodInfo prefix)
         {
+            var declaringType = prefix.DeclaringType;
+            if (declaringType != null && (SuppressedPatches.Contains(declaringType.Name) || SuppressedPatches.Contains(declaringType.FullName)))
+            {
+                Log?.ZLogInformation("Suppressing patch {0}", declaringType.FullName);
+                return;
+            }
+
             try
             {
                 var processor = _harmony.CreateProcessor(target);
@@ -94,13 +107,15 @@ namespace Meds.Wrapper.Shim
 
         public static void Patch(Type type)
         {
-            var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null)
-                .ToList();
-            if (results.Count > 0)
+            if (SuppressedPatches.Contains(type.Name) || SuppressedPatches.Contains(type.FullName))
             {
-                Entrypoint.LoggerFor(typeof(PatchHelper))?
-                    .ZLogInformationWithPayload(results, "Applied patch {0} ", type.FullName);
+                Log?.ZLogInformation("Suppressing patch {0}", type.FullName);
+                return;
             }
+
+            var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null).ToList();
+            if (results.Count > 0)
+                Log?.ZLogInformationWithPayload(results, "Applied patch {0} ", type.FullName);
         }
 
         public static IEnumerable<(MyModContext mod, Type type)> ModTypes(string typeName)
@@ -112,6 +127,7 @@ namespace Meds.Wrapper.Shim
                     .ZLogWarning("Tried to fetch mod types {0} but mod manager isn't initialized", typeName);
                 yield break;
             }
+
             foreach (var kv in mods.Assemblies)
             {
                 var type = kv.Value.GetType(typeName);
