@@ -28,7 +28,7 @@ namespace Meds.Wrapper.Shim
             {
                 var okay = PositionPayload.TryCreate(originalLocation, out var positionPayload, player?.Identity?.Id);
                 Entrypoint.LoggerFor(typeof(MyMedievalPlanetRespawnComponent))
-                    .ZLogInformationWithPayload(StackUtils.CaptureGameLogicStackPayload(),
+                    .ZLogInformation(
                         "Failed to correct spawn location on call {0} while spawning {1} ({2}).  Originally at {3} ({4}/{5}/{6})",
                         call,
                         player?.Id.SteamId,
@@ -43,7 +43,7 @@ namespace Meds.Wrapper.Shim
             {
                 var okay = PositionPayload.TryCreate(originalLocation, out var positionPayload, player?.Identity?.Id);
                 Entrypoint.LoggerFor(typeof(MyMedievalPlanetRespawnComponent))
-                    .ZLogInformationWithPayload(StackUtils.CaptureGameLogicStackPayload(),
+                    .ZLogInformation(
                         "Corrected spawn location on call {0} while spawning {1} ({2}).  Originally at {3} ({4}/{5}/{6}), moved {7}m",
                         call,
                         player?.Id.SteamId,

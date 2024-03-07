@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using Havok;
 using Medieval.Entities.Components;
 using Medieval.Entities.Components.Crafting;
 using Medieval.GameSystems;
@@ -11,6 +12,7 @@ using Medieval.World.Persistence;
 using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
 using Sandbox.Engine.Multiplayer;
+using Sandbox.Engine.Physics;
 using Sandbox.Game.Entities.Character;
 using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.EntityComponents;
@@ -681,6 +683,21 @@ namespace Meds.Wrapper.Shim
             // Replace "track.Queue != WorkerGroupId.Null" with "track.Queue == WorkerGroupId.Null"
             instructions[42].opcode = OpCodes.Brtrue;
             return instructions;
+        }
+    }
+
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=419a
+    [HarmonyPatch(typeof(MyPhysicsSandbox), nameof(MyPhysicsSandbox.CreateHkWorld))]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
+    public static class MecUnidentifiedActiveRigidBodiesLeak
+    {
+        public static void Postfix(HkWorld __result)
+        {
+            __result.OnRigidBodyRemoved += body =>
+            {
+                if (body is HkRigidBody rb)
+                    __result.ActiveRigidBodies.Remove(rb);
+            };
         }
     }
 }
