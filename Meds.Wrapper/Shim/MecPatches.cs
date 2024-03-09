@@ -662,7 +662,7 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    // https://communityedition.medievalengineers.com/mantis/view.php?id=419a
+    // https://communityedition.medievalengineers.com/mantis/view.php?id=419
     [HarmonyPatch(typeof(WorkerManager), "VRage.ParallelWorkers.IWorkerManager.ExecutePendingWork")]
     [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class Mec419RareDeadlock_ExecutePendingWork
@@ -686,7 +686,6 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    // https://communityedition.medievalengineers.com/mantis/view.php?id=419a
     [HarmonyPatch(typeof(MyPhysicsSandbox), nameof(MyPhysicsSandbox.CreateHkWorld))]
     [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class MecUnidentifiedActiveRigidBodiesLeak
@@ -699,5 +698,13 @@ namespace Meds.Wrapper.Shim
                     __result.ActiveRigidBodies.Remove(rb);
             };
         }
+    }
+
+    // Disable it entirely due to https://communityedition.medievalengineers.com/mantis/view.php?id=522
+    [HarmonyPatch(typeof(MyInfiniteWorldPersistence), nameof(MyInfiniteWorldPersistence.WaitOnRange))]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
+    public static class Mec522NeverWait
+    {
+        public static bool Prefix() => false;
     }
 }

@@ -30,6 +30,7 @@ namespace Meds.Wrapper.Shim
         private static readonly Harmony _harmony = new Harmony("meds.wrapper.core");
         private static bool ReplaceLogger;
         private static readonly HashSet<string> SuppressedPatches = new HashSet<string>();
+        private static readonly HashSet<string> RequestedPatches = new HashSet<string>();
         private static ILogger Log => Entrypoint.LoggerFor(typeof(PatchHelper));
 
         static PatchHelper()
@@ -43,6 +44,11 @@ namespace Meds.Wrapper.Shim
                 var attr = type.GetCustomAttribute<AlwaysPatchAttribute>();
                 if (attr == null || attr.Late != late) continue;
                 if (!attr.CanUse()) continue;
+                if (!string.IsNullOrEmpty(attr.ByRequest) && !RequestedPatches.Contains(attr.ByRequest))
+                {
+                    Log?.ZLogInformation("Skipping patch {0} ({1} was not requested)", type.FullName, attr.ByRequest);
+                    continue;
+                }
                 Patch(type);
             }
 
@@ -59,9 +65,13 @@ namespace Meds.Wrapper.Shim
         {
             ReplaceLogger = cfg.Adjustments.ReplaceLogger ?? false;
             SuppressedPatches.Clear();
+            RequestedPatches.Clear();
             if (cfg.Adjustments.SuppressPatch != null)
                 foreach (var patch in cfg.Adjustments.SuppressPatch)
                     SuppressedPatches.Add(patch);
+            if (cfg.Adjustments.RequestPatch != null)
+                foreach (var patch in cfg.Adjustments.RequestPatch)
+                    RequestedPatches.Add(patch);
 
             Patch(typeof(PatchWaitForKey));
             Patch(typeof(PatchConfigSetup));

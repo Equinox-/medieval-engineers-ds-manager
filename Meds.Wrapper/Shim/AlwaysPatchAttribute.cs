@@ -6,6 +6,8 @@ namespace Meds.Wrapper.Shim
 {
     public sealed class AlwaysPatchAttribute : Attribute
     {
+        public string ByRequest { get; set; }
+
         public bool Late { get; set; }
 
         // Of the form "[minInclusive,maxExclusive)"

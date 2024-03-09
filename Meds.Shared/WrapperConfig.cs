@@ -54,6 +54,9 @@ namespace Meds.Shared
 
         [XmlElement("SuppressPatch")]
         public List<string> SuppressPatch = new List<string>();
+
+        [XmlElement("RequestPatch")]
+        public List<string> RequestPatch = new List<string>();
     }
 
     public class MetricConfig : MemberwiseEquatable<MetricConfig>
