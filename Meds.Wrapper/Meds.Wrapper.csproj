@@ -151,6 +151,7 @@
         <Compile Include="Shim\PatchExtensions.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ShimLog.cs" />
+        <Compile Include="Shim\TieredBackups.cs" />
         <Compile Include="Shim\VerboseCrashPatches.cs" />
         <Compile Include="Shim\VoxelResetPatches.cs" />
         <Compile Include="Utils\DefinitionForObject.cs" />

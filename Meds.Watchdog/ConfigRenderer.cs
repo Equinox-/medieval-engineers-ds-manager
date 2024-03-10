@@ -77,6 +77,7 @@ namespace Meds.Watchdog
         private RenderedRuntimeConfig RenderRuntime(Configuration cfg) => new RenderedRuntimeConfig
         {
             Audit = cfg.Audit,
+            Backup = cfg.Backup,
         };
     }
 }

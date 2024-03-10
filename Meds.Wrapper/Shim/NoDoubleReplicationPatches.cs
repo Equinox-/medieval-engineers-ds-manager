@@ -79,7 +79,8 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(MyInventory), nameof(MyInventory.Serialize))]
-    [AlwaysPatch]
+    // [AlwaysPatch]
+    // For this to work correctly the client also needs to be updated so that it always sends the inventory changed event, even on the initial deserialization.
     public static class NoDoubleReplicationInventory
     {
         private static readonly List<MyInventoryItem> NoItems = new List<MyInventoryItem>();

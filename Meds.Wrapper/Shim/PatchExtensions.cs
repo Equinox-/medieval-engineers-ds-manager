@@ -1,5 +1,7 @@
 using System;
 using System.Reflection;
+using System.Reflection.Emit;
+using HarmonyLib;
 
 namespace Meds.Wrapper.Shim
 {
@@ -25,6 +27,30 @@ namespace Meds.Wrapper.Shim
 
             index = default;
             return false;
+        }
+
+        public static bool LoadsArg(this CodeInstruction isn, int arg)
+        {
+            var op = isn.opcode;
+            if (op == OpCodes.Ldarg || op == OpCodes.Ldarg_S)
+            {
+                return isn.operand switch
+                {
+                    int int32 => int32 == arg,
+                    short int16 => int16 == arg,
+                    byte int8 => int8 == arg,
+                    _ => false
+                };
+            }
+
+            return arg switch
+            {
+                0 => op == OpCodes.Ldarg_0,
+                1 => op == OpCodes.Ldarg_1,
+                2 => op == OpCodes.Ldarg_2,
+                3 => op == OpCodes.Ldarg_3,
+                _ => false
+            };
         }
     }
 }

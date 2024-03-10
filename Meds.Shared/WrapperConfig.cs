@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 using Equ;
@@ -35,6 +36,9 @@ namespace Meds.Shared
 
         [XmlElement]
         public AuditConfig Audit = new AuditConfig();
+
+        [XmlElement]
+        public BackupConfig Backup = new BackupConfig();
     }
 
     public class AuditConfig : MemberwiseEquatable<AuditConfig>
@@ -57,6 +61,33 @@ namespace Meds.Shared
 
         [XmlElement("RequestPatch")]
         public List<string> RequestPatch = new List<string>();
+    }
+
+    public class BackupConfig : MemberwiseEquatable<BackupTierConfig>
+    {
+        [XmlElement]
+        public bool DefaultTiers;
+
+        [XmlElement("Tier")]
+        public List<BackupTierConfig> Tiers = new List<BackupTierConfig>();
+    }
+
+    public class BackupTierConfig : MemberwiseEquatable<BackupTierConfig>
+    {
+        [XmlIgnore]
+        public TimeSpan Interval => TimeSpan.FromDays(Days) + TimeSpan.FromHours(Hours) + TimeSpan.FromMinutes(Minutes);
+
+        [XmlAttribute]
+        public double Minutes;
+
+        [XmlAttribute]
+        public double Hours;
+
+        [XmlAttribute]
+        public double Days;
+
+        [XmlAttribute]
+        public int Count;
     }
 
     public class MetricConfig : MemberwiseEquatable<MetricConfig>

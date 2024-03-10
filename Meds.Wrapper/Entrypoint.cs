@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Meds.Shared;
@@ -7,6 +9,7 @@ using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sandbox.Game.World;
 using VRage.ParallelWorkers;
 
 namespace Meds.Wrapper
@@ -48,6 +51,7 @@ namespace Meds.Wrapper
                     services.AddHostedService(svc => cfg.Runtime.Refreshing(svc));
                     services.AddSingleton<ShimLog>();
                     services.AddSingleton<HealthReporter>();
+                    services.AddSingleton<TieredBackups>();
                     services.AddHostedAlias<HealthReporter>();
                     services.AddHostedService<ServerService>();
                     services.AddMedsMessagePipe(cfg.Install.Messaging.WatchdogToServer, cfg.Install.Messaging.ServerToWatchdog);

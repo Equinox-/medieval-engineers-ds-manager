@@ -54,6 +54,9 @@ namespace Meds.Watchdog
         public AdjustmentsConfig Adjustments = new AdjustmentsConfig();
 
         [XmlElement]
+        public BackupConfig Backup = new BackupConfig();
+
+        [XmlElement]
         public AuditConfig Audit = new AuditConfig();
 
         [XmlElement]
