@@ -63,7 +63,7 @@ namespace Meds.Shared
         public List<string> RequestPatch = new List<string>();
     }
 
-    public class BackupConfig : MemberwiseEquatable<BackupTierConfig>
+    public class BackupConfig : MemberwiseEquatable<BackupConfig>
     {
         [XmlElement]
         public bool DefaultTiers;
