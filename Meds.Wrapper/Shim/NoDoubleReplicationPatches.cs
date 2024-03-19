@@ -66,7 +66,8 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(MyProceduralEnvironmentProvider), nameof(MyProceduralEnvironmentProvider.GetObjectBuilder))]
-    [AlwaysPatch]
+    [AlwaysPatch(ByRequest = nameof(NoDoubleReplicationEnvironmentSectors))]
+    // This seems to be causing some issues where environment sectors don't synchronize in time. Not totally sure why. 
     public static class NoDoubleReplicationEnvironmentSectors
     {
         public static bool Prefix(ref MyObjectBuilder_EnvironmentDataProvider __result)
@@ -79,7 +80,7 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(MyInventory), nameof(MyInventory.Serialize))]
-    // [AlwaysPatch]
+    [AlwaysPatch(ByRequest = nameof(NoDoubleReplicationInventory))]
     // For this to work correctly the client also needs to be updated so that it always sends the inventory changed event, even on the initial deserialization.
     public static class NoDoubleReplicationInventory
     {

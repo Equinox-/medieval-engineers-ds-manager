@@ -151,9 +151,19 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    [HarmonyPatch(typeof(MySessionBackup), "MakeBackup")]
+    [HarmonyPatch]
+    [AlwaysPatch]
     public static class TieredBackupsHookRetention
     {
+
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            foreach (var method in AccessTools.GetDeclaredMethods(typeof(MySessionBackup)))
+                if (method.Name == "MakeBackup" && method.GetParameters().Length == 1 &&
+                    method.GetParameters()[0].ParameterType == AccessTools.Inner(typeof(MySessionBackup), "BackupArgs"))
+                    yield return method;
+        }
+
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
             foreach (var instruction in instructions)
