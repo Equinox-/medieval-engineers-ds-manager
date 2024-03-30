@@ -59,7 +59,11 @@ namespace Meds.Wrapper
         {
             PatchHelper.PatchAlways(true);
             if (Config.Metrics.PrometheusKey != null)
+            {
                 PatchHelper.Patch(typeof(PrometheusPatch));
+                PatchHelper.Patch(typeof(RemoteServerLessLogging));
+            }
+
             if (Config.Metrics.Network)
                 TransportLayerMetrics.Register();
             if (Config.Metrics.Player)
