@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -16,6 +15,7 @@ namespace Meds.Shared
     {
         private readonly IEqualityComparer<T> _equality;
         private readonly List<IObserver> _observers = new List<IObserver>();
+        private readonly List<object> _pinnedUpstream = new List<object>();
         private readonly Action<T> _disposer;
 
         public T Current { get; private set; }
@@ -63,6 +63,7 @@ namespace Meds.Shared
             lock (_observers)
             {
                 var target = new Refreshable<TOut>(map(Current), disposer, equality);
+                target._pinnedUpstream.Add(this);
                 _observers.Add(new Mapped<TOut>(target, map));
                 return target;
             }
@@ -80,6 +81,8 @@ namespace Meds.Shared
                 var initialThis = Current;
                 var initialOther = other.Current;
                 var target = new Refreshable<TOut>(map(initialThis, initialOther), disposer, equality);
+                target._pinnedUpstream.Add(this);
+                target._pinnedUpstream.Add(other);
                 var combine = new MappedCombine<TOther, TOut>(target, initialThis, initialOther, map);
                 _observers.Add(new MappedCombine<TOther, TOut>.LeftObserver(combine));
                 other._observers.Add(new MappedCombine<TOther, TOut>.RightObserver(combine));
