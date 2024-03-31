@@ -71,6 +71,7 @@ namespace Meds.Watchdog
                     services.AddSingletonAndHost<DiscordMessageBridge>();
                     services.AddSingletonAndHost<DataStore>();
                     services.AddSingletonAndHost<GaController>();
+                    services.AddSingletonAndHost<LogRetention>();
                     services.AddSingleton(GaConfigRenderer.Create);
                     services.AddSingleton<SaveFiles>();
                     services.AddSingleton<DiagnosticController>();
