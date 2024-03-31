@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -59,16 +60,42 @@ namespace Meds.Shared
 
         public Refreshable<TOut> Map<TOut>(Func<T, TOut> map, IEqualityComparer<TOut> equality = null, Action<TOut> disposer = null)
         {
-            var target = new Refreshable<TOut>(map(Current), disposer, equality);
             lock (_observers)
+            {
+                var target = new Refreshable<TOut>(map(Current), disposer, equality);
                 _observers.Add(new Mapped<TOut>(target, map));
-            return target;
+                return target;
+            }
+        }
+
+        public Refreshable<TOut> Combine<TOther, TOut>(
+            Refreshable<TOther> other,
+            Func<T, TOther, TOut> map,
+            IEqualityComparer<TOut> equality = null,
+            Action<TOut> disposer = null)
+        {
+            lock (_observers)
+            lock (other._observers)
+            {
+                var initialThis = Current;
+                var initialOther = other.Current;
+                var target = new Refreshable<TOut>(map(initialThis, initialOther), disposer, equality);
+                var combine = new MappedCombine<TOther, TOut>(target, initialThis, initialOther, map);
+                _observers.Add(new MappedCombine<TOther, TOut>.LeftObserver(combine));
+                other._observers.Add(new MappedCombine<TOther, TOut>.RightObserver(combine));
+                return target;
+            }
         }
 
         public IDisposable Subscribe(Action<T> subscription)
         {
-            subscription(Current);
-            return new Subscriber(this, subscription);
+            lock (_observers)
+            {
+                subscription(Current);
+                var subscriber = new Subscriber(this, subscription);
+                _observers.Add(subscriber);
+                return subscriber;
+            }
         }
 
 
@@ -98,6 +125,62 @@ namespace Meds.Shared
             }
         }
 
+        private class MappedCombine<TOther, TOut>
+        {
+            private readonly WeakReference<Refreshable<TOut>> _target;
+            private readonly Func<T, TOther, TOut> _transformer;
+
+            private T _left;
+            private TOther _right;
+
+            public MappedCombine(
+                Refreshable<TOut> target,
+                T leftInitial,
+                TOther rightInitial,
+                Func<T, TOther, TOut> transformer)
+            {
+                _transformer = transformer;
+                _left = leftInitial;
+                _right = rightInitial;
+                _target = new WeakReference<Refreshable<TOut>>(target);
+            }
+
+            private bool Changed()
+            {
+                if (!_target.TryGetTarget(out var target))
+                    return false;
+                target.Update(_transformer(_left, _right));
+                return true;
+            }
+
+
+            public class LeftObserver : IObserver
+            {
+                private readonly MappedCombine<TOther, TOut> _owner;
+
+                public LeftObserver(MappedCombine<TOther, TOut> owner) => _owner = owner;
+
+                public bool Changed(T newValue)
+                {
+                    _owner._left = newValue;
+                    return _owner.Changed();
+                }
+            }
+
+            public class RightObserver : Refreshable<TOther>.IObserver
+            {
+                private readonly MappedCombine<TOther, TOut> _owner;
+
+                public RightObserver(MappedCombine<TOther, TOut> owner) => _owner = owner;
+
+                public bool Changed(TOther newValue)
+                {
+                    _owner._right = newValue;
+                    return _owner.Changed();
+                }
+            }
+        }
+
         private class Subscriber : IObserver, IDisposable
         {
             private readonly Refreshable<T> _owner;
@@ -107,8 +190,6 @@ namespace Meds.Shared
             {
                 _owner = owner;
                 _callback = callback;
-                lock (_owner._observers)
-                    _owner._observers.Add(this);
             }
 
             public bool Changed(T newValue)

@@ -6,6 +6,7 @@ using Equ;
 using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Discord;
+using Meds.Watchdog.GrafanaAgent;
 
 namespace Meds.Watchdog
 {
@@ -49,6 +50,9 @@ namespace Meds.Watchdog
 
         [XmlElement]
         public MetricConfig Metrics = new MetricConfig();
+        
+        [XmlElement]
+        public GaConfig GrafanaAgent = new GaConfig();
 
         [XmlElement]
         public AdjustmentsConfig Adjustments = new AdjustmentsConfig();

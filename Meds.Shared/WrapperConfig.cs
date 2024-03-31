@@ -11,6 +11,9 @@ namespace Meds.Shared
         public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(RenderedInstallConfig));
 
         [XmlElement]
+        public string Instance;
+        
+        [XmlElement]
         public string LogDirectory;
 
         [XmlElement]

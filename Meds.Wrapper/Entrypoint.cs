@@ -40,6 +40,7 @@ namespace Meds.Wrapper
                 throw new Exception("Wrapper should not be invoked manually.  [installConfig] [runtimeConfig]");
             var cfg = new Configuration(args[0], args[1]);
 
+            Console.Title = $"[{cfg.Install.Instance}] Server";
             PatchHelper.PatchStartup(cfg.Install);
 
             using var instance = new HostBuilder()

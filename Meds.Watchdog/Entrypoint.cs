@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Discord;
+using Meds.Watchdog.GrafanaAgent;
 using Meds.Watchdog.Save;
 using Meds.Watchdog.Steam;
 using Meds.Watchdog.Utils;
@@ -47,6 +48,7 @@ namespace Meds.Watchdog
 
             var cfg = ConfigRefreshable<Configuration>.FromConfigFile(configFile, Configuration.Read);
             InstallConfiguration installConfig = cfg.Current;
+            Console.Title = $"[{installConfig.Instance}] Watchdog";
             var host = new HostBuilder()
                 .ConfigureServices(services =>
                 {
@@ -68,6 +70,8 @@ namespace Meds.Watchdog
                     services.AddSingletonAndHost<DiscordStatusMonitor>();
                     services.AddSingletonAndHost<DiscordMessageBridge>();
                     services.AddSingletonAndHost<DataStore>();
+                    services.AddSingletonAndHost<GaController>();
+                    services.AddSingleton(GaConfigRenderer.Create);
                     services.AddSingleton<SaveFiles>();
                     services.AddSingleton<DiagnosticController>();
                     services.AddSingleton<RtcFileSharing>();

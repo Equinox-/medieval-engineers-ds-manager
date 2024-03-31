@@ -16,6 +16,7 @@
         <WarningLevel>4</WarningLevel>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
         <LangVersion>8</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
         <DebugSymbols>true</DebugSymbols>
@@ -62,6 +63,9 @@
         <Compile Include="Discord\DiscordSaveFileUtils.cs" />
         <Compile Include="Discord\DiscordStatusMonitor.cs" />
         <Compile Include="Discord\DiscordUtils.cs" />
+        <Compile Include="GrafanaAgent\GaConfig.cs" />
+        <Compile Include="GrafanaAgent\GaConfigRenderer.cs" />
+        <Compile Include="GrafanaAgent\GaController.cs" />
         <Compile Include="HealthTracker.cs" />
         <Compile Include="LifecycleController.cs" />
         <Compile Include="Entrypoint.cs" />

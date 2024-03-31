@@ -66,6 +66,7 @@ namespace Meds.Watchdog
 
         private RenderedInstallConfig RenderInstall(Configuration cfg) => new RenderedInstallConfig
         {
+            Instance = _installConfig.Instance,
             LogDirectory = _installConfig.WrapperLogs,
             RuntimeDirectory = _installConfig.RuntimeDirectory,
             DiagnosticsDirectory = cfg.DiagnosticsDirectory,

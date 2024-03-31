@@ -7,7 +7,17 @@ namespace Meds.Watchdog.Utils
 {
     public static class FileUtils
     {
-        public static void WriteAtomic(string target, object obj, XmlSerializer serializer)
+        public static void WriteAtomic(string target, object obj, XmlSerializer serializer) => WriteAtomic(target,
+            stream => serializer.Serialize(stream, obj));
+
+        public static void WriteAtomic(string target, string content) => WriteAtomic(target,
+            stream =>
+            {
+                using var writer = new StreamWriter(stream);
+                writer.Write(content);
+            });
+
+        public static void WriteAtomic(string target, Action<Stream> writer)
         {
             var path = Path.GetDirectoryName(target);
             if (path != null && !Directory.Exists(path))
@@ -16,7 +26,7 @@ namespace Meds.Watchdog.Utils
             try
             {
                 using (var stream = File.Create(temp))
-                    serializer.Serialize(stream, obj);
+                    writer(stream);
                 if (!MoveFileEx(temp, target, MoveFileExFlags.ReplaceExisting | MoveFileExFlags.WriteThrough))
                     throw new Exception(
                         $"Failed to move file: {Marshal.GetLastWin32Error()}",

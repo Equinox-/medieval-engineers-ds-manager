@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- If you want to provide an explicit name for this instance -->
+<!-- <Configuration Instance="instance-name-here"> -->
 <Configuration>
     <!-- Location watchdog files are stored at -->
     <Watchdog Uri="https://storage.googleapis.com/meds-dist/refs/heads/main/watchdog" />
@@ -9,9 +12,28 @@
     <!-- Restart wrapper every day at midnight UTC -->
     <!-- <ScheduledTask Cron="0 0 * * *" Utc="true" Reason="Scheduled" Restart="true"/> -->
 
+    <Adjustments>
+        <!-- Use structured logging for game logs too -->
+        <ReplaceLogger>true</ReplaceLogger>
+    </Adjustments>
+    
+    <!-- Use tiered backups retention (keep every newer backup, but only a subset of old backups) -->
+    <Backup>
+        <DefaultTiers>true</DefaultTiers>
+    </Backup>
+
+    <Metrics>
+        <!-- Randomly generated authorization key for prometheus metrics -->
+        <!-- <PrometheusKey>v3h27J6FvzZeUZn2fMeDAe4AAv</PrometheusKey> -->
+    </Metrics>
+
     <Discord>
         <!-- Authorization token for discord -->
         <!-- <Token>DiscordBotTokenHere</Token> -->
+
+        <!-- Require users to be in a specific server -->
+        <!-- <RequireGuild>524428347657289728</RequireGuild> -->
+
         <!-- Post messages from the player join/leave event channel into the provided discord channel -->
         <!-- <ChannelSync DiscordChannel="channelId" EventChannel="internal.playerJoinLeave" /> -->
         <!-- Post messages about non-recoverable server faults to the provided discord channel and mention a user -->
@@ -19,4 +41,22 @@
         <!-- Send messages about server state changes to provided user's DMs via the listed discord server the bot and user share -->
         <!-- <ChannelSync DmGuild="serverId" DmUser="userId" EventChannel="internal.serverStateChange" /> -->
     </Discord>
+
+    <!-- Configure automatic Grafana Agent integration to push metrics and logs to a remote -->
+    <GrafanaAgent Enabled="false">
+        <!-- Tenant ID for Loki, Org ID for Mimir -->
+        <!-- <TenantId>tenantId</TenantId> -->
+
+        <!-- Authorize Loki and Prometheus using OAUth -->
+        <!-- <OAuth TokenUrl="oidcTokenUrl" Id="oauthClientId" Secret="oauthClientSecret" /> -->
+        
+        <!-- Authorize Loki and Prometheus using Basic Auth -->
+        <!-- <BasicAuth Username="username" Password="password" /> -->
+
+        <!-- Submit logs to loki -->
+        <!-- <Loki Url="https://the-loki-host/loki/api/v1/push" /> -->
+        
+        <!-- Submit metrics to mimir -->
+        <!-- <Prometheus Url="https://the-mimir-host/api/v1/push" /> -->
+    </GrafanaAgent>
 </Configuration>

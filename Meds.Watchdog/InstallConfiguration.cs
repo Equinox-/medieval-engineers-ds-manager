@@ -10,6 +10,9 @@ namespace Meds.Watchdog
         [XmlElement]
         public MessagePipe Messaging = new MessagePipe();
 
+        [XmlAttribute]
+        public string Instance;
+
         [XmlIgnore]
         public string BootstrapEntryPoint => Path.Combine(Directory, "Meds.Bootstrap.exe");
 
@@ -20,16 +23,22 @@ namespace Meds.Watchdog
         public string RuntimeDirectory => Path.Combine(Directory, "runtime");
 
         [XmlIgnore]
-        public string WatchdogLogs => Path.Combine(Directory, "logs/watchdog");
+        public string LogsDirectory => Path.Combine(Directory, "logs");
 
         [XmlIgnore]
-        public string WrapperLogs => Path.Combine(Directory, "logs/wrapper");
+        public string WatchdogLogs => Path.Combine(LogsDirectory, "watchdog");
+
+        [XmlIgnore]
+        public string WrapperLogs => Path.Combine(LogsDirectory, "wrapper");
 
         [XmlIgnore]
         public string DiagnosticsDirectory => Path.Combine(Directory, "diagnostics");
 
         [XmlIgnore]
         public string ArchivedBackupsDirectory => Path.Combine(Directory, "named-backups");
+
+        [XmlIgnore]
+        public string GrafanaAgentDirectory => Path.Combine(Directory, "grafana-agent");
 
         public override void OnLoaded(string path)
         {
@@ -44,6 +53,8 @@ namespace Meds.Watchdog
                 Messaging.ServerToWatchdog = ephemeralPort;
             if (Messaging.WatchdogToServer == 0)
                 Messaging.WatchdogToServer = (ushort)(ephemeralPort + 1);
+
+            Instance ??= Path.GetFileName(Path.GetDirectoryName(path))?.ToLowerInvariant();
         }
     }
 }
