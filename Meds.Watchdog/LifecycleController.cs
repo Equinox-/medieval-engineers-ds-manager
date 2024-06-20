@@ -86,7 +86,7 @@ namespace Meds.Watchdog
 
         private LifecycleStateRequest? _request;
         private string _lastSentRequestMessage;
-
+        
         public LifecycleStateRequest? Request
         {
             get

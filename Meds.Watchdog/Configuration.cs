@@ -40,6 +40,13 @@ namespace Meds.Watchdog
         public double ReadinessTimeout = 60 * 15;
 
         /// <summary>
+        /// Schedule a restart after a mod updates, in seconds.
+        /// Negative to disable this feature.
+        /// </summary>
+        [XmlElement]
+        public double RestartAfterModUpdate = 60 * 5;
+
+        /// <summary>
         /// In-game channel to send status change messages to. 
         /// </summary>
         [XmlElement]

@@ -24,6 +24,9 @@ namespace Meds.Watchdog
 
         [XmlElement]
         public LifecycleStateSerialized LifecycleState;
+
+        [XmlElement]
+        public ModUpdateData ModUpdates = new ModUpdateData();
     }
 
     public sealed class DataStore : BackgroundService

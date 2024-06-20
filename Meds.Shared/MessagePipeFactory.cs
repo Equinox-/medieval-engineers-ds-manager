@@ -131,6 +131,7 @@ namespace Meds.Shared
             Register<RestoreSceneResponse>(Message.RestoreSceneResponse);
             Register<PromotePlayerRequest>(Message.PromotePlayerRequest);
             Register<PromotePlayerResponse>(Message.PromotePlayerResponse);
+            Register<ReportModsMessage>(Message.ReportModsMessage);
         }
 
         private sealed class UdpMessageQueue<T> : ISubscriber<T>, IPublisher<T> where T : struct, IFlatbufferObject
@@ -283,21 +284,19 @@ namespace Meds.Shared
                         var bytes = _sock.Receive(_receiveBuffer, 0, _receiveBuffer.Length, SocketFlags.None);
                         if (bytes <= 0)
                             continue;
-                        using (var fb = FlatBufferPool.Instance.Borrow())
-                        {
-                            var buf = fb.Value.DataBuffer;
-                            if (bytes > buf.Length)
-                                buf.GrowFront(bytes);
-                            var bufferArray = buf.ToArraySegment(0, buf.Length).Array!;
-                            Array.Copy(_receiveBuffer, 0, bufferArray, buf.Length - bytes, bytes);
-                            buf.Position = buf.Length - bytes;
-                            var packet = Packet.GetRootAsPacket(buf);
-                            _log.ZLogDebug("Received {0} ({1} bytes)", packet.MessageType, bytes);
-                            var subscribers = _messageSubscriptions[(int)packet.MessageType];
-                            var count = subscribers.Count;
-                            for (var i = 0; i < count; i++)
-                                subscribers[i].Handle(packet);
-                        }
+                        using var fb = FlatBufferPool.Instance.Borrow();
+                        var buf = fb.Value.DataBuffer;
+                        if (bytes > buf.Length)
+                            buf.GrowFront(bytes);
+                        var bufferArray = buf.ToArraySegment(0, buf.Length).Array!;
+                        Array.Copy(_receiveBuffer, 0, bufferArray, buf.Length - bytes, bytes);
+                        buf.Position = buf.Length - bytes;
+                        var packet = Packet.GetRootAsPacket(buf);
+                        _log.ZLogDebug("Received {0} ({1} bytes)", packet.MessageType, bytes);
+                        var subscribers = _messageSubscriptions[(int)packet.MessageType];
+                        var count = subscribers.Count;
+                        for (var i = 0; i < count; i++)
+                            subscribers[i].Handle(packet);
                     }
                     catch (SocketException se) when (se.SocketErrorCode == SocketError.TimedOut)
                     {

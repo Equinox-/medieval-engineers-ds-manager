@@ -92,7 +92,12 @@ namespace Meds.Watchdog.Discord
 
         public static string AsDiscordTime(this DateTime timeUtc, DiscordTimeFormat format = DiscordTimeFormat.ShortDateTime)
         {
-            return $"<t:{((DateTimeOffset)timeUtc).ToUnixTimeSeconds()}:{(char)format}>";
+            return ((DateTimeOffset)timeUtc).AsDiscordTime(format);
+        }
+
+        public static string AsDiscordTime(this DateTimeOffset timeUtc, DiscordTimeFormat format = DiscordTimeFormat.ShortDateTime)
+        {
+            return $"<t:{timeUtc.ToUnixTimeSeconds()}:{(char)format}>";
         }
 
         public static void RemoveFieldWithName(this DiscordEmbedBuilder embed, string field)
@@ -163,20 +168,20 @@ namespace Meds.Watchdog.Discord
             string[] headers = null)
         {
             return context.RespondPaginated(items, (pageItems, inclusive, exclusive) =>
-            {
-                table.Clear();
-                if (headers != null)
-                    table.AddRow(headers);
-                foreach (var item in pageItems)
-                    addRow(table, item);
+                {
+                    table.Clear();
+                    if (headers != null)
+                        table.AddRow(headers);
+                    foreach (var item in pageItems)
+                        addRow(table, item);
 
-                var embed = new DiscordEmbedBuilder();
-                var desc = inclusive + 1 == exclusive
-                    ? $"{objectType} {inclusive + 1} of {items.Count}"
-                    : $"{objectType}s {inclusive + 1}-{exclusive} of {items.Count}";
-                embed.AddField(desc, table.ToString());
-                return new Page(embed: embed);
-            }, pageSize, noPagesMessage ?? $"No {objectType.ToLower()}s");
+                    var embed = new DiscordEmbedBuilder();
+                    var desc = inclusive + 1 == exclusive
+                        ? $"{objectType} {inclusive + 1} of {items.Count}"
+                        : $"{objectType}s {inclusive + 1}-{exclusive} of {items.Count}";
+                    embed.AddField(desc, table.ToString());
+                    return new Page(embed: embed);
+                }, pageSize, noPagesMessage ?? $"No {objectType.ToLower()}s");
         }
 
         public static Task RespondPaginated<T>(

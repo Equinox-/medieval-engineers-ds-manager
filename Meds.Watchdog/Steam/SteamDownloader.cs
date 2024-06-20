@@ -324,26 +324,29 @@ namespace Meds.Watchdog.Steam
                 .ToDictionary(item => item.publishedfileid);
         }
 
-        public async Task<CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> InstallModAsync(uint appId, ulong modId, string installPath, int workerCount,
-            Predicate<string> filter, string debugName)
+        public async Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> LoadModChangeHistory(ulong modId, uint sinceTime)
         {
-            var appInfo = await GetAppInfoAsync(appId);
-            var workshopDepot = appInfo.GetWorkshopDepot();
-            var req = new CPublishedFile_GetItemInfo_Request { appid = appId };
-            req.workshop_items.Add(new CPublishedFile_GetItemInfo_Request.WorkshopItem { published_file_id = modId });
-            var response = await _publishedFiles.SendMessage(svc => svc.GetItemInfo(req));
-            var responseDecoded = response.GetDeserializedResponse<CPublishedFile_GetItemInfo_Response>();
-            if (responseDecoded.private_items.Contains(modId))
-                throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName}) -- it appears to be private");
-            var result = responseDecoded.workshop_items
-                .FirstOrDefault(x => x.published_file_id == modId);
-            if (result == null)
-                throw new InvalidOperationException($"Failed to latest publication of mod {modId} ({debugName})");
-
-            await InstallInternalAsync(appId, workshopDepot, result.manifest_id, installPath, workerCount, filter,
-                debugName, null, "");
-            _log.ZLogInformation($"Installed mod {result.published_file_id}, manifest {result.manifest_id} ({debugName})");
-            return result;
+            var changelog = new List<CPublishedFile_GetChangeHistory_Response.ChangeLog>();
+            var offset = 0u;
+            while (true)
+            {
+                var req = new CPublishedFile_GetChangeHistory_Request
+                {
+                    publishedfileid = modId,
+                    startindex = offset,
+                    count = 32,
+                };
+                var response = await _publishedFiles.SendMessage(svc => svc.GetChangeHistory(req));
+                var responseDecoded = response.GetDeserializedResponse<CPublishedFile_GetChangeHistory_Response>();
+                offset += (uint)responseDecoded.changes.Count;
+                foreach (var change in responseDecoded.changes)
+                {
+                    if (change.timestamp <= sinceTime)
+                        return changelog;
+                    changelog.Add(change);
+                }
+                if (responseDecoded.changes.Count == 0 || responseDecoded.changes.Count < req.count) return changelog;
+            }
         }
     }
 }

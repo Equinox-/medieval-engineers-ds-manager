@@ -72,6 +72,7 @@ namespace Meds.Watchdog
                     services.AddSingletonAndHost<DataStore>();
                     services.AddSingletonAndHost<GaController>();
                     services.AddSingletonAndHost<LogRetention>();
+                    services.AddSingletonAndHost<ModUpdateTracker>();
                     services.AddSingleton(GaConfigRenderer.Create);
                     services.AddSingleton<SaveFiles>();
                     services.AddSingleton<DiagnosticController>();

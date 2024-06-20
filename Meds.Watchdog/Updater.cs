@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,7 @@ using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Steam;
 using Microsoft.Extensions.Logging;
+using SteamKit2.Internal;
 using ZLogger;
 
 namespace Meds.Watchdog
@@ -23,6 +25,7 @@ namespace Meds.Watchdog
         public const uint MedievalGameAppId = 333950;
         private const uint SteamRedistDepotId = 1004;
 
+        private int _logins;
 
         public Updater(ILogger<Updater> log,
             InstallConfiguration installConfig,
@@ -35,17 +38,49 @@ namespace Meds.Watchdog
             _downloader = downloader;
         }
 
+        private async ValueTask LoginInternal()
+        {
+            if (Interlocked.Increment(ref _logins) == 1) await _downloader.LoginAsync();
+        }
+
+        private async ValueTask LogoutInternal()
+        {
+            if (Interlocked.Decrement(ref _logins) == 0) await _downloader.LogoutAsync();
+        }
+
+        public ValueTask<LoginToken> Login() => LoginToken.Of(this);
+
+        public readonly struct LoginToken : IAsyncDisposable
+        {
+            private readonly Updater _updater;
+
+            private LoginToken(Updater updater) => _updater = updater;
+
+            public static async ValueTask<LoginToken> Of(Updater updater)
+            {
+                await updater.LoginInternal();
+                return new LoginToken(updater);
+            }
+
+            public ValueTask DisposeAsync() => _updater.LogoutInternal();
+        }
+
         public async Task Update(CancellationToken cancellationToken)
         {
-            await _downloader.LoginAsync();
-            try
-            {
-                await UpdateInternal(cancellationToken);
-            }
-            finally
-            {
-                await _downloader.LogoutAsync();
-            }
+            await using var loginToken = await Login();
+            await UpdateInternal(cancellationToken);
+        }
+
+        public async Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(IEnumerable<ulong> mods)
+        {
+            await using var loginToken = await Login();
+            return await _downloader.LoadModDetails(MedievalGameAppId, mods);
+        }
+
+        public async Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> LoadModChangeHistory(ulong modId, uint sinceTime)
+        {
+            await using var loginToken = await Login();
+            return await _downloader.LoadModChangeHistory(modId, sinceTime);
         }
 
         private Task<OverlayData[]> LoadOverlays(string installPath)
@@ -93,7 +128,7 @@ namespace Meds.Watchdog
             _log.ZLogInformation("Updating Medieval Engineers");
             await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
                 branchPassword: _runtimeConfig.Current.Steam.BranchPassword,
-                installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path), 
+                installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path),
                 debugName: "medieval-ds");
 
             // Apply overlays

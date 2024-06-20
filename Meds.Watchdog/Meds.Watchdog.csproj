@@ -70,6 +70,7 @@
         <Compile Include="LifecycleController.cs" />
         <Compile Include="Entrypoint.cs" />
         <Compile Include="LogRetention.cs" />
+        <Compile Include="ModUpdateTracker.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Properties\VersionInfo.cs" />
         <Compile Include="Save\BlockAccessor.cs" />
@@ -112,12 +113,12 @@
       <PackageReference Include="DSharpPlus.Interactivity" Version="4.4.6" />
       <PackageReference Include="DSharpPlus.SlashCommands" Version="4.4.6" />
       <PackageReference Include="Equ" Version="2.3.0" />
-      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.2" />
+      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.8" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.3" />
       <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
-      <PackageReference Include="SIPSorcery" Version="6.2.1" />
+      <PackageReference Include="SIPSorcery" Version="6.0.12" />
       <PackageReference Include="SteamKit2" Version="2.5.0" />
       <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
       <PackageReference Include="System.Runtime.Caching" Version="5.0.0" />

@@ -43,7 +43,7 @@ namespace Meds.Watchdog.Discord
                         case LifecycleStateCase.Shutdown:
                         case LifecycleStateCase.Restarting:
                         {
-                            nextDowntime = requested.Value.ActivateAtUtc.AsDiscordTime();
+                            nextDowntime = $"{requested.Value.ActivateAtUtc.AsDiscordTime()} {requested.Value.State.Reason}";
                             break;
                         }
                         case LifecycleStateCase.Faulted:

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using DSharpPlus.Entities;
 using Meds.Shared;
 using Meds.Shared.Data;
@@ -20,6 +21,16 @@ namespace Meds.Watchdog.Discord
         public const string StateChangeError = "internal.serverStateChange.Error";
         public const string ChatPrefix = "chat.";
 
+        /// <summary>
+        /// Channel to send mod update messages to when the server is online.
+        /// </summary>
+        public const string ModUpdatedServerOnline = "internal.modUpdated.online";
+
+        /// <summary>
+        /// Channel to send mod update messages to when the server is offline.
+        /// </summary>
+        public const string ModUpdatedServerOffline = "internal.modUpdated.offline";
+
         public const string ModChannelPrefix = "mods.";
 
         private readonly ILogger<DiscordMessageBridge> _log;
@@ -29,6 +40,7 @@ namespace Meds.Watchdog.Discord
         private readonly ISubscriber<ChatMessage> _chat;
         private readonly Refreshable<Dictionary<string, List<DiscordChannelSync>>> _toDiscord;
         private readonly LifecycleController _lifetime;
+        private readonly Dictionary<string, Refreshable<bool>> _toDiscordConfigured = new Dictionary<string, Refreshable<bool>>();
 
         public DiscordMessageBridge(DiscordService discord, Refreshable<Configuration> config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
             ILogger<DiscordMessageBridge> log, LifecycleController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat)
@@ -60,6 +72,17 @@ namespace Meds.Watchdog.Discord
                 });
         }
 
+        public Refreshable<bool> IsOutputChannelConfigured(string eventChannel)
+        {
+            lock (_toDiscordConfigured)
+            {
+                if (!_toDiscordConfigured.TryGetValue(eventChannel, out var refreshable))
+                    _toDiscordConfigured.Add(eventChannel,
+                        refreshable = _toDiscord.Map(cfg => TryGetToDiscordConfig(eventChannel, out var targets) && targets.Count > 0));
+                return refreshable;
+            }
+        }
+
         private bool TryGetToDiscordConfig(string eventChannel, out List<DiscordChannelSync> config)
         {
             var query = eventChannel;
@@ -74,34 +97,84 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private async Task ToDiscord(string eventChannel, DiscordMessageSender sender)
+        public async Task<DiscordMessageReference> ToDiscord(string eventChannel, DiscordMessageSender sender)
+        {
+            var reference = new DiscordMessageReference();
+            if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
+                return reference;
+            foreach (var channel in channels)
+            {
+                DiscordMessage msg;
+                if (channel.DiscordChannel != 0)
+                    msg = await SendToChannel(eventChannel, channel, sender);
+                else if (channel.DmGuild != 0 && channel.DmUser != 0)
+                    msg = await SendToUser(eventChannel, channel, sender);
+                else
+                    continue;
+                // Slight delay to prevent throttling.
+                await Task.Delay(TimeSpan.FromSeconds(5));
+
+                if (msg == null) continue;
+                reference.Messages.Add(new DiscordMessageReference.SingleMessageReference
+                {
+                    Channel = msg.ChannelId,
+                    Message = msg.Id
+                });
+            }
+
+            return reference;
+        }
+
+        public async Task EditDiscord(string eventChannel, DiscordMessageReference reference, DiscordMessageSender sender)
         {
             if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
                 return;
-            foreach (var channel in channels)
+            foreach (var msg in reference.Messages)
             {
-                if (channel.DiscordChannel != 0)
+                try
                 {
-                    await SendToChannel(eventChannel, channel, sender);
-                    // Slight delay to prevent throttling.
-                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    var channelObj = await _discord.Client.GetChannelAsync(msg.Channel);
+                    if (channelObj == null) continue;
+                    var matching = FindMatchingSync(channelObj);
+                    if (matching == null) continue;
+                    var msgObj = await channelObj.GetMessageAsync(msg.Message);
+                    if (msgObj == null) continue;
+                    await msgObj.ModifyAsync(builder => sender(matching, builder));
+                }
+                catch (Exception err)
+                {
+                    _log.ZLogWarning(err, "Failed to edit discord message {0} on channel {1} for event {2}",
+                        msg.Message,
+                        msg.Channel,
+                        eventChannel);
+                }
+            }
+
+            return;
+
+            DiscordChannelSync FindMatchingSync(DiscordChannel channelObj)
+            {
+                foreach (var candidate in channels)
+                {
+                    if (candidate.DiscordChannel == channelObj.Id)
+                        return candidate;
+                    if (candidate.DmUser == 0 || !channelObj.IsPrivate)
+                        continue;
+                    foreach (var member in channelObj.Users)
+                        if (member.Id == candidate.DmUser)
+                            return candidate;
                 }
 
-                if (channel.DmGuild != 0 && channel.DmUser != 0)
-                {
-                    await SendToUser(eventChannel, channel, sender);
-                    // Slight delay to prevent throttling.
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-                }
+                return null;
             }
         }
 
-        private async Task SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        private async Task<DiscordMessage> SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
         {
             try
             {
                 var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
-                await _discord.Client.SendMessageAsync(channelObj, builder =>
+                return await _discord.Client.SendMessageAsync(channelObj, builder =>
                 {
                     sender(channel, builder);
                     if (channel.MentionRole != 0)
@@ -114,10 +187,11 @@ namespace Meds.Watchdog.Discord
             {
                 _log.ZLogWarning(err, "Failed to dispatch discord message to channel {0} for event {1}",
                     channel.DiscordChannel, eventChannel);
+                return null;
             }
         }
 
-        private async Task SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        private async Task<DiscordMessage> SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
         {
             try
             {
@@ -125,34 +199,44 @@ namespace Meds.Watchdog.Discord
                 if (guild == null)
                 {
                     _log.ZLogWarning("Failed to find discord guild {0} when processing event {1}", channel.DmGuild, eventChannel);
-                    return;
+                    return null;
                 }
 
                 var member = await guild.GetMemberAsync(channel.DmUser, true);
                 if (member == null)
                 {
                     _log.ZLogWarning("Failed to find discord user {0} in guild {1} when processing event {2}", channel.DmUser, channel.DmGuild, eventChannel);
-                    return;
+                    return null;
                 }
 
-                var builder = new DiscordMessageBuilder();
-                sender(channel, builder);
-                await member.SendMessageAsync(builder);
+                var channelObj = await member.CreateDmChannelAsync();
+                return await _discord.Client.SendMessageAsync(channelObj, builder => { sender(channel, builder); });
             }
             catch (Exception err)
             {
                 _log.ZLogWarning(err, "Failed to dispatch discord message to user {0} via guild {1} for event {2}",
                     channel.DmUser, channel.DmGuild, eventChannel);
+                return null;
             }
         }
 
 
-        private delegate void DiscordMessageSender(DiscordChannelSync matched, DiscordMessageBuilder message);
+        public delegate void DiscordMessageSender(DiscordChannelSync matched, DiscordMessageBuilder message);
 
         private void ToDiscordFork(string eventChannel, DiscordMessageSender sender)
         {
 #pragma warning disable CS4014
-            ToDiscord(eventChannel, sender);
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await ToDiscord(eventChannel, sender);
+                }
+                catch (Exception err)
+                {
+                    _log.ZLogWarning(err, "Failed to send to discord: {0} {1}", eventChannel, sender);
+                }
+            });
 #pragma warning restore CS4014
         }
 
@@ -360,6 +444,21 @@ namespace Meds.Watchdog.Discord
             _lifetime.StateChanged -= HandleStateChanged;
             _lifetime.StartStop -= HandleStartStop;
             return Task.CompletedTask;
+        }
+    }
+
+    public class DiscordMessageReference
+    {
+        [XmlElement("Message")]
+        public List<SingleMessageReference> Messages = new List<SingleMessageReference>();
+
+        public struct SingleMessageReference
+        {
+            [XmlAttribute]
+            public ulong Channel;
+
+            [XmlAttribute]
+            public ulong Message;
         }
     }
 }

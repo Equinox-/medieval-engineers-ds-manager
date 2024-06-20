@@ -59,6 +59,10 @@
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Sandbox.Game.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Sandbox.Graphics">
+            <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\Sandbox.Graphics.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="HavokWrapper">
             <HintPath>$(ProjectDir)\GameInstall\DedicatedServer64\HavokWrapper.dll</HintPath>
             <Private>false</Private>
@@ -150,6 +154,7 @@
         <Compile Include="Shim\NoDoubleReplicationPatches.cs" />
         <Compile Include="Shim\PatchExtensions.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
+        <Compile Include="Shim\ReportModsPatch.cs" />
         <Compile Include="Shim\ShimLog.cs" />
         <Compile Include="Shim\TieredBackups.cs" />
         <Compile Include="Shim\VerboseCrashPatches.cs" />

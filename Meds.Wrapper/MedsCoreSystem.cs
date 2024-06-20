@@ -117,7 +117,7 @@ namespace Meds.Wrapper
             var gridDbInfo = DataStoreGridDatabase.CreateDataStoreGridDatabase(
                 tok.Builder,
                 gridDb?.MaxLod ?? 3,
-                (float) (gridDb?.GridSize ?? 32)
+                (float)(gridDb?.GridSize ?? 32)
             );
             tok.Send(DataStoreSync.CreateDataStoreSync(
                 tok.Builder,

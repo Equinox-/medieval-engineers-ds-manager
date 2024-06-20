@@ -134,7 +134,7 @@ namespace Meds.Watchdog
             try
             {
                 var rootProfilePath = Path.Combine(tempDir, "prof.dtp");
-                await DotTrace.EnsurePrerequisiteAsync(cancellationToken);
+                await DotTrace.InitAsync(cancellationToken);
                 var runnerField = typeof(DotTrace).GetField("ConsoleRunnerPackage", BindingFlags.Static | BindingFlags.NonPublic);
                 var runner = runnerField?.GetValue(null);
                 if (runner == null)

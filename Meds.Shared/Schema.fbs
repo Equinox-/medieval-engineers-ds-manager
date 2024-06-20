@@ -153,6 +153,10 @@ table PromotePlayerResponse {
     successful: bool;
 }
 
+table ReportModsMessage {
+    mods: [uint64];
+}
+
 union Message {
     HealthState,
     ShutdownRequest,
@@ -168,6 +172,7 @@ union Message {
     RestoreSceneResponse,
     PromotePlayerRequest,
     PromotePlayerResponse,
+    ReportModsMessage,
 }
 
 table Packet {
