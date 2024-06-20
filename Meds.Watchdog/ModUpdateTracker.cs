@@ -217,9 +217,10 @@ namespace Meds.Watchdog
                 if (loadedDetails.TryGetValue(entry.Id, out var details))
                 {
                     entry.Details = details;
+                    var loadSince = entry.PrevTimeUpdated == 0 ? entry.GameTimeUpdated : entry.PrevTimeUpdated;
 
-                    if (loadChangelog && details.time_updated > entry.PrevTimeUpdated)
-                        entry.Changes = (await _updater.LoadModChangeHistory(entry.Id, entry.PrevTimeUpdated))
+                    if (loadChangelog && details.time_updated > loadSince)
+                        entry.Changes = (await _updater.LoadModChangeHistory(entry.Id, loadSince))
                             .Where(x => !string.IsNullOrWhiteSpace(x.change_description))
                             .ToList();
                     else
