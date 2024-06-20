@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -158,7 +159,7 @@ namespace Meds.Watchdog
                         foreach (var change in mod.Changes)
                         {
                             if (desc.Length + change.change_description.Length >= ChangelogCharLimit) break;
-                            var changeLines = change.change_description
+                            var changeLines = SteamToDiscord(change.change_description)
                                 .Split('\n')
                                 .Select(x => x.Trim())
                                 .Where(x => x.Length > 0)
@@ -171,7 +172,7 @@ namespace Meds.Watchdog
                                     desc.AppendLine(" (no change notes)");
                                     break;
                                 case 1 when changeLines[0].Length <= ChangelogSingleLineLimit:
-                                    desc.Append(" ").AppendLine(changeLines[0]);
+                                    desc.Append(" ").AppendLine(changeLines[0].Substring(changeLines[0].StartsWith("- ") ? 2 : 0));
                                     break;
                                 default:
                                 {
@@ -188,6 +189,46 @@ namespace Meds.Watchdog
                     });
             }
         }
+
+        private static readonly Regex TagPattern = new Regex(@"\[(\/?)([a-z*]+)\]");
+
+        private static string SteamToDiscord(string steamText) => TagPattern.Replace(steamText, match =>
+        {
+            var closing = match.Groups[1].Length > 0;
+
+            switch (match.Groups[2].Value)
+            {
+                case "h1":
+                    return closing ? "\n" : "# ";
+                case "h2":
+                    return closing ? "\n" : "## ";
+                case "h3":
+                    return closing ? "\n" : "### ";
+                case "b":
+                    return "**";
+                case "i":
+                    return "*";
+                case "u":
+                    return "__";
+                case "*":
+                    return "\n- ";
+                case "code":
+                    return "`";
+                case "spoiler":
+                    return "||";
+                case "url":
+                    return "";
+                case "list":
+                case "olist":
+                case "tr":
+                case "td":
+                case "table":
+                case "hr":
+                    return "\n";
+                default:
+                    return match.Value;
+            }
+        });
 
         private async Task<List<ModUpdateInfo>> LoadGameMods(bool loadChangelog)
         {
