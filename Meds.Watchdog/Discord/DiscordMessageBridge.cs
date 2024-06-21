@@ -261,14 +261,16 @@ namespace Meds.Watchdog.Discord
 
         private TimeSpan? _shutdownDuration;
 
-        private void HandleStartStop(LifecycleController.StartStopEvent state, TimeSpan uptime)
+        private void HandleStartStop(LifecycleController.StartStopEvent state, TimeSpan uptime, string reason)
         {
-            var targetState = _lifetime.Active.State;
+            var target = _lifetime.Active;
+            var targetState = target.State;
+            var paddedReason = string.IsNullOrWhiteSpace(target.Reason) ? "" : $" ({target.Reason})";
             switch (state)
             {
                 case LifecycleController.StartStopEvent.Starting:
                     if (targetState != LifecycleStateCase.Restarting || !_shutdownDuration.HasValue)
-                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⏳ Server is starting...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⏳ Server is starting..." + paddedReason);
                     break;
                 case LifecycleController.StartStopEvent.Started:
                 {
@@ -283,9 +285,9 @@ namespace Meds.Watchdog.Discord
                 }
                 case LifecycleController.StartStopEvent.Stopping:
                     if (targetState == LifecycleStateCase.Shutdown)
-                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is stopping...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is stopping..." + paddedReason);
                     else if (targetState == LifecycleStateCase.Restarting)
-                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is restarting...");
+                        ToDiscordFork(StateChangeStarted, (_, builder) => builder.Content = "⌛ Server is restarting..." + paddedReason);
                     break;
                 case LifecycleController.StartStopEvent.Stopped:
                     if (targetState == LifecycleStateCase.Shutdown)
