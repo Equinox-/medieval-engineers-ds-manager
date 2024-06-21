@@ -261,7 +261,7 @@ namespace Meds.Watchdog.Discord
 
         private TimeSpan? _shutdownDuration;
 
-        private void HandleStartStop(LifecycleController.StartStopEvent state, TimeSpan uptime, string reason)
+        private void HandleStartStop(LifecycleController.StartStopEvent state, TimeSpan uptime)
         {
             var target = _lifetime.Active;
             var targetState = target.State;
