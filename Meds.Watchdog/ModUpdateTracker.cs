@@ -50,6 +50,8 @@ namespace Meds.Watchdog
 
     public class ModUpdateTracker : BackgroundService
     {
+        private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(15);
+        
         private readonly ILogger<ModUpdateTracker> _log;
         private readonly LifecycleController _lifecycle;
         private readonly DiscordMessageBridge _discord;
@@ -58,9 +60,11 @@ namespace Meds.Watchdog
         private readonly Updater _updater;
 
         private readonly Refreshable<TimeSpan?> _restartAfterUpdate;
+        private readonly Refreshable<TimeSpan> _readinessDelay;
         private readonly Refreshable<bool> _sendModChangesOnline;
         private readonly Refreshable<bool> _sendModChangesOffline;
 
+        private DateTime? _restartCooldownEndsAt;
         private CancellationTokenSource _modCheckDelayInterrupt;
 
         public ModUpdateTracker(ILogger<ModUpdateTracker> log, Refreshable<Configuration> cfg,
@@ -75,6 +79,7 @@ namespace Meds.Watchdog
             _data = data;
 
             _restartAfterUpdate = cfg.Map(x => x.RestartAfterModUpdate >= 0 ? (TimeSpan?)TimeSpan.FromSeconds(x.RestartAfterModUpdate) : null);
+            _readinessDelay = cfg.Map(x => TimeSpan.FromSeconds(x.ReadinessTimeout + x.LivenessTimeout));
             _sendModChangesOnline = discord.IsOutputChannelConfigured(DiscordMessageBridge.ModUpdatedServerOnline);
             _sendModChangesOffline = discord.IsOutputChannelConfigured(DiscordMessageBridge.ModUpdatedServerOffline);
         }
@@ -96,7 +101,7 @@ namespace Meds.Watchdog
                 _modCheckDelayInterrupt = new CancellationTokenSource();
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(5),
+                    await Task.Delay(CheckInterval,
                         CancellationTokenSource.CreateLinkedTokenSource(_modCheckDelayInterrupt.Token, stoppingToken).Token);
                 }
                 catch
@@ -122,14 +127,18 @@ namespace Meds.Watchdog
             if (mods.Count == 0) return;
 
             var updatedGameMods = mods.Where(x => x.Details.time_updated > x.GameTimeUpdated).ToList();
-            if (serverRunning && restartAfterUpdate != null && updatedGameMods.Count > 0)
+            if (serverRunning && restartAfterUpdate != null && updatedGameMods.Count > 0
+                && (_restartCooldownEndsAt == null || DateTime.UtcNow >= _restartCooldownEndsAt))
             {
                 var restartAtUtc = DateTime.UtcNow + restartAfterUpdate.Value;
                 var curr = _lifecycle.Request;
                 if (curr == null || curr.Value.ActivateAtUtc > restartAtUtc)
+                {
                     _lifecycle.Request = new LifecycleStateRequest(restartAtUtc, new LifecycleState(
                         LifecycleStateCase.Restarting,
                         $"Mod Update{(updatedGameMods.Count > 1 ? "s" : "")}: {string.Join(", ", updatedGameMods.Take(4).Select(x => x.Details.title))}"));
+                    _restartCooldownEndsAt = DateTime.UtcNow + restartAfterUpdate.Value + CheckInterval + _readinessDelay.Current;
+                }
             }
 
             if (!sendDiscord) return;
