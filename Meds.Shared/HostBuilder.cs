@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -28,6 +29,18 @@ namespace Meds.Shared
 
         public IHost Build(string logDir = null)
         {
+            // Ensure the temporary directory exists, since some tools delete it and doing that causes
+            // XML serialization assembly generation to fail.
+            try
+            {
+                var tempDir = Path.GetTempPath();
+                Directory.CreateDirectory(tempDir);
+            }
+            catch
+            {
+                // ignore
+            }
+
             _services.AddSingleton<IHostApplicationLifetime, ApplicationLifetime>();
             _services.AddSingleton<IHost, HostImpl>();
 
@@ -48,11 +61,11 @@ namespace Meds.Shared
                         opts.EnableStructuredLogging = true;
                         opts.FlushRate = TimeSpan.FromSeconds(15);
                         opts.JsonSerializerOptions.IncludeFields = true;
-                        opts.StructuredLoggingFormatter = CustomLogFormat.FormatHeader; 
+                        opts.StructuredLoggingFormatter = CustomLogFormat.FormatHeader;
                         opts.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
                     });
             })));
-            _services.Add(new ServiceDescriptor(typeof(ILogger<>), typeof (Logger<>), ServiceLifetime.Singleton));
+            _services.Add(new ServiceDescriptor(typeof(ILogger<>), typeof(Logger<>), ServiceLifetime.Singleton));
 
             var services = ServiceProviderFactory.CreateServiceProvider(ServiceProviderFactory.CreateBuilder(_services));
             return services.GetRequiredService<IHost>();
@@ -168,7 +181,7 @@ namespace Meds.Shared
         private readonly CancellationTokenSource _stoppedSource = new CancellationTokenSource();
         private readonly ILogger<ApplicationLifetime> _logger;
 
-        public ApplicationLifetime (ILogger<ApplicationLifetime> logger)
+        public ApplicationLifetime(ILogger<ApplicationLifetime> logger)
         {
             _logger = logger;
 

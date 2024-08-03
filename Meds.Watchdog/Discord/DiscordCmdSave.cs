@@ -676,6 +676,9 @@ namespace Meds.Watchdog.Discord
 
         private static async Task ArchiveCurrentSaveFiles(InteractionContext context, SaveFile saveFile, string archivePath)
         {
+            var dir = Path.GetDirectoryName(archivePath);
+            if (dir != null) Directory.CreateDirectory(dir);
+
             using var saveAccess = saveFile.Open();
             var filesToArchive = saveAccess.AllFiles().ToList();
 
