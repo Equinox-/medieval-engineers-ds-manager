@@ -35,7 +35,6 @@ jobs:
         cp Meds.Bootstrap/bin/Release/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
         cp Meds.Bootstrap/config.example.xml Meds.Wrapper/bin/package/config.xml
         cd Meds.Wrapper/bin/package/
-        zip -r ../package.zip *
     - name: Zip Bootstrap
       uses: thedoctor0/zip-release@0.7.5
       with:
