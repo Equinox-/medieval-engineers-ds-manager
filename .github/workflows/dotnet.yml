@@ -36,6 +36,12 @@ jobs:
         cp Meds.Bootstrap/config.example.xml Meds.Wrapper/bin/package/config.xml
         cd Meds.Wrapper/bin/package/
         zip -r ../package.zip *
+    - name: Zip Bootstrap
+      uses: thedoctor0/zip-release@0.7.5
+      with:
+        type: 'zip'
+        directory: 'Meds.Wrapper/bin/package'
+        filename: '../package.zip'
     - name: Upload Bootstrap
       uses: actions/upload-artifact@v3
       with:
