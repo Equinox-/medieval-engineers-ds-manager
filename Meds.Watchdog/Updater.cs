@@ -25,7 +25,6 @@ namespace Meds.Watchdog
         public const uint MedievalGameAppId = 333950;
         private const uint SteamRedistDepotId = 1004;
 
-        private int _logins;
 
         public Updater(ILogger<Updater> log,
             InstallConfiguration installConfig,
@@ -38,14 +37,43 @@ namespace Meds.Watchdog
             _downloader = downloader;
         }
 
-        private async ValueTask LoginInternal()
+        private int _logins;
+        private Task _loginLogoutTask = null;
+
+        private Task LoginInternal()
         {
-            if (Interlocked.Increment(ref _logins) == 1) await _downloader.LoginAsync();
+            lock (this)
+            {
+                _logins++;
+                if (_logins > 1)
+                    return _loginLogoutTask;
+
+                var logoutTask = _loginLogoutTask;
+                _loginLogoutTask = Task.Run(async () =>
+                {
+                    if (logoutTask != null) await logoutTask;
+                    await _downloader.LoginAsync();
+                });
+                return _loginLogoutTask;
+            }
         }
 
-        private async ValueTask LogoutInternal()
+        private Task LogoutInternal()
         {
-            if (Interlocked.Decrement(ref _logins) == 0) await _downloader.LogoutAsync();
+            lock (this)
+            {
+                _logins--;
+                if (_logins > 0)
+                    return Task.CompletedTask;
+
+                var loginTask = _loginLogoutTask;
+                _loginLogoutTask = Task.Run(async () =>
+                {
+                    if (loginTask != null) await loginTask;
+                    await _downloader.LogoutAsync();
+                });
+                return _loginLogoutTask;
+            }
         }
 
         public ValueTask<LoginToken> Login() => LoginToken.Of(this);
@@ -58,11 +86,19 @@ namespace Meds.Watchdog
 
             public static async ValueTask<LoginToken> Of(Updater updater)
             {
-                await updater.LoginInternal();
-                return new LoginToken(updater);
+                try
+                {
+                    await updater.LoginInternal();
+                    return new LoginToken(updater);
+                }
+                catch
+                {
+                    await updater.LogoutInternal();
+                    throw;
+                }
             }
 
-            public ValueTask DisposeAsync() => _updater.LogoutInternal();
+            public async ValueTask DisposeAsync() => await _updater.LogoutInternal();
         }
 
         public async Task Update(CancellationToken cancellationToken)
