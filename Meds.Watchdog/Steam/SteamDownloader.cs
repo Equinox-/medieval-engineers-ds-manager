@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Meds.Dist;
@@ -25,6 +26,7 @@ namespace Meds.Watchdog.Steam
     {
         public static void AddSteamDownloader(this IServiceCollection collection, SteamConfiguration config)
         {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
             var categoryCleaner = new Regex("^[0-9a-f]+/");
             collection.AddSingleton(svc =>
             {
@@ -154,7 +156,7 @@ namespace Meds.Watchdog.Steam
                     CdnPool.ReturnServer(server);
                     return manifest;
                 }
-                catch (SteamKitWebRequestException)
+                catch
                 {
                     // ignore server errors + don't return it so the server isn't used again.
                     if (attempts++ > 5)
@@ -260,6 +262,9 @@ namespace Meds.Watchdog.Steam
             string installPath, int workerCount, Predicate<string> installFilter, string debugName,
             string branch, string installPrefix)
         {
+            // Get installation details from Steam
+            var manifest = await GetManifestAsync(appId, depotId, manifestId, branch);
+
             var localCache = new DistFileCache();
             var localCacheFile = Path.Combine(installPath, DistFileCache.CacheDir, depotId.ToString());
 
@@ -301,9 +306,6 @@ namespace Meds.Watchdog.Steam
             {
                 using (File.Create(lockFile))
                 {
-                    // Get installation details from Steam
-                    var manifest = await GetManifestAsync(appId, depotId, manifestId, branch);
-
                     var job = InstallJob.Upgrade(_log, appId, depotId, installPath, localCache, manifest, installFilter, result.InstalledFiles, installPrefix);
                     using (var timer = new Timer(3000) { AutoReset = true })
                     {

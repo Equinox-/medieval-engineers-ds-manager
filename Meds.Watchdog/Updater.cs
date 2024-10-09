@@ -51,7 +51,15 @@ namespace Meds.Watchdog
                 var logoutTask = _loginLogoutTask;
                 _loginLogoutTask = Task.Run(async () =>
                 {
-                    if (logoutTask != null) await logoutTask;
+                    try
+                    {
+                        if (logoutTask != null) await logoutTask;
+                    }
+                    catch
+                    {
+                        // ignore errors from logout.
+                    }
+
                     await _downloader.LoginAsync();
                 });
                 return _loginLogoutTask;
@@ -69,14 +77,37 @@ namespace Meds.Watchdog
                 var loginTask = _loginLogoutTask;
                 _loginLogoutTask = Task.Run(async () =>
                 {
-                    if (loginTask != null) await loginTask;
+                    try
+                    {
+                        if (loginTask != null) await loginTask;
+                    }
+                    catch
+                    {
+                        // ignore errors from login.
+                    }
+
                     await _downloader.LogoutAsync();
                 });
                 return _loginLogoutTask;
             }
         }
 
-        public ValueTask<LoginToken> Login() => LoginToken.Of(this);
+        public async ValueTask<LoginToken> Login()
+        {
+            var attempt = 0;
+            while (true)
+            {
+                try
+                {
+                    return await LoginToken.Of(this);
+                }
+                catch
+                {
+                    if (attempt++ < 5) continue;
+                    throw;
+                }
+            }
+        }
 
         public readonly struct LoginToken : IAsyncDisposable
         {
