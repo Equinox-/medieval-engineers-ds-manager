@@ -26,7 +26,6 @@ namespace Meds.Watchdog.Steam
     {
         public static void AddSteamDownloader(this IServiceCollection collection, SteamConfiguration config)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
             var categoryCleaner = new Regex("^[0-9a-f]+/");
             collection.AddSingleton(svc =>
             {
