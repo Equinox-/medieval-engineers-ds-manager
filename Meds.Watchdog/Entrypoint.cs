@@ -58,7 +58,7 @@ namespace Meds.Watchdog
                     services.AddSingleton<Refreshable<Configuration>>(cfg);
                     services.AddHostedService(svc => cfg.Refreshing(svc));
                     services.AddSingleton(typeof(Entrypoint));
-                    services.AddSteamDownloader(SteamConfiguration.Create(x => { }));
+                    services.AddSteamDownloader(SteamConfiguration.Create(x => x.WithProtocolTypes(ProtocolTypes.WebSocket)));
                     services.AddMedsMessagePipe(
                         installConfig.Messaging.ServerToWatchdog,
                         installConfig.Messaging.WatchdogToServer);

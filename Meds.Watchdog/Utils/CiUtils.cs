@@ -11,7 +11,11 @@ namespace Meds.Watchdog.Utils
         public static async Task RestoreGameBinaries(string target, string branch)
         {
             using var host = new HostBuilder()
-                .ConfigureServices(svc => { svc.AddSteamDownloader(SteamConfiguration.Create(x => { })); })
+                .ConfigureServices(svc =>
+                {
+                    svc.AddSteamDownloader(SteamConfiguration.Create(x => x
+                        .WithProtocolTypes(ProtocolTypes.WebSocket)));
+                })
                 .Build();
             await host.StartAsync();
             var steam = host.Services.GetRequiredService<SteamDownloader>();
