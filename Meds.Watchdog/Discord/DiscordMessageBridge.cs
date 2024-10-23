@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using DSharpPlus.Entities;
+using Equ;
 using Meds.Shared;
 using Meds.Shared.Data;
 using Microsoft.Extensions.Hosting;
@@ -41,9 +43,11 @@ namespace Meds.Watchdog.Discord
         private readonly Refreshable<Dictionary<string, List<DiscordChannelSync>>> _toDiscord;
         private readonly LifecycleController _lifetime;
         private readonly Dictionary<string, Refreshable<bool>> _toDiscordConfigured = new Dictionary<string, Refreshable<bool>>();
+        private readonly DataStore _dataStore;
 
         public DiscordMessageBridge(DiscordService discord, Refreshable<Configuration> config, ISubscriber<PlayerJoinedLeft> playerJoinedLeft,
-            ILogger<DiscordMessageBridge> log, LifecycleController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat)
+            ILogger<DiscordMessageBridge> log, LifecycleController lifetime, ISubscriber<ModEventMessage> modEvents, ISubscriber<ChatMessage> chat,
+            DataStore dataStore)
         {
             _lifetime = lifetime;
             _modEvents = modEvents;
@@ -51,6 +55,7 @@ namespace Meds.Watchdog.Discord
             _playerJoinedLeft = playerJoinedLeft;
             _log = log;
             _chat = chat;
+            _dataStore = dataStore;
 
             _toDiscord = config
                 .Map(x => x.Discord.ChannelSyncs, CollectionEquality<DiscordChannelSync>.List())
@@ -97,101 +102,38 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        public async Task<DiscordMessageReference> ToDiscord(string eventChannel, DiscordMessageSender sender)
+        public async Task ToDiscord(string eventChannel, DiscordMessageSender sender, string reuseId = null)
         {
-            var reference = new DiscordMessageReference();
             if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
-                return reference;
+                return;
             foreach (var channel in channels)
             {
-                DiscordMessage msg;
                 if (channel.DiscordChannel != 0)
-                    msg = await SendToChannel(eventChannel, channel, sender);
+                    await SendToChannel(eventChannel, channel, sender, reuseId);
                 else if (channel.DmGuild != 0 && channel.DmUser != 0)
-                    msg = await SendToUser(eventChannel, channel, sender);
+                    await SendToUser(eventChannel, channel, sender, reuseId);
                 else
                     continue;
                 // Slight delay to prevent throttling.
                 await Task.Delay(TimeSpan.FromSeconds(5));
-
-                if (msg == null) continue;
-                reference.Messages.Add(new DiscordMessageReference.SingleMessageReference
-                {
-                    Channel = msg.ChannelId,
-                    Message = msg.Id
-                });
-            }
-
-            return reference;
-        }
-
-        public async Task EditDiscord(string eventChannel, DiscordMessageReference reference, DiscordMessageSender sender)
-        {
-            if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
-                return;
-            foreach (var msg in reference.Messages)
-            {
-                try
-                {
-                    var channelObj = await _discord.Client.GetChannelAsync(msg.Channel);
-                    if (channelObj == null) continue;
-                    var matching = FindMatchingSync(channelObj);
-                    if (matching == null) continue;
-                    var msgObj = await channelObj.GetMessageAsync(msg.Message);
-                    if (msgObj == null) continue;
-                    await msgObj.ModifyAsync(builder => sender(matching, builder));
-                }
-                catch (Exception err)
-                {
-                    _log.ZLogWarning(err, "Failed to edit discord message {0} on channel {1} for event {2}",
-                        msg.Message,
-                        msg.Channel,
-                        eventChannel);
-                }
-            }
-
-            return;
-
-            DiscordChannelSync FindMatchingSync(DiscordChannel channelObj)
-            {
-                foreach (var candidate in channels)
-                {
-                    if (candidate.DiscordChannel == channelObj.Id)
-                        return candidate;
-                    if (candidate.DmUser == 0 || !channelObj.IsPrivate)
-                        continue;
-                    foreach (var member in channelObj.Users)
-                        if (member.Id == candidate.DmUser)
-                            return candidate;
-                }
-
-                return null;
             }
         }
 
-        private async Task<DiscordMessage> SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        private async Task SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
         {
             try
             {
                 var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
-                return await _discord.Client.SendMessageAsync(channelObj, builder =>
-                {
-                    sender(channel, builder);
-                    if (channel.MentionRole != 0)
-                        builder.Content += $" <@&{channel.MentionRole}>";
-                    if (channel.MentionUser != 0)
-                        builder.Content += $" <@{channel.MentionUser}>";
-                });
+                await SendToChannelInternal(channelObj, channel, sender, reuseId);
             }
             catch (Exception err)
             {
                 _log.ZLogWarning(err, "Failed to dispatch discord message to channel {0} for event {1}",
                     channel.DiscordChannel, eventChannel);
-                return null;
             }
         }
 
-        private async Task<DiscordMessage> SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender)
+        private async Task SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
         {
             try
             {
@@ -199,38 +141,83 @@ namespace Meds.Watchdog.Discord
                 if (guild == null)
                 {
                     _log.ZLogWarning("Failed to find discord guild {0} when processing event {1}", channel.DmGuild, eventChannel);
-                    return null;
+                    return;
                 }
 
                 var member = await guild.GetMemberAsync(channel.DmUser, true);
                 if (member == null)
                 {
                     _log.ZLogWarning("Failed to find discord user {0} in guild {1} when processing event {2}", channel.DmUser, channel.DmGuild, eventChannel);
-                    return null;
+                    return;
                 }
 
                 var channelObj = await member.CreateDmChannelAsync();
-                return await _discord.Client.SendMessageAsync(channelObj, builder => { sender(channel, builder); });
+                await SendToChannelInternal(channelObj, channel, sender, reuseId);
             }
             catch (Exception err)
             {
                 _log.ZLogWarning(err, "Failed to dispatch discord message to user {0} via guild {1} for event {2}",
                     channel.DmUser, channel.DmGuild, eventChannel);
-                return null;
             }
         }
 
+        private ulong? FindReusedMessageId(DiscordChannel channelObj, string reuseId)
+        {
+            using (_dataStore.Read(out var data))
+                return data.Discord.Events.TryGetValue(new DiscordReuseData.EventKey(reuseId, channelObj.Id), out var msg) ? (ulong?)msg : null;
+        }
+
+        private async Task SendToChannelInternal(DiscordChannel channelObj, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
+        {
+            Action<DiscordMessageBuilder> composer = builder =>
+            {
+                sender(channel, builder);
+                if (channel.MentionRole != 0)
+                    builder.Content += $" <@&{channel.MentionRole}>";
+                if (channel.MentionUser != 0)
+                    builder.Content += $" <@{channel.MentionUser}>";
+            };
+
+            var reused = reuseId != null && !channel.DisableReuse ? FindReusedMessageId(channelObj, reuseId) : null;
+            if (reused.HasValue)
+            {
+                try
+                {
+                    var msgObj = await channelObj.GetMessageAsync(reused.Value);
+                    if (msgObj != null)
+                    {
+                        await msgObj.ModifyAsync(composer);
+                        return;
+                    }
+                }
+                catch (Exception err)
+                {
+                    _log.ZLogWarning(
+                        err,
+                        "Failed to edit existing discord message {0} in channel {1}, from event channel {2}. Will send a new message.",
+                        reused.Value, channelObj.Id, channel.EventChannel);
+                }
+            }
+
+            var msg = await _discord.Client.SendMessageAsync(channelObj, composer);
+            if (reuseId != null && !channel.DisableReuse)
+            {
+                using var writeHandle = _dataStore.Write(out var data);
+                data.Discord.Events[new DiscordReuseData.EventKey(reuseId, channelObj.Id)] = msg.Id;
+                writeHandle.MarkUpdated();
+            }
+        }
 
         public delegate void DiscordMessageSender(DiscordChannelSync matched, DiscordMessageBuilder message);
 
-        private void ToDiscordFork(string eventChannel, DiscordMessageSender sender)
+        private void ToDiscordFork(string eventChannel, DiscordMessageSender sender, string reuseId = null)
         {
 #pragma warning disable CS4014
             Task.Run(async () =>
             {
                 try
                 {
-                    await ToDiscord(eventChannel, sender);
+                    await ToDiscord(eventChannel, sender, reuseId);
                 }
                 catch (Exception err)
                 {
@@ -341,12 +328,15 @@ namespace Meds.Watchdog.Discord
                 builtEmbed = embedBuilder.Build();
             }
 
+            var reuseId = obj.ReuseId;
+            reuseId = string.IsNullOrEmpty(reuseId) ? null : $"mod_event_{obj.SourceModId}_{reuseId}";
+
             ToDiscordFork(ModChannelPrefix + channel, (_, builder) =>
             {
                 builder.Content = message;
                 if (builtEmbed != null)
                     builder.AddEmbed(builtEmbed);
-            });
+            }, reuseId);
         }
 
         private void HandleChat(ChatMessage obj)
@@ -449,8 +439,62 @@ namespace Meds.Watchdog.Discord
         }
     }
 
+    public class DiscordReuseData : MemberwiseEquatable<DiscordReuseData>
+    {
+        public readonly struct EventKey : IEquatable<EventKey>
+        {
+            [XmlAttribute]
+            public readonly string Id;
+
+            [XmlAttribute]
+            public readonly ulong Channel;
+
+            public EventKey(string id, ulong channel)
+            {
+                Id = id;
+                Channel = channel;
+            }
+
+            public bool Equals(EventKey other) => Id == other.Id && Channel == other.Channel;
+
+            public override bool Equals(object obj) => obj is EventKey other && Equals(other);
+
+            public override int GetHashCode() => (Id.GetHashCode() * 397) ^ Channel.GetHashCode();
+        }
+
+        [XmlIgnore]
+        public readonly Dictionary<EventKey, ulong> Events = new Dictionary<EventKey, ulong>();
+
+        [XmlElement("Event")]
+        public List<EventData> EventsForXml
+        {
+            get => Events.Select(x => new EventData { Id = x.Key.Id, Channel = x.Key.Channel, Message = x.Value }).ToList();
+            set
+            {
+                Events.Clear();
+                foreach (var item in value)
+                    Events[new EventKey(item.Id, item.Channel)] = item.Message;
+            }
+        }
+
+        public struct EventData
+        {
+            [XmlAttribute]
+            public string Id;
+
+            [XmlAttribute]
+            public ulong Channel;
+
+            [XmlAttribute]
+            public ulong Message;
+        }
+    }
+
     public class DiscordMessageReference
     {
+        [XmlAttribute]
+        public string EventId;
+
         [XmlElement("Message")]
         public List<SingleMessageReference> Messages = new List<SingleMessageReference>();
 

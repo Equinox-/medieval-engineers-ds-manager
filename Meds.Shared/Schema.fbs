@@ -109,6 +109,7 @@ table ModEventMessage {
     channel: string;
     message: string;
     embed: ModEventEmbed;
+    reuse_id: string;
 }
 
 table DataStorePlanet {

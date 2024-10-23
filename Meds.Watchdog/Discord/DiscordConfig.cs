@@ -41,5 +41,8 @@ namespace Meds.Watchdog.Discord
 
         [XmlAttribute]
         public ulong MentionUser;
+
+        [XmlAttribute]
+        public bool DisableReuse;
     }
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Meds.Shared;
 using Meds.Shared.Data;
+using Meds.Watchdog.Discord;
 using Meds.Watchdog.Save;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.Hosting;
@@ -27,6 +28,9 @@ namespace Meds.Watchdog
 
         [XmlElement]
         public ModUpdateData ModUpdates = new ModUpdateData();
+
+        [XmlElement]
+        public DiscordReuseData Discord = new DiscordReuseData();
     }
 
     public sealed class DataStore : BackgroundService
@@ -156,6 +160,8 @@ namespace Meds.Watchdog
                     _updated = typeof(T).IsValueType ? !newValue.Equals(value) : !Equals(newValue, value);
                 value = newValue;
             }
+
+            public void MarkUpdated() => _updated = true;
 
             public void Dispose()
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Google.FlatBuffers;
 using Meds.Shared;
@@ -17,7 +18,7 @@ namespace Meds.Wrapper
             var publisher = Entrypoint.Instance.Services.GetRequiredService<IPublisher<ModEventMessage>>();
             return new ModEventBuilder(publisher.Publish(), channel, mod);
         }
-        
+
         public struct ModEventBuilder : IDisposable
         {
             private readonly StringOffset _channelOffset;
@@ -27,6 +28,7 @@ namespace Meds.Wrapper
             private StringOffset _embedTitle;
             private StringOffset _embedDescription;
             private StringOffset _message;
+            private StringOffset _reuseId;
 
             public ModEventBuilder(TypedPublishToken<ModEventMessage> token, string channel, IApplicationPackage source)
             {
@@ -37,23 +39,33 @@ namespace Meds.Wrapper
                 _embedTitle = default;
                 _embedDescription = default;
                 _message = default;
+                _reuseId = default;
             }
 
-            public void SetMessage(string value)
-            {
-                _message = _token.Builder.CreateString(value);
-            }
+            /// <summary>
+            /// If provided an existing message with the same reuse identifier will be edited instead of sending a new message.
+            /// If no message was already sent with the same reuse identifier a new message will be sent.
+            /// </summary>
+            public void SetReuseIdentifier(string value) => _reuseId = _token.Builder.CreateString(value);
 
-            public void SetEmbedTitle(string value)
-            {
-                _embedTitle = _token.Builder.CreateString(value);
-            }
+            /// <summary>
+            /// Main text content of the message.
+            /// </summary>
+            public void SetMessage(string value) => _message = _token.Builder.CreateString(value);
 
-            public void SetEmbedDescription(string value)
-            {
-                _embedDescription = _token.Builder.CreateString(value);
-            }
+            /// <summary>
+            /// Title of the embedded data.
+            /// </summary>
+            public void SetEmbedTitle(string value) => _embedTitle = _token.Builder.CreateString(value);
 
+            /// <summary>
+            /// Long description of the embeded data.
+            /// </summary>
+            public void SetEmbedDescription(string value) => _embedDescription = _token.Builder.CreateString(value);
+
+            /// <summary>
+            /// Adds a field to the embedded data.
+            /// </summary>
             public void AddField(string key, string value, bool inline = false)
             {
                 var b = _token.Builder;
@@ -87,7 +99,8 @@ namespace Meds.Wrapper
                     (_source as MyModContext)?.WorkshopItem?.Id ?? 0,
                     _channelOffset,
                     _message,
-                    embed));
+                    embed,
+                    _reuseId));
             }
 
             public void Dispose()
