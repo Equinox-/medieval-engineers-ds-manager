@@ -448,16 +448,22 @@ namespace Meds.Watchdog.Utils
             private async Task SendTask(RTCDataChannel channel)
             {
                 const ulong waitAtBufferSize = 1024 * 1024;
+                ulong bufferSize = 0;
 
-                async void DrainBufferTo(ulong size)
+                async ValueTask<ulong> DrainBufferTo(ulong bufferSizeVal, ulong drainAt, ulong drainTo)
                 {
+                    if (bufferSizeVal < drainAt) return bufferSizeVal;
+                    bufferSizeVal = channel.bufferedAmount;
+                    if (bufferSizeVal < drainAt) return bufferSizeVal;
                     var timeout = Stopwatch.GetTimestamp() + DefaultPeerTimeout.TotalSeconds * Stopwatch.Frequency;
-                    while (channel.bufferedAmount > size)
+                    do
                     {
                         if (Stopwatch.GetTimestamp() > timeout)
                             throw new RtcTimedOutException();
-                        await Task.Delay(TimeSpan.FromMilliseconds(100));
-                    }
+                        await Task.Delay(TimeSpan.FromMilliseconds(25));
+                        bufferSizeVal = channel.bufferedAmount;
+                    } while (bufferSizeVal > drainTo);
+                    return bufferSizeVal;
                 }
 
                 var fileName = Path.GetFileName(_file);
@@ -478,9 +484,10 @@ namespace Meds.Watchdog.Utils
                         if (rawBytes == 0)
                             break;
 
-                        DrainBufferTo(waitAtBufferSize);
+                        bufferSize = await DrainBufferTo(bufferSize, waitAtBufferSize, waitAtBufferSize / 2);
 
                         var cryptBytes = cipher.ProcessBytes(rawBlock, 0, rawBytes, cryptBlock, 0);
+                        bufferSize += (ulong) cryptBytes;
                         channel.Send(cryptBlock, 0, cryptBytes);
                         totalSent += cryptBytes;
                         await (State.OnProgress?.Invoke(fileName, totalSent, reader.Length) ?? default);
@@ -490,7 +497,7 @@ namespace Meds.Watchdog.Utils
                     channel.Send(cryptBlock, 0, finalBytes);
 
                     // Wait for buffer to drain.
-                    DrainBufferTo(0);
+                    bufferSize = await DrainBufferTo(ulong.MaxValue, 0, 0);
 
                     // Wait for the channel to close, or the close timeout.
                     var start = DateTime.UtcNow;

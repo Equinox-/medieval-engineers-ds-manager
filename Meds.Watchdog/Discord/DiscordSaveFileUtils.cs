@@ -41,6 +41,7 @@ namespace Meds.Watchdog.Discord
         private readonly string _prefix;
         private readonly string _unit;
         private int _total, _successful, _failed;
+        private int _lastDone;
 
         private long _lastReporting = Stopwatch.GetTimestamp();
         private volatile Task _reportingTask = Task.CompletedTask;
@@ -69,10 +70,13 @@ namespace Meds.Watchdog.Discord
                 Volatile.Write(ref _failed, failed);
                 var last = Volatile.Read(ref _lastReporting);
                 var now = Stopwatch.GetTimestamp();
-                if (last + ReportInterval >= now)
-                    return;
-                if (Interlocked.CompareExchange(ref _lastReporting, now, last) != last)
-                    return;
+                var lastDone = Volatile.Read(ref _lastDone);
+                var done = successful + failed >= total ? 1 : 0;
+                if (last + ReportInterval >= now && done == lastDone) return;
+
+                var timeUpdated = Interlocked.CompareExchange(ref _lastReporting, now, last) == last;
+                var doneUpdated = done != lastDone && Interlocked.CompareExchange(ref _lastDone, done, lastDone) == lastDone;
+                if (!doneUpdated && !timeUpdated) return;
                 lock (this)
                 {
                     if (!_reportingTask.IsCompleted) return;
