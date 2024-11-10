@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -15,6 +17,7 @@ using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
+using SIPSorcery;
 using SIPSorcery.Net;
 using ZLogger;
 using Base64 = Org.BouncyCastle.Utilities.Encoders.Base64;
@@ -35,22 +38,18 @@ namespace Meds.Watchdog.Utils
 
         private static readonly JsonSerializerOptions JsonOpts = new JsonSerializerOptions
         {
-            Converters = { new JsonStringEnumConverter() }
+            Converters = { new JsonStringEnumConverter() },
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
 
         private readonly ILogger _logger;
         private readonly Refreshable<byte[]> _password;
 
-        public RtcFileSharing(ILogger<RtcFileSharing> logger, Refreshable<Configuration> config) : this(logger, config.Map(x => x.Discord?.SaveSharingPassword))
-        {
-        }
-
-        internal RtcFileSharing(
-            ILogger logger,
-            Refreshable<string> password)
+        public RtcFileSharing(ILogger<RtcFileSharing> logger, Refreshable<Configuration> config, ILoggerFactory loggerFactory)
         {
             _logger = logger;
-            _password = password.Map(pwd => string.IsNullOrEmpty(pwd) ? null : Encoding.UTF8.GetBytes(pwd));
+            _password = config.Map(x => x.Discord?.SaveSharingPassword).Map(pwd => string.IsNullOrEmpty(pwd) ? null : Encoding.UTF8.GetBytes(pwd));
+            LogFactory.Set(loggerFactory);
         }
 
         public bool Enabled => _password.Current != null;
@@ -435,6 +434,11 @@ namespace Meds.Watchdog.Utils
                     SendTask(channel);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 };
+                channel.onerror += err =>
+                {
+                    Logger.ZLogInformation("RTC channel for {0}, {1} failed: {2}", _file, Recipient, err);
+                    channel.close();
+                };
                 // Send the offer.
                 var offer = Rtc.createOffer();
                 await Rtc.setLocalDescription(offer);
@@ -559,6 +563,11 @@ namespace Meds.Watchdog.Utils
                     Logger.ZLogInformation("Receiving file {0} over RTC channel", _name);
                     channel.binaryType = "arraybuffer";
                     channel.onmessage += OnRtcMessage;
+                    channel.onerror += err =>
+                    {
+                        Logger.ZLogInformation("RTC channel for {0} failed: {1}", _name, err);
+                        channel.close();
+                    };
                 };
                 return default;
             }

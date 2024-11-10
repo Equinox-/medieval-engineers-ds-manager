@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -70,12 +71,25 @@ namespace Meds.Watchdog.Utils
                 {
                     try
                     {
+                        if (_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            var all = new byte[fullBuffers.Sum(x => x.Count)];
+                            var i = 0;
+                            foreach (var seg in fullBuffers)
+                            {
+                                Array.Copy(seg.Array!, seg.Offset, all, i, seg.Count);
+                                i += seg.Count;
+                            }
+
+                            _logger.ZLogDebug("Received on {0}: {1}", _uri, Encoding.UTF8.GetString(all));
+                        }
+
                         await _handle(new ConcatStream(fullBuffers));
                     }
                     catch (Exception err)
                     {
                         var firstBuffer = fullBuffers[0];
-                        var firstBufferString = Encoding.ASCII.GetString(firstBuffer.Array, firstBuffer.Offset, firstBuffer.Count);
+                        var firstBufferString = Encoding.ASCII.GetString(firstBuffer.Array!, firstBuffer.Offset, firstBuffer.Count);
                         _logger.ZLogWarning(err, "Failed to handle websocket message: {0}", firstBufferString);
                     }
                 }
@@ -84,12 +98,15 @@ namespace Meds.Watchdog.Utils
                     emptyBuffers.Push(buf.Array);
                 fullBuffers.Clear();
             }
+
             _logger.ZLogInformation("Ending websocket {0}", _uri);
         }
 
         public async ValueTask SendJson<T>(T data, JsonSerializerOptions opts = null)
         {
             var bytes = JsonSerializer.SerializeToUtf8Bytes(data, opts);
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.ZLogDebug("Sending on {0}: {1}", _uri, Encoding.UTF8.GetString(bytes));
             await _websocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts.Token);
         }
 

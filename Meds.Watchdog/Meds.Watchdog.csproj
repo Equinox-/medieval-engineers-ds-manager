@@ -9,7 +9,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>Meds.Watchdog</RootNamespace>
         <AssemblyName>Meds.Watchdog</AssemblyName>
-        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <PlatformTarget>x64</PlatformTarget>
         <ErrorReport>prompt</ErrorReport>
@@ -110,15 +110,15 @@
         <Compile Include="Utils\SimpleWebsocket.cs" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="DSharpPlus.Interactivity" Version="4.4.6" />
-      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.4.6" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.0" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.0" />
       <PackageReference Include="Equ" Version="2.3.0" />
-      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.8" />
+      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.3" />
       <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
-      <PackageReference Include="SIPSorcery" Version="6.0.12" />
+      <PackageReference Include="SIPSorcery" Version="8.0.3" />
       <PackageReference Include="SteamKit2" Version="2.5.0" />
       <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
       <PackageReference Include="System.Runtime.Caching" Version="5.0.0" />
