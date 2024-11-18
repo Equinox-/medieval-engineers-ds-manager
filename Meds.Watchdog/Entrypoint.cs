@@ -62,7 +62,7 @@ namespace Meds.Watchdog
                     services.AddMedsMessagePipe(
                         installConfig.Messaging.ServerToWatchdog,
                         installConfig.Messaging.WatchdogToServer);
-                    services.AddSingleton<Updater>();
+                    services.AddSingletonAndHost<Updater>();
                     services.AddSingletonAndHost<ConfigRenderer>();
                     services.AddSingletonAndHost<HealthTracker>();
                     services.AddSingletonAndHost<LifecycleController>();

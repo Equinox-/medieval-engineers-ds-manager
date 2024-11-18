@@ -8,13 +8,14 @@ using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Steam;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SteamKit2.Internal;
 using ZLogger;
 
 namespace Meds.Watchdog
 {
-    public sealed class Updater
+    public sealed class Updater : IHostedService
     {
         private readonly InstallConfiguration _installConfig;
         private readonly Refreshable<Configuration> _runtimeConfig;
@@ -37,116 +38,22 @@ namespace Meds.Watchdog
             _downloader = downloader;
         }
 
-        private int _logins;
-        private Task _loginLogoutTask = null;
+        public Task StartAsync(CancellationToken cancellationToken) => _downloader.LoginAsync();
 
-        private Task LoginInternal()
-        {
-            lock (this)
-            {
-                _logins++;
-                if (_logins > 1)
-                    return _loginLogoutTask;
-
-                var logoutTask = _loginLogoutTask;
-                _loginLogoutTask = Task.Run(async () =>
-                {
-                    try
-                    {
-                        if (logoutTask != null) await logoutTask;
-                    }
-                    catch
-                    {
-                        // ignore errors from logout.
-                    }
-
-                    await _downloader.LoginAsync();
-                });
-                return _loginLogoutTask;
-            }
-        }
-
-        private Task LogoutInternal()
-        {
-            lock (this)
-            {
-                _logins--;
-                if (_logins > 0)
-                    return Task.CompletedTask;
-
-                var loginTask = _loginLogoutTask;
-                _loginLogoutTask = Task.Run(async () =>
-                {
-                    try
-                    {
-                        if (loginTask != null) await loginTask;
-                    }
-                    catch
-                    {
-                        // ignore errors from login.
-                    }
-
-                    await _downloader.LogoutAsync();
-                });
-                return _loginLogoutTask;
-            }
-        }
-
-        public async ValueTask<LoginToken> Login()
-        {
-            var attempt = 0;
-            while (true)
-            {
-                try
-                {
-                    return await LoginToken.Of(this);
-                }
-                catch
-                {
-                    if (attempt++ < 5) continue;
-                    throw;
-                }
-            }
-        }
-
-        public readonly struct LoginToken : IAsyncDisposable
-        {
-            private readonly Updater _updater;
-
-            private LoginToken(Updater updater) => _updater = updater;
-
-            public static async ValueTask<LoginToken> Of(Updater updater)
-            {
-                try
-                {
-                    await updater.LoginInternal();
-                    return new LoginToken(updater);
-                }
-                catch
-                {
-                    await updater.LogoutInternal();
-                    throw;
-                }
-            }
-
-            public async ValueTask DisposeAsync() => await _updater.LogoutInternal();
-        }
+        public Task StopAsync(CancellationToken cancellationToken) => _downloader.LogoutAsync();
 
         public async Task Update(CancellationToken cancellationToken)
         {
-            await using var loginToken = await Login();
             await UpdateInternal(cancellationToken);
         }
 
         public async Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(IEnumerable<ulong> mods)
         {
-            await using var loginToken = await Login();
             return await _downloader.LoadModDetails(MedievalGameAppId, mods);
         }
 
         public async Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> LoadModChangeHistory(ulong modId, uint sinceTime)
         {
-            await using var loginToken = await Login();
             return await _downloader.LoadModChangeHistory(modId, sinceTime);
         }
 

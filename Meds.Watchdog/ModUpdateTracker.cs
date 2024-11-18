@@ -251,7 +251,6 @@ namespace Meds.Watchdog
                         results.Add(new ModUpdateInfo { Id = mod.Mod, GameTimeUpdated = mod.GameTimeUpdated, PrevTimeUpdated = mod.LatestTimeUpdated });
             }
 
-            await using var loginToken = await _updater.Login();
             var loadedDetails = await _updater.LoadModDetails(results.Select(x => x.Id));
             using (var write = _data.Write(out var data))
             {
