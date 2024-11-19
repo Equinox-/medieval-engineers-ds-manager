@@ -114,7 +114,7 @@
       <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.0" />
       <PackageReference Include="Equ" Version="2.3.0" />
       <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
-      <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" />
+      <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
       <PackageReference Include="NCrontab" Version="3.3.3" />
       <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
@@ -122,6 +122,7 @@
       <PackageReference Include="SteamKit2" Version="2.5.0" />
       <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
       <PackageReference Include="System.Runtime.Caching" Version="5.0.0" />
+      <PackageReference Include="System.Threading.RateLimiting" Version="7.0.0" />
       <PackageReference Include="ZLogger" Version="1.7.1" />
     </ItemGroup>
     <ItemGroup>

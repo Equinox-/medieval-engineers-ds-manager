@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Meds.Dist;
 using Meds.Shared;
@@ -21,6 +22,8 @@ namespace Meds.Watchdog
         private readonly Refreshable<Configuration> _runtimeConfig;
         private readonly SteamDownloader _downloader;
         private readonly ILogger<Updater> _log;
+        private readonly ConcurrencyLimiter _limiter;
+        private const int MaxPermits = 32;
         public const uint MedievalDsAppId = 367970;
         public const uint MedievalDsDepotId = 367971;
         public const uint MedievalGameAppId = 333950;
@@ -36,25 +39,54 @@ namespace Meds.Watchdog
             _installConfig = installConfig;
             _runtimeConfig = runtimeConfig;
             _downloader = downloader;
+            _limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
+                { PermitLimit = MaxPermits, QueueProcessingOrder = QueueProcessingOrder.OldestFirst });
         }
 
         public Task StartAsync(CancellationToken cancellationToken) => _downloader.LoginAsync();
 
         public Task StopAsync(CancellationToken cancellationToken) => _downloader.LogoutAsync();
 
-        public async Task Update(CancellationToken cancellationToken)
+        private async Task<T> Run<T>(Func<Task<T>> call, CancellationToken cancellationToken = default)
         {
-            await UpdateInternal(cancellationToken);
+            var attempt = 0;
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    throw new TaskCanceledException();
+                attempt++;
+                try
+                {
+                    var reAuth = attempt > 2;
+                    using var lease = await _limiter.AcquireAsync(reAuth ? MaxPermits : 1);
+                    if (reAuth)
+                    {
+                        await _downloader.LogoutAsync();
+                        await _downloader.LoginAsync();
+                    }
+
+                    return await call();
+                }
+                catch
+                {
+                    if (attempt >= 5) throw;
+                }
+            }
         }
 
-        public async Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(IEnumerable<ulong> mods)
+        public Task Update(CancellationToken cancellationToken)
         {
-            return await _downloader.LoadModDetails(MedievalGameAppId, mods);
+            return UpdateInternal(cancellationToken);
         }
 
-        public async Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> LoadModChangeHistory(ulong modId, uint sinceTime)
+        public Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(IEnumerable<ulong> mods)
         {
-            return await _downloader.LoadModChangeHistory(modId, sinceTime);
+            return Run(() => _downloader.LoadModDetails(MedievalGameAppId, mods));
+        }
+
+        public Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> LoadModChangeHistory(ulong modId, uint sinceTime)
+        {
+            return Run(() => _downloader.LoadModChangeHistory(modId, sinceTime));
         }
 
         private Task<OverlayData[]> LoadOverlays(string installPath)
@@ -94,16 +126,17 @@ namespace Meds.Watchdog
                 overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
 
             _log.ZLogInformation("Updating Steam SDK Redist");
-            var redistFiles = await _downloader.InstallAppAsync(MedievalDsAppId, SteamRedistDepotId, "public",
+            var redistFiles = await Run(() => _downloader.InstallAppAsync(MedievalDsAppId, SteamRedistDepotId, "public",
                 installPath, 4,
                 path => !overlayFiles.Contains(path), "steam-redist",
-                installPrefix: "DedicatedServer64");
+                installPrefix: "DedicatedServer64"), cancellationToken);
 
             _log.ZLogInformation("Updating Medieval Engineers");
-            await _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
-                branchPassword: _runtimeConfig.Current.Steam.BranchPassword,
-                installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path),
-                debugName: "medieval-ds");
+            await Run(() => _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId, _runtimeConfig.Current.Steam.Branch, installPath, 4,
+                    branchPassword: _runtimeConfig.Current.Steam.BranchPassword,
+                    installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path),
+                    debugName: "medieval-ds"),
+                cancellationToken);
 
             // Apply overlays
             foreach (var overlay in overlays)
