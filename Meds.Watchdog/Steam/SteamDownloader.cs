@@ -27,7 +27,7 @@ namespace Meds.Watchdog.Steam
         public static void AddSteamDownloader(this IServiceCollection collection, SteamConfiguration config)
         {
             var categoryCleaner = new Regex("^[0-9a-f]+/");
-            collection.AddSingleton(svc =>
+            collection.AddScoped(svc =>
             {
                 var logFactory = svc.GetRequiredService<ILoggerFactory>();
                 DebugLog.ClearListeners();
