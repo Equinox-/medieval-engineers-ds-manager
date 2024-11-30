@@ -39,8 +39,8 @@ namespace Meds.Watchdog.Steam
                 DebugLog.Enabled = true;
                 return new SteamClient(config);
             });
-            collection.AddSingleton<CdnPool>();
-            collection.AddSingleton<SteamDownloader>();
+            collection.AddScoped<CdnPool>();
+            collection.AddScoped<SteamDownloader>();
         }
     }
 

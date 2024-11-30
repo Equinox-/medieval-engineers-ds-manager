@@ -123,7 +123,7 @@ namespace Meds.Watchdog
 
             if (!sendDiscord && !(serverRunning && restartAfterUpdate != null)) return;
 
-            var mods = await LoadGameMods(sendDiscord);
+            var mods = await _updater.Run(tok => LoadGameMods(tok, sendDiscord));
             if (mods.Count == 0) return;
 
             var updatedGameMods = mods.Where(x => x.Details.time_updated > x.GameTimeUpdated).ToList();
@@ -239,7 +239,7 @@ namespace Meds.Watchdog
             }
         });
 
-        private async Task<List<ModUpdateInfo>> LoadGameMods(bool loadChangelog)
+        private async Task<List<ModUpdateInfo>> LoadGameMods(Updater.UpdaterToken updater, bool loadChangelog)
         {
             var results = new List<ModUpdateInfo>();
 
@@ -251,7 +251,7 @@ namespace Meds.Watchdog
                         results.Add(new ModUpdateInfo { Id = mod.Mod, GameTimeUpdated = mod.GameTimeUpdated, PrevTimeUpdated = mod.LatestTimeUpdated });
             }
 
-            var loadedDetails = await _updater.LoadModDetails(results.Select(x => x.Id));
+            var loadedDetails = await updater.LoadModDetails(results.Select(x => x.Id));
             using (var write = _data.Write(out var data))
             {
                 var modUpdates = data.ModUpdates.Data;
@@ -269,7 +269,7 @@ namespace Meds.Watchdog
                     var loadSince = entry.PrevTimeUpdated == 0 ? entry.GameTimeUpdated : entry.PrevTimeUpdated;
 
                     if (loadChangelog && details.time_updated > loadSince)
-                        entry.Changes = (await _updater.LoadModChangeHistory(entry.Id, loadSince))
+                        entry.Changes = (await updater.LoadModChangeHistory(entry.Id, loadSince))
                             .Where(x => !string.IsNullOrWhiteSpace(x.change_description))
                             .ToList();
                     else
@@ -306,7 +306,7 @@ namespace Meds.Watchdog
             {
                 try
                 {
-                    await ReportMods(mods);
+                    await _updater.Run(token => ReportMods(token, mods));
                     _modCheckDelayInterrupt.Cancel();
                 }
                 catch (Exception err)
@@ -317,9 +317,9 @@ namespace Meds.Watchdog
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
 
-        private async Task ReportMods(HashSet<ulong> mods)
+        private async Task ReportMods(Updater.UpdaterToken updater, HashSet<ulong> mods)
         {
-            var info = await _updater.LoadModDetails(mods);
+            var info = await updater.LoadModDetails(mods);
             using var tok = _data.Write(out var data);
             var modUpdates = data.ModUpdates.Data;
             foreach (var mod in info)
