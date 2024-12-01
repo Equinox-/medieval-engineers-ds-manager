@@ -137,7 +137,7 @@ namespace Meds.Watchdog.Steam
             return BitConverter.ToUInt64(manifestBytes, 0);
         }
 
-        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch)
+        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPassword)
         {
             if (!IsLoggedIn)
                 throw new InvalidOperationException("The Steam client is not logged in.");
@@ -147,7 +147,8 @@ namespace Meds.Watchdog.Steam
             int attempts = 0;
             while (true)
             {
-                var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch);
+                var manifestRequestCode = await _content.GetManifestRequestCode(depotId, appId, manifestId, branch,
+                    branchPassword == null ? null : "asdf");
                 var server = await CdnPool.TakeServer();
                 try
                 {
@@ -254,15 +255,15 @@ namespace Meds.Watchdog.Steam
         {
             var manifestId = await GetManifestForBranch(appId, depotId, branch, branchPassword);
             return await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
-                branch, installPrefix);
+                branch, branchPassword, installPrefix);
         }
 
         private async Task<InstallResult> InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
             string installPath, int workerCount, Predicate<string> installFilter, string debugName,
-            string branch, string installPrefix)
+            string branch, string branchPassword, string installPrefix)
         {
             // Get installation details from Steam
-            var manifest = await GetManifestAsync(appId, depotId, manifestId, branch);
+            var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPassword);
 
             var localCache = new DistFileCache();
             var localCacheFile = Path.Combine(installPath, DistFileCache.CacheDir, depotId.ToString());
