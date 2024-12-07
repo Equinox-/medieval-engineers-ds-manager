@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 using Equ;
+using Microsoft.Extensions.Logging;
 
 namespace Meds.Shared
 {
@@ -42,6 +43,9 @@ namespace Meds.Shared
 
         [XmlElement]
         public BackupConfig Backup = new BackupConfig();
+
+        [XmlElement]
+        public LoggingConfig Logging = new LoggingConfig();
     }
 
     public class AuditConfig : MemberwiseEquatable<AuditConfig>
@@ -127,5 +131,23 @@ namespace Meds.Shared
 
         [XmlElement("CraftingComponent")]
         public List<string> CraftingComponents;
+    }
+
+    public class LoggingConfig : MemberwiseEquatable<LoggingConfig>
+    {
+        [XmlElement]
+        public LogLevel Level = LogLevel.Information;
+
+        [XmlElement("Rule")]
+        public List<LoggingRuleConfig> Rules = new List<LoggingRuleConfig>();
+    }
+
+    public class LoggingRuleConfig : MemberwiseEquatable<LoggingRuleConfig>
+    {
+        [XmlAttribute]
+        public string Category;
+
+        [XmlAttribute]
+        public LogLevel Level;
     }
 }

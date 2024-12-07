@@ -78,7 +78,7 @@ namespace Meds.Watchdog
                     services.AddSingleton<DiagnosticController>();
                     services.AddSingleton<RtcFileSharing>();
                 })
-                .Build(installConfig.WatchdogLogs);
+                .Build(cfg.Map(x => x.Logging), installConfig.WatchdogLogs);
             using (host)
             {
                 await host.RunAsync();

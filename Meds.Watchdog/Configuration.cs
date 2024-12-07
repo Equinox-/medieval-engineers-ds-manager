@@ -73,6 +73,9 @@ namespace Meds.Watchdog
         [XmlElement]
         public DiscordConfig Discord = new DiscordConfig();
 
+        [XmlElement]
+        public LoggingConfig Logging = new LoggingConfig();
+
         [XmlElement("ScheduledTask")]
         public List<ScheduledTaskConfig> ScheduledTasks;
 

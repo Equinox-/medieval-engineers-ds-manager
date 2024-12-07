@@ -20,6 +20,8 @@ namespace Meds.Shared
 
         public T Current { get; private set; }
 
+        public static Refreshable<T> Constant(T value) => new Refreshable<T>(value);
+
         protected Refreshable(T initial, Action<T> disposer = null, IEqualityComparer<T> equality = null)
         {
             _disposer = disposer;

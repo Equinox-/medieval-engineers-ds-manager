@@ -11,6 +11,7 @@ using Cysharp.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZLogger;
 
 namespace Meds.Shared
@@ -27,7 +28,32 @@ namespace Meds.Shared
             return this;
         }
 
-        public IHost Build(string logDir = null)
+        private sealed class LoggingOptionsAdapter : IOptionsMonitor<LoggerFilterOptions>
+        {
+            private readonly Refreshable<LoggerFilterOptions> _opts;
+
+            public LoggingOptionsAdapter(Refreshable<LoggingConfig> opts)
+            {
+                _opts = opts.Map(state =>
+                {
+                    var result = new LoggerFilterOptions
+                    {
+                        MinLevel = state.Level
+                    };
+                    foreach (var rule in state.Rules)
+                        result.Rules.Add(new LoggerFilterRule(null, rule.Category, rule.Level, null));
+                    return result;
+                });
+            }
+
+            public LoggerFilterOptions Get(string name) => throw new NotImplementedException();
+
+            public IDisposable OnChange(Action<LoggerFilterOptions, string> listener) => _opts.Subscribe(val => listener(val, ""));
+
+            public LoggerFilterOptions CurrentValue => _opts.Current;
+        }
+
+        public IHost Build(Refreshable<LoggingConfig> loggingConfig, string logDir = null)
         {
             // Ensure the temporary directory exists, since some tools delete it and doing that causes
             // XML serialization assembly generation to fail.
@@ -47,7 +73,7 @@ namespace Meds.Shared
             _services.AddSingleton<ILoggerFactory>(svc => new ExtraContextLoggerFactory(LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
-                builder.SetMinimumLevel(LogLevel.Information);
+                builder.Services.AddSingleton<IOptionsMonitor<LoggerFilterOptions>>(new LoggingOptionsAdapter(loggingConfig));
                 builder.AddZLoggerConsole(opts =>
                 {
                     opts.PrefixFormatter = (writer, info) => ZString.Utf8Format(writer, "{0} {1}> ", info.LogLevel, info.CategoryName);

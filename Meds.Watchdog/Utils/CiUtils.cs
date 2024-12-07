@@ -16,7 +16,7 @@ namespace Meds.Watchdog.Utils
                     svc.AddSteamDownloader(SteamConfiguration.Create(x => x
                         .WithProtocolTypes(ProtocolTypes.WebSocket)));
                 })
-                .Build();
+                .Build(Refreshable<LoggingConfig>.Constant(new LoggingConfig()));
             await host.StartAsync();
             var steam = host.Services.GetRequiredService<SteamDownloader>();
             await steam.LoginAsync();

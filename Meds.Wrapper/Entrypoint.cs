@@ -61,7 +61,7 @@ namespace Meds.Wrapper
                     services.AddSingletonAndHost<ChatBridge>();
                     services.AddSingletonAndHost<SavingSystem>();
                 })
-                .Build(cfg.Install.LogDirectory);
+                .Build(cfg.Runtime.Map(x => x.Logging), cfg.Install.LogDirectory);
             Instance = instance;
             Instance.Run();
             Instance = null;
