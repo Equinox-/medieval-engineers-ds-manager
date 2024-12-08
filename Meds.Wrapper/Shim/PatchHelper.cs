@@ -126,6 +126,8 @@ namespace Meds.Wrapper.Shim
             var results = _harmony.CreateClassProcessor(type).Patch().Select(x => x?.Name).Where(x => x != null).ToList();
             if (results.Count > 0)
                 Log?.ZLogInformationWithPayload(results, "Applied patch {0} ", type.FullName);
+            else
+                Log?.ZLogInformationWithPayload(results, "Applying patch {0} produced no results", type.FullName);
         }
 
         public static IEnumerable<(MyModContext mod, Type type)> ModTypes(string typeName)
