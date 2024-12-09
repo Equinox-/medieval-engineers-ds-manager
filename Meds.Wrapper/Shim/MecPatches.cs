@@ -533,7 +533,7 @@ namespace Meds.Wrapper.Shim
 
     // https://communityedition.medievalengineers.com/mantis/view.php?id=480
     [HarmonyPatch(typeof(MyEntityStatComponent.DelayedEffect), "HandleTick")]
-    [AlwaysPatch]
+    [AlwaysPatch(VersionRange = "[,0.7.4)")]
     public static class SkipUnloadedDelayedEffects
     {
         public static bool Prefix(MyEntityStatComponent.DelayedEffect __instance) => __instance.StatComponent?.Entity?.InScene ?? false;
