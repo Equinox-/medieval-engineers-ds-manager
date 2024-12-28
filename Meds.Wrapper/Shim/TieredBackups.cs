@@ -110,10 +110,17 @@ namespace Meds.Wrapper.Shim
 
                 _log.ZLogInformation("Removing backup {0}", backup.DirectoryPath);
 
-                if (backup.IsArchive)
-                    File.Delete(backup.DirectoryPath);
-                else
-                    Directory.Delete(backup.DirectoryPath, true);
+                try
+                {
+                    if (backup.IsArchive)
+                        File.Delete(backup.DirectoryPath);
+                    else
+                        Directory.Delete(backup.DirectoryPath, true);
+                }
+                catch (Exception err)
+                {
+                    _log.ZLogWarning(err, "Failed to remove backup {0}", backup.DirectoryPath);
+                }
             }
         }
 
