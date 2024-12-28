@@ -31,6 +31,12 @@ namespace Meds.Watchdog.GrafanaAgent
         [XmlElement("StaticTag")]
         public List<StaticTag> StaticTags = new List<StaticTag>();
 
+        [XmlElement]
+        public int HttpPort = 12345;
+
+        [XmlElement]
+        public int GrpcPort = 12346;
+
         public class StaticTag : MemberwiseEquatable<StaticTag>
         {
             [XmlAttribute]

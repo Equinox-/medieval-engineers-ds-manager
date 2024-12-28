@@ -105,7 +105,7 @@ namespace Meds.Watchdog.GrafanaAgent
                 return false;
             }
 
-            return await EnforceRunning(ct);
+            return await EnforceRunning(cfg, ct);
         }
 
         private Task EnforceShutdown()
@@ -121,7 +121,7 @@ namespace Meds.Watchdog.GrafanaAgent
         [DllImport("User32.dll")]
         private static extern bool SetWindowText(IntPtr windowHandle, string title);
 
-        private async Task<bool> EnforceRunning(CancellationToken ct)
+        private async Task<bool> EnforceRunning(GaRenderedConfig cfg, CancellationToken ct)
         {
             var process = FindActiveProcess();
             if (process is { HasExited: false })
@@ -130,7 +130,7 @@ namespace Meds.Watchdog.GrafanaAgent
             var startInfo = new ProcessStartInfo
             {
                 WorkingDirectory = _install.Directory,
-                Arguments = $"-config.file \"{_cfgFile}\"",
+                Arguments = $"-config.file \"{_cfgFile}\" -server.http.address \"127.0.0.1:{cfg.HttpPort}\" -server.grpc.address \"127.0.0.1:{cfg.GrpcPort}\"",
                 FileName = _exeFile,
             };
             process = Process.Start(startInfo);

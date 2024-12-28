@@ -18,6 +18,8 @@ namespace Meds.Watchdog.GrafanaAgent
         public bool Enabled;
         public string BinaryUrl;
         public string ConfigContent;
+        public int HttpPort;
+        public int GrpcPort;
     }
 
     public static class GaConfigRenderer
@@ -230,6 +232,8 @@ namespace Meds.Watchdog.GrafanaAgent
                 Enabled = enabled && binaryUrl != null && ga.Enabled,
                 BinaryUrl = binaryUrl,
                 ConfigContent = json,
+                HttpPort = ga.HttpPort,
+                GrpcPort = ga.GrpcPort,
             };
 
             Dictionary<string, object> SingleEntry(string key, object value) => new Dictionary<string, object> { [key] = value };
