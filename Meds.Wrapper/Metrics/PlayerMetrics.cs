@@ -1,9 +1,6 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using HarmonyLib;
-using Medieval.Entities.Components.Planet;
-using Medieval.GameSystems;
 using Medieval.GameSystems.Building;
 using Medieval.GameSystems.Factions;
 using Medieval.GameSystems.Tools;
@@ -12,8 +9,6 @@ using Meds.Metrics.Group;
 using Meds.Wrapper.Shim;
 using Meds.Wrapper.Utils;
 using Sandbox.Game;
-using Sandbox.Game.Entities;
-using Sandbox.Game.Entities.Planet;
 using Sandbox.Game.GameSystems;
 using Sandbox.Game.Players;
 using VRage.Components.Entity.CubeGrid;
@@ -22,7 +17,6 @@ using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Library.Collections;
 using VRage.Network;
-using VRageMath;
 
 namespace Meds.Wrapper.Metrics
 {
@@ -141,6 +135,8 @@ namespace Meds.Wrapper.Metrics
             internal readonly Gauge StateGroupDelay;
             // internal readonly Timer Ping;
 
+            private MetricName? _tags;
+
 
             internal PlayerMetricHolder(ulong steamId)
             {
@@ -183,11 +179,17 @@ namespace Meds.Wrapper.Metrics
             {
                 var name = player.Identity?.DisplayName;
                 var faction = player.Identity != null ? MyFactionManager.GetPlayerFaction(player.Identity.Id) : null;
-                MetricRegistry.Group(_group.Name
+                lock (this)
+                {
+                    var tagsName = _group.Name
                         .WithTag("name", string.IsNullOrEmpty(name) ? "<empty>" : name)
                         .WithTag("faction", faction?.FactionTag ?? "<empty>")
-                        .WithSeries(PlayerTags))
-                    .Gauge("value", 1);
+                        .WithSeries(PlayerTags);
+                    if (_tags.HasValue && !_tags.Value.Equals(in tagsName))
+                        MetricRegistry.RemoveMetric(in tagsName);
+                    MetricRegistry.Group(tagsName).Gauge("value", 1);
+                    _tags = tagsName;
+                }
 
                 ulong? entityId = null;
                 PositionPayload positionPayload = default;
@@ -228,6 +230,7 @@ namespace Meds.Wrapper.Metrics
 
             internal void Remove()
             {
+                if (_tags.HasValue) MetricRegistry.RemoveMetric(_tags.Value);
                 MetricRegistry.RemoveMetric(_group.Name);
                 MetricRegistry.RemoveMetric(_networkGroup.Name);
             }
