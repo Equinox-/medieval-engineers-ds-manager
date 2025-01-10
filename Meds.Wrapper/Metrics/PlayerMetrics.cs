@@ -5,6 +5,7 @@ using HarmonyLib;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Medieval.GameSystems.Building;
+using Medieval.GameSystems.Factions;
 using Medieval.GameSystems.Tools;
 using Meds.Metrics;
 using Meds.Metrics.Group;
@@ -181,10 +182,13 @@ namespace Meds.Wrapper.Metrics
             internal void Update(MyPlayer player)
             {
                 var name = player.Identity?.DisplayName;
-                if (!string.IsNullOrEmpty(name))
-                    MetricRegistry.Group(_group.Name.WithTag("name", name).WithSeries(PlayerTags))
-                        .Gauge("value", 1);
-                
+                var faction = player.Identity != null ? MyFactionManager.GetPlayerFaction(player.Identity.Id) : null;
+                MetricRegistry.Group(_group.Name
+                        .WithTag("name", string.IsNullOrEmpty(name) ? "<empty>" : name)
+                        .WithTag("faction", faction?.FactionTag ?? "<empty>")
+                        .WithSeries(PlayerTags))
+                    .Gauge("value", 1);
+
                 ulong? entityId = null;
                 PositionPayload positionPayload = default;
                 var hasPositionPayload = false;
