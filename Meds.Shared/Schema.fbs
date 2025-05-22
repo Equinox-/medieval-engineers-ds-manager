@@ -110,6 +110,7 @@ table ModEventMessage {
     message: string;
     embed: ModEventEmbed;
     reuse_id: string;
+    reuse_ttl_sec: uint32;
 }
 
 table DataStorePlanet {

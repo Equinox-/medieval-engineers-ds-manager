@@ -2,6 +2,7 @@ using System;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Medieval.GameSystems.Factions;
+using Meds.Wrapper.Trace;
 using Meds.Wrapper.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -33,11 +34,19 @@ namespace Meds.Wrapper.Audit
 
         ClipboardCut,
         ClipboardPaste,
+
+        FlyingStart,
+        FlyingEnd,
+
+        SpawnItems,
     }
 
     public class AuditPayload
     {
         public string AuditEvent;
+
+        public TraceReferencePayload? Trace;
+
         public PlayerPayload ActingPlayer;
         public PlayerPayload? OwningPlayer;
         public PositionPayload? Position;
@@ -56,6 +65,10 @@ namespace Meds.Wrapper.Audit
                 ActingPlayer = PlayerPayload.Create(acting),
                 Position = PositionPayload.TryCreate(acting, out var posPayload) ? (PositionPayload?)posPayload : null
             };
+
+            if (MedievalMasterAudit.TryGetTrace(acting.Id.SteamId, out var trace))
+                payload.Trace = trace.RefPayload();
+
             if (owning != null)
             {
                 payload.OwningPlayer = PlayerPayload.Create(owning);

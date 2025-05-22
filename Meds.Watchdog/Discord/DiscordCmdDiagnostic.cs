@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using DSharpPlus.SlashCommands;
+using Meds.Shared;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.Logging;
 

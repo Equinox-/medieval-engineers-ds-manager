@@ -159,6 +159,7 @@
         <Compile Include="Shim\TieredBackups.cs" />
         <Compile Include="Shim\VerboseCrashPatches.cs" />
         <Compile Include="Shim\VoxelResetPatches.cs" />
+        <Compile Include="Trace\TraceState.cs" />
         <Compile Include="Utils\DefinitionForObject.cs" />
         <Compile Include="Utils\LoggingPayloads.cs" />
         <Compile Include="Utils\StackUtils.cs" />

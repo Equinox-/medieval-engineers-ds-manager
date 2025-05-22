@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,17 +7,23 @@ using Google.FlatBuffers;
 using Medieval.GameSystems.Factions;
 using Meds.Shared;
 using Meds.Shared.Data;
+using Meds.Wrapper.Audit;
+using Meds.Wrapper.Trace;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sandbox;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using Sandbox.Game.SessionComponents;
 using VRage.Library.Collections;
+using VRage.Library.Threading;
 
 namespace Meds.Wrapper
 {
     public class PlayerSystem : IHostedService
     {
+        public static PlayerSystem Instance => Entrypoint.Instance?.Services.GetRequiredService<PlayerSystem>();
+
         private readonly IPublisher<PlayersResponse> _listPlayersPublisher;
         private readonly ISubscriber<PlayersRequest> _listPlayersSubscriber;
         private readonly IPublisher<PlayerJoinedLeft> _publishJoinedLeft;
@@ -77,10 +84,24 @@ namespace Meds.Wrapper
             );
         }
 
+        private class PlayerTrace
+        {
+            public readonly TraceState State;
+            public TraceSpan Session;
+
+            public PlayerTrace(string name)
+            {
+                State = TraceState.NewTrace();
+                Session = State.StartSpan($"Session for {name}");
+            }
+        }
+
         private readonly Dictionary<ulong, PlayerData> _playerDataCache = new Dictionary<ulong, PlayerData>();
 
         public void HandlePlayerJoinedLeft(bool joined, ulong id)
         {
+            if (!joined) MedievalMasterAudit.PlayerLeft(id);
+
             var player = MyPlayers.Static.GetPlayer(new MyPlayer.PlayerId(id));
             var identity = player?.Identity;
             PlayerData playerData;
@@ -99,7 +120,7 @@ namespace Meds.Wrapper
                 playerDataBuf));
         }
 
-        private static void GatherPlayerData(List<PlayerData> output)
+        private void GatherPlayerData(List<PlayerData> output)
         {
             var players = MyPlayers.Static.GetAllPlayers();
             foreach (var player in players.Values)
@@ -121,8 +142,10 @@ namespace Meds.Wrapper
             using (PoolManager.Get(out List<PlayerData> players))
             {
                 GatherPlayerData(players);
+
                 foreach (var player in players)
                 {
+                    _playerDataCache[player.SteamId] = player;
                     playerOffsets.Add(player.EncodeTo(builder));
                 }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -102,16 +103,28 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        public async Task ToDiscord(string eventChannel, DiscordMessageSender sender, string reuseId = null)
+        public readonly struct ReuseInfo
+        {
+            public readonly string Id;
+            public readonly TimeSpan? Ttl;
+
+            public ReuseInfo(string id, TimeSpan? ttl)
+            {
+                Id = id;
+                Ttl = ttl;
+            }
+        }
+
+        public async Task ToDiscord(string eventChannel, DiscordMessageSender sender, ReuseInfo reuse = default)
         {
             if (!TryGetToDiscordConfig(eventChannel, out var channels) || channels.Count == 0)
                 return;
             foreach (var channel in channels)
             {
                 if (channel.DiscordChannel != 0)
-                    await SendToChannel(eventChannel, channel, sender, reuseId);
+                    await SendToChannel(eventChannel, channel, sender, reuse);
                 else if (channel.DmGuild != 0 && channel.DmUser != 0)
-                    await SendToUser(eventChannel, channel, sender, reuseId);
+                    await SendToUser(eventChannel, channel, sender, reuse);
                 else
                     continue;
                 // Slight delay to prevent throttling.
@@ -119,12 +132,12 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private async Task SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
+        private async Task SendToChannel(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, ReuseInfo reuse)
         {
             try
             {
                 var channelObj = await _discord.Client.GetChannelAsync(channel.DiscordChannel);
-                await SendToChannelInternal(channelObj, channel, sender, reuseId);
+                await SendToChannelInternal(channelObj, channel, sender, reuse);
             }
             catch (Exception err)
             {
@@ -133,7 +146,7 @@ namespace Meds.Watchdog.Discord
             }
         }
 
-        private async Task SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
+        private async Task SendToUser(string eventChannel, DiscordChannelSync channel, DiscordMessageSender sender, ReuseInfo reuse)
         {
             try
             {
@@ -152,7 +165,7 @@ namespace Meds.Watchdog.Discord
                 }
 
                 var channelObj = await member.CreateDmChannelAsync();
-                await SendToChannelInternal(channelObj, channel, sender, reuseId);
+                await SendToChannelInternal(channelObj, channel, sender, reuse);
             }
             catch (Exception err)
             {
@@ -164,10 +177,12 @@ namespace Meds.Watchdog.Discord
         private ulong? FindReusedMessageId(DiscordChannel channelObj, string reuseId)
         {
             using (_dataStore.Read(out var data))
-                return data.Discord.Events.TryGetValue(new DiscordReuseData.EventKey(reuseId, channelObj.Id), out var msg) ? (ulong?)msg : null;
+                return data.Discord.Events.TryGetValue(new DiscordReuseData.EventKey(reuseId, channelObj.Id), out var msg) && !msg.IsExpired
+                    ? (ulong?)msg.Message
+                    : null;
         }
 
-        private async Task SendToChannelInternal(DiscordChannel channelObj, DiscordChannelSync channel, DiscordMessageSender sender, string reuseId)
+        private async Task SendToChannelInternal(DiscordChannel channelObj, DiscordChannelSync channel, DiscordMessageSender sender, ReuseInfo reuse)
         {
             Action<DiscordMessageBuilder> composer = builder =>
             {
@@ -178,7 +193,7 @@ namespace Meds.Watchdog.Discord
                     builder.Content += $" <@{channel.MentionUser}>";
             };
 
-            var reused = reuseId != null && !channel.DisableReuse ? FindReusedMessageId(channelObj, reuseId) : null;
+            var reused = reuse.Id != null && !channel.DisableReuse ? FindReusedMessageId(channelObj, reuse.Id) : null;
             if (reused.HasValue)
             {
                 try
@@ -200,31 +215,71 @@ namespace Meds.Watchdog.Discord
             }
 
             var msg = await _discord.Client.SendMessageAsync(channelObj, composer);
-            if (reuseId != null && !channel.DisableReuse)
+            if (reuse.Id != null && !channel.DisableReuse)
             {
                 using var writeHandle = _dataStore.Write(out var data);
-                data.Discord.Events[new DiscordReuseData.EventKey(reuseId, channelObj.Id)] = msg.Id;
+                var eventKey = new DiscordReuseData.EventKey(reuse.Id, channelObj.Id);
+                var eventData = new DiscordReuseData.EventData(msg.Id,
+                    reuse.Ttl.HasValue ? DiscordReuseData.EventData.ToExpiryTime(DateTime.UtcNow + reuse.Ttl.Value) : 0);
+                if (eventData.IsExpired)
+                    data.Discord.Events.Remove(eventKey);
+                else
+                    data.Discord.Events[eventKey] = eventData;
                 writeHandle.MarkUpdated();
             }
         }
 
         public delegate void DiscordMessageSender(DiscordChannelSync matched, DiscordMessageBuilder message);
 
-        private void ToDiscordFork(string eventChannel, DiscordMessageSender sender, string reuseId = null)
+        private readonly ConcurrentDictionary<string, (Task task, CancellationTokenSource cancel, string reuseId)> _pendingMessages =
+            new ConcurrentDictionary<string, (Task, CancellationTokenSource, string)>();
+
+        private void ToDiscordFork(string eventChannel, DiscordMessageSender sender, ReuseInfo reuse = default)
         {
-#pragma warning disable CS4014
-            Task.Run(async () =>
+            _pendingMessages.AddOrUpdate(
+                eventChannel,
+                key => CreateTask(null),
+                (key, prior) =>
+                {
+                    // Cancel repeating messages.
+                    if (reuse.Id != null && prior.reuseId == reuse.Id && !prior.task.IsCompleted)
+                    {
+                        _log.ZLogInformation("Preempting previous task on channel {0} with the same reuse ID {1}", eventChannel, reuse.Id);
+                        prior.cancel.Cancel();
+                    }
+                    return CreateTask(prior.task);
+                });
+            return;
+
+            (Task, CancellationTokenSource, string) CreateTask(Task prior)
             {
-                try
+                var cts = new CancellationTokenSource();
+                var token = cts.Token;
+                var task = Task.Run(async () =>
                 {
-                    await ToDiscord(eventChannel, sender, reuseId);
-                }
-                catch (Exception err)
-                {
-                    _log.ZLogWarning(err, "Failed to send to discord: {0} {1}", eventChannel, sender);
-                }
-            });
-#pragma warning restore CS4014
+                    try
+                    {
+                        // Enforce ordering between messages.
+                        if (prior != null) await prior;
+                    }
+                    catch
+                    {
+                        // ignore errors from the prior.
+                    }
+
+                    if (token.IsCancellationRequested) return;
+
+                    try
+                    {
+                        await ToDiscord(eventChannel, sender, reuse);
+                    }
+                    catch (Exception err)
+                    {
+                        _log.ZLogWarning(err, "Failed to send to discord: {0} {1}", eventChannel, sender);
+                    }
+                }, cts.Token);
+                return (task, cts, reuse.Id);
+            }
         }
 
         private void HandlePlayerJoinedLeft(PlayerJoinedLeft obj)
@@ -330,13 +385,14 @@ namespace Meds.Watchdog.Discord
 
             var reuseId = obj.ReuseId;
             reuseId = string.IsNullOrEmpty(reuseId) ? null : $"mod_event_{obj.SourceModId}_{reuseId}";
+            var reuse = reuseId != null ? new ReuseInfo(reuseId, obj.ReuseTtlSec > 0 ? (TimeSpan?)TimeSpan.FromSeconds(obj.ReuseTtlSec) : null) : default;
 
             ToDiscordFork(ModChannelPrefix + channel, (_, builder) =>
             {
                 builder.Content = message;
                 if (builtEmbed != null)
                     builder.AddEmbed(builtEmbed);
-            }, reuseId);
+            }, reuse);
         }
 
         private void HandleChat(ChatMessage obj)
@@ -443,10 +499,7 @@ namespace Meds.Watchdog.Discord
     {
         public readonly struct EventKey : IEquatable<EventKey>
         {
-            [XmlAttribute]
             public readonly string Id;
-
-            [XmlAttribute]
             public readonly ulong Channel;
 
             public EventKey(string id, ulong channel)
@@ -462,22 +515,43 @@ namespace Meds.Watchdog.Discord
             public override int GetHashCode() => (Id.GetHashCode() * 397) ^ Channel.GetHashCode();
         }
 
+        public readonly struct EventData
+        {
+            public readonly ulong Message;
+            public readonly long ExpiresAt;
+
+            public EventData(ulong message, long expiresAt)
+            {
+                Message = message;
+                ExpiresAt = expiresAt;
+            }
+
+            public static long ToExpiryTime(DateTime utcTime) => utcTime.ToFileTimeUtc();
+
+            public bool IsExpired => ToExpiryTime(DateTime.UtcNow) >= ExpiresAt;
+        }
+
         [XmlIgnore]
-        public readonly Dictionary<EventKey, ulong> Events = new Dictionary<EventKey, ulong>();
+        public readonly Dictionary<EventKey, EventData> Events = new Dictionary<EventKey, EventData>();
 
         [XmlElement("Event")]
-        public List<EventData> EventsForXml
+        public List<EventDataForXml> EventsForXml
         {
-            get => Events.Select(x => new EventData { Id = x.Key.Id, Channel = x.Key.Channel, Message = x.Value }).ToList();
+            get => Events.Select(x => new EventDataForXml { Id = x.Key.Id, Channel = x.Key.Channel, Message = x.Value.Message, ExpiresAt = x.Value.ExpiresAt })
+                .ToList();
             set
             {
                 Events.Clear();
                 foreach (var item in value)
-                    Events[new EventKey(item.Id, item.Channel)] = item.Message;
+                {
+                    var data = new EventData(item.Message, item.ExpiresAt);
+                    if (data.IsExpired) continue;
+                    Events[new EventKey(item.Id, item.Channel)] = data;
+                }
             }
         }
 
-        public struct EventData
+        public struct EventDataForXml
         {
             [XmlAttribute]
             public string Id;
@@ -487,24 +561,9 @@ namespace Meds.Watchdog.Discord
 
             [XmlAttribute]
             public ulong Message;
-        }
-    }
-
-    public class DiscordMessageReference
-    {
-        [XmlAttribute]
-        public string EventId;
-
-        [XmlElement("Message")]
-        public List<SingleMessageReference> Messages = new List<SingleMessageReference>();
-
-        public struct SingleMessageReference
-        {
-            [XmlAttribute]
-            public ulong Channel;
 
             [XmlAttribute]
-            public ulong Message;
+            public long ExpiresAt;
         }
     }
 }

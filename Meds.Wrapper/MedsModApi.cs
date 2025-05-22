@@ -29,6 +29,7 @@ namespace Meds.Wrapper
             private StringOffset _embedDescription;
             private StringOffset _message;
             private StringOffset _reuseId;
+            private TimeSpan? _ttl;
 
             public ModEventBuilder(TypedPublishToken<ModEventMessage> token, string channel, IApplicationPackage source)
             {
@@ -40,13 +41,23 @@ namespace Meds.Wrapper
                 _embedDescription = default;
                 _message = default;
                 _reuseId = default;
+                _ttl = null;
             }
 
             /// <summary>
             /// If provided an existing message with the same reuse identifier will be edited instead of sending a new message.
             /// If no message was already sent with the same reuse identifier a new message will be sent.
             /// </summary>
-            public void SetReuseIdentifier(string value) => _reuseId = _token.Builder.CreateString(value);
+            public void SetReuseIdentifier(string value, TimeSpan? ttl = null, uint ttlSeconds = 0)
+            {
+                _reuseId = _token.Builder.CreateString(value);
+                if (ttl.HasValue)
+                    _ttl = ttl;
+                else if (ttlSeconds > 0)
+                    _ttl = TimeSpan.FromSeconds(ttlSeconds);
+                else
+                    _ttl = null;
+            }
 
             /// <summary>
             /// Main text content of the message.
@@ -100,7 +111,8 @@ namespace Meds.Wrapper
                     _channelOffset,
                     _message,
                     embed,
-                    _reuseId));
+                    _reuseId,
+                    _ttl.HasValue ? (uint)_ttl.Value.TotalSeconds : 0));
             }
 
             public void Dispose()

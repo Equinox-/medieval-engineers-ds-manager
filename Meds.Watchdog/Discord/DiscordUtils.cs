@@ -13,17 +13,6 @@ using Meds.Watchdog.Utils;
 
 namespace Meds.Watchdog.Discord
 {
-    public enum DiscordTimeFormat : byte
-    {
-        ShortDate = (byte)'d',
-        LongDate = (byte)'D',
-        ShortTime = (byte)'t',
-        LongTime = (byte)'T',
-        ShortDateTime = (byte)'f',
-        LongDateTime = (byte)'F',
-        Relative = (byte)'R'
-    }
-
     public static class DiscordUtils
     {
         public const string RepositoryUrl = "https://github.com/Equinox-/medieval-engineers-ds-manager";
@@ -88,16 +77,6 @@ namespace Meds.Watchdog.Discord
                     builder.AppendLine(line);
                 return builder.ToString();
             }
-        }
-
-        public static string AsDiscordTime(this DateTime timeUtc, DiscordTimeFormat format = DiscordTimeFormat.ShortDateTime)
-        {
-            return ((DateTimeOffset)timeUtc).AsDiscordTime(format);
-        }
-
-        public static string AsDiscordTime(this DateTimeOffset timeUtc, DiscordTimeFormat format = DiscordTimeFormat.ShortDateTime)
-        {
-            return $"<t:{timeUtc.ToUnixTimeSeconds()}:{(char)format}>";
         }
 
         public static void RemoveFieldWithName(this DiscordEmbedBuilder embed, string field)

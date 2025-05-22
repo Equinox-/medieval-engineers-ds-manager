@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using Medieval;
 using Medieval.GameSystems;
@@ -12,6 +14,7 @@ using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox.Engine.Multiplayer;
 using Sandbox.Game.Entities;
+using VRage.Collections;
 using VRage.Components;
 using VRage.Components.Session;
 using VRage.Engine;
@@ -31,6 +34,20 @@ namespace Meds.Wrapper
             Config = config;
             HealthReporter = healthReporter;
         }
+    }
+
+    public sealed class MedsAppPackage : IApplicationPackage
+    {
+        public static readonly MedsAppPackage Instance = new MedsAppPackage();
+        
+        public bool Equals(IApplicationPackage other) => other == this;
+
+        public string Name => "Meds";
+        public string Id => "Meds";
+        public Version Version { get; } = new Version(0, 0);
+        public CollectionReader<Assembly> Assemblies { get; } = new List<Assembly>();
+        public string ContentPath => "";
+        public bool IsMain => false;
     }
 
     [System("Wrapper System Early")]
@@ -76,8 +93,8 @@ namespace Meds.Wrapper
             CoreMetrics.Register();
             PaxMetrics.Register(Config.Metrics);
             VoxelResetPatches.Register();
-            MyMultiplayer.Static.ClientReady += id => Entrypoint.Instance?.Services.GetRequiredService<PlayerSystem>().HandlePlayerJoinedLeft(true, id);
-            MyMultiplayer.Static.ClientLeft += (id, _) => Entrypoint.Instance?.Services.GetRequiredService<PlayerSystem>().HandlePlayerJoinedLeft(false, id);
+            MyMultiplayer.Static.ClientReady += id => PlayerSystem.Instance?.HandlePlayerJoinedLeft(true, id);
+            MyMultiplayer.Static.ClientLeft += (id, _) => PlayerSystem.Instance?.HandlePlayerJoinedLeft(false, id);
             MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);
             AddScheduledCallback(UpdateDataStore);
         }
