@@ -250,7 +250,7 @@ namespace Meds.Watchdog
                             break;
                         try
                         {
-                            await _updater.Run(tok => tok.Update(stoppingToken));
+                            await _updater.Run(tok => tok.Update(), stoppingToken);
                         }
                         catch (Exception err)
                         {

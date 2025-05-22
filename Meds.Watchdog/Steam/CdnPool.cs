@@ -31,12 +31,12 @@ namespace Meds.Watchdog.Steam
         /// Initializes stuff needed to download content from the Steam content servers.
         /// </summary>
         /// <returns></returns>
-        public async Task Initialize(int cellId)
+        public async Task Initialize(int cellId, CancellationToken ct = default)
         {
             _cellId = cellId;
             Client.RequestTimeout = TimeSpan.FromSeconds(10);
             ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 100);
-            await RefreshServers();
+            await RefreshServers(ct);
         }
 
         public Client TakeClient()
@@ -62,10 +62,10 @@ namespace Meds.Watchdog.Steam
             _servers.Sort((a, b) => a.WeightedLoad.CompareTo(b.WeightedLoad));
         }
 
-        private async Task RefreshServers()
+        private async Task RefreshServers(CancellationToken ct = default)
         {
             var servers = await ContentServerDirectoryService
-                .LoadAsync(_client.Configuration, _cellId, CancellationToken.None)
+                .LoadAsync(_client.Configuration, _cellId, ct)
                 .ConfigureAwait(false);
             lock (_servers)
             {

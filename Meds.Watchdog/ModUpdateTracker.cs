@@ -91,7 +91,8 @@ namespace Meds.Watchdog
             {
                 try
                 {
-                    await ReportModUpdates();
+                    CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromHours(1));
+                    await Task.Run(() => ReportModUpdates(cts.Token), cts.Token);
                 }
                 catch (Exception err)
                 {
@@ -114,7 +115,7 @@ namespace Meds.Watchdog
         private const int ChangelogCharLimit = 1024;
         private const int ChangelogSingleLineLimit = 32;
 
-        private async Task ReportModUpdates()
+        private async Task ReportModUpdates(CancellationToken ct)
         {
             var restartAfterUpdate = _restartAfterUpdate.Current;
 
@@ -123,8 +124,9 @@ namespace Meds.Watchdog
 
             if (!sendDiscord && !(serverRunning && restartAfterUpdate != null)) return;
 
-            var mods = await _updater.Run(tok => LoadGameMods(tok, sendDiscord));
+            var mods = await _updater.Run(tok => LoadGameMods(tok, sendDiscord), ct);
             if (mods.Count == 0) return;
+            ct.ThrowIfCancellationRequested();
 
             var updatedGameMods = mods.Where(x => x.Details.time_updated > x.GameTimeUpdated).ToList();
             if (serverRunning && restartAfterUpdate != null && updatedGameMods.Count > 0

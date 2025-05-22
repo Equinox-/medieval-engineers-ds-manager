@@ -25,9 +25,9 @@ namespace Meds.Watchdog.Steam
         /// </summary>
         /// <param name="filter">The callback filter.</param>
         /// <returns>A task returning the callback object on completion.</returns>
-        public async Task<ICallbackMsg> WaitForAsync(Func<ICallbackMsg, bool> filter = null)
+        public async Task<ICallbackMsg> WaitForAsync(Func<ICallbackMsg, bool> filter = null, CancellationToken ct = default)
         {
-            var waiter = new Waiter(filter);
+            var waiter = new Waiter(filter, ct);
             lock(_callbackWaiters)
                 _callbackWaiters.Add(waiter);
             return await waiter.Task;
@@ -38,9 +38,9 @@ namespace Meds.Watchdog.Steam
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns>A task returning the callback object on completion.</returns>
-        public async Task<T> WaitForAsync<T>() where T : ICallbackMsg
+        public async Task<T> WaitForAsync<T>(CancellationToken ct = default) where T : ICallbackMsg
         {
-            return (T)await WaitForAsync(x => x is T);
+            return (T)await WaitForAsync(x => x is T, ct);
         }
 
         /// <summary>
@@ -95,16 +95,19 @@ namespace Meds.Watchdog.Steam
             
             private readonly TaskCompletionSource<ICallbackMsg> _tcs = new TaskCompletionSource<ICallbackMsg>();
             private readonly Func<ICallbackMsg, bool> _condition;
+            private CancellationTokenRegistration _cancelRegistered;
 
-            public Waiter(Func<ICallbackMsg, bool> condition)
+            public Waiter(Func<ICallbackMsg, bool> condition, CancellationToken ct)
             {
                 _condition = condition;
+                _cancelRegistered = ct.Register(() => _tcs.TrySetCanceled());
             }
 
             public bool TryComplete(ICallbackMsg msg)
             {
                 if (_condition.Invoke(msg))
                 {
+                    _cancelRegistered.Dispose();
                     _tcs.SetResult(msg);
                     return true;
                 }

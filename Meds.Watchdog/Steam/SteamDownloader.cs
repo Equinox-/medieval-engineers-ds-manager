@@ -3,12 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Meds.Dist;
-using Meds.Shared;
-using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZLogger;
@@ -96,7 +94,7 @@ namespace Meds.Watchdog.Steam
             return depotKeyResult.DepotKey;
         }
 
-        private async Task<PICSProductInfo> GetAppInfoAsync(uint appId)
+        private async Task<PICSProductInfo> GetAppInfoAsync(uint appId, CancellationToken ct = default)
         {
             if (_appInfos.TryGetValue(appId, out var appInfo))
                 return appInfo;
@@ -120,9 +118,9 @@ namespace Meds.Watchdog.Steam
             }
         }
 
-        private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch, string branchPassword = null)
+        private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch, string branchPassword = null, CancellationToken ct = default)
         {
-            var appInfo = await GetAppInfoAsync(appId);
+            var appInfo = await GetAppInfoAsync(appId, ct);
             var id = appInfo.GetManifestId(depotId, branch);
             if (id > 0)
                 return id;
@@ -137,7 +135,7 @@ namespace Meds.Watchdog.Steam
             return BitConverter.ToUInt64(manifestBytes, 0);
         }
 
-        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPassword)
+        private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPassword, CancellationToken ct = default)
         {
             if (!IsLoggedIn)
                 throw new InvalidOperationException("The Steam client is not logged in.");
@@ -173,7 +171,7 @@ namespace Meds.Watchdog.Steam
         /// <param name="details">User credentials.</param>
         /// <returns>Login details.</returns>
         /// <exception cref="Exception"></exception>
-        public async Task<LoggedOnCallback> LoginAsync(LogOnDetails details = default)
+        public async Task<LoggedOnCallback> LoginAsync(LogOnDetails details = default, CancellationToken ct = default)
         {
             if (_loginDetails != null)
                 throw new InvalidOperationException("Already logged in.");
@@ -182,10 +180,11 @@ namespace Meds.Watchdog.Steam
             var okay = false;
             try
             {
+                ct.ThrowIfCancellationRequested();
                 _client.Connect();
 
                 var connectResult = await _callbacks
-                    .WaitForAsync(x => x is ConnectedCallback || x is DisconnectedCallback);
+                    .WaitForAsync(x => x is ConnectedCallback || x is DisconnectedCallback, ct);
 
                 if (connectResult is DisconnectedCallback)
                     throw new Exception("Failed to connect to Steam.");
@@ -195,11 +194,11 @@ namespace Meds.Watchdog.Steam
                 else
                     _user.LogOn(details);
 
-                var loginResult = await _callbacks.WaitForAsync<LoggedOnCallback>();
+                var loginResult = await _callbacks.WaitForAsync<LoggedOnCallback>(ct);
                 if (loginResult.Result != EResult.OK)
                     throw new Exception($"Failed to log into Steam: {loginResult.Result:G}");
 
-                await CdnPool.Initialize((int)loginResult.CellID);
+                await CdnPool.Initialize((int)loginResult.CellID, ct);
                 _loginDetails = loginResult;
                 okay = true;
                 return loginResult;
@@ -217,7 +216,7 @@ namespace Meds.Watchdog.Steam
         /// <summary>
         /// Log out the client and disconnect from Steam.
         /// </summary>
-        public async Task LogoutAsync()
+        public async Task LogoutAsync(CancellationToken ct = default)
         {
             if (_loginDetails == null)
                 return;
@@ -225,7 +224,7 @@ namespace Meds.Watchdog.Steam
             _user.LogOff();
             _client.Disconnect();
 
-            await _callbacks.WaitForAsync<DisconnectedCallback>();
+            await _callbacks.WaitForAsync<DisconnectedCallback>(ct);
             OnDisconnect();
         }
 
@@ -251,16 +250,17 @@ namespace Meds.Watchdog.Steam
         }
 
         public async Task<InstallResult> InstallAppAsync(uint appId, uint depotId, string branch, string installPath, int workerCount,
-            Predicate<string> installFilter, string debugName, string branchPassword = null, string installPrefix = "")
+            Predicate<string> installFilter, string debugName, string branchPassword = null, string installPrefix = "",
+            CancellationToken ct = default)
         {
-            var manifestId = await GetManifestForBranch(appId, depotId, branch, branchPassword);
+            var manifestId = await GetManifestForBranch(appId, depotId, branch, branchPassword, ct);
             return await InstallInternalAsync(appId, depotId, manifestId, installPath, workerCount, installFilter, debugName,
-                branch, branchPassword, installPrefix);
+                branch, branchPassword, installPrefix, ct);
         }
 
         private async Task<InstallResult> InstallInternalAsync(uint appId, uint depotId, ulong manifestId,
             string installPath, int workerCount, Predicate<string> installFilter, string debugName,
-            string branch, string branchPassword, string installPrefix)
+            string branch, string branchPassword, string installPrefix, CancellationToken ct = default)
         {
             // Get installation details from Steam
             var manifest = await GetManifestAsync(appId, depotId, manifestId, branch, branchPassword);

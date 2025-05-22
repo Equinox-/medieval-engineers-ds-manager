@@ -97,7 +97,7 @@
         <Compile Include="Steam\CallbackPump.cs" />
         <Compile Include="Steam\CdnPool.cs" />
         <Compile Include="Steam\InstallJob.cs" />
-        <Compile Include="Steam\PICSProductInfoExtensions.cs" />
+        <Compile Include="Steam\SteamExtensions.cs" />
         <Compile Include="Steam\SteamDownloader.cs" />
         <Compile Include="Updater.cs" />
         <Compile Include="Utils\AutoCompleteTree.cs" />

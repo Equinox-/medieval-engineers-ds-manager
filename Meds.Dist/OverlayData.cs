@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
@@ -110,7 +111,7 @@ namespace Meds.Dist
                 }
         }
 
-        public async Task ApplyOverlay()
+        public async Task ApplyOverlay(CancellationToken ct = default)
         {
             _log.Info($"Updating overlay {Spec.Uri} in {Spec.Path}");
             await Task.WhenAll(Remote.Files.Select(async remoteFile =>
@@ -123,14 +124,16 @@ namespace Meds.Dist
                 }
 
                 var remoteFileUri = Spec.Uri + "/" + remoteFile.Path.Replace('\\', '/');
-                using (var response = await WebRequest.Create(remoteFileUri).GetResponseAsync())
+                var req = WebRequest.Create(remoteFileUri);
+                using (ct.Register(obj => ((WebRequest)obj).Abort(), req))
+                using (var response = await req.GetResponseAsync())
                 using (var remoteStream = response.GetResponseStream())
                 {
                     if (remoteStream == null)
                         throw new NullReferenceException($"No response stream for overlay file {remoteFileUri}");
                     _log.Info($"Downloading overlay file {Spec.Uri}/{remoteFile.Path}");
                     using (var copyTarget = File.Open(Path.Combine(OverlayInstallPath, remoteFile.Path), FileMode.Create, FileAccess.Write))
-                        await remoteStream.CopyToAsync(copyTarget);
+                        await remoteStream.CopyToAsync(copyTarget, 0x14000, ct);
                     var fileInfo = new DistFileInfo { Path = remoteFile.Path };
                     fileInfo.RepairData(OverlayInstallPath);
                     lock (_local)

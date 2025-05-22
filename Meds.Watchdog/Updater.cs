@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,7 +9,6 @@ using Meds.Dist;
 using Meds.Shared;
 using Meds.Watchdog.Steam;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SteamKit2.Internal;
 using ZLogger;
@@ -46,13 +44,15 @@ namespace Meds.Watchdog
             private readonly Updater _updater;
             private readonly SteamDownloader _downloader;
             private readonly ConcurrencyLimiter _limiter;
+            public readonly CancellationToken CancellationToken;
 
-            public UpdaterToken(Updater updater, SteamDownloader downloader)
+            public UpdaterToken(Updater updater, SteamDownloader downloader, CancellationToken ct)
             {
                 _updater = updater;
                 _downloader = downloader;
                 _limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
                     { PermitLimit = MaxPermits, QueueProcessingOrder = QueueProcessingOrder.OldestFirst });
+                CancellationToken = ct;
             }
 
             public Task<Dictionary<ulong, PublishedFileDetails>> LoadModDetails(IEnumerable<ulong> mods)
@@ -65,18 +65,14 @@ namespace Meds.Watchdog
                 return Run(() => _downloader.LoadModChangeHistory(modId, sinceTime));
             }
 
-            public Task Update(CancellationToken cancellationToken)
-            {
-                return UpdateInternal(cancellationToken);
-            }
-
-            private async Task UpdateInternal(CancellationToken cancellationToken)
+            public async Task Update()
             {
                 var installPath = _updater._installConfig.InstallDirectory;
                 var overlays = await _updater.LoadOverlays(installPath);
+                CancellationToken.ThrowIfCancellationRequested();
 
                 // Clean deleted overlay files
-                await Task.WhenAll(overlays.Select(overlay => Task.Run(overlay.CleanDeleted, cancellationToken)));
+                await Task.WhenAll(overlays.Select(overlay => Task.Run(overlay.CleanDeleted, CancellationToken)));
 
                 var overlayFiles = new HashSet<string>(overlays.SelectMany(overlay =>
                     overlay.Remote.Files.Select(remoteFile => Path.Combine(overlay.Spec.Path, remoteFile.Path))));
@@ -85,33 +81,32 @@ namespace Meds.Watchdog
                 var redistFiles = await Run(() => _downloader.InstallAppAsync(MedievalDsAppId, SteamRedistDepotId, "public",
                     installPath, 4,
                     path => !overlayFiles.Contains(path), "steam-redist",
-                    installPrefix: "DedicatedServer64"), cancellationToken);
+                    installPrefix: "DedicatedServer64", ct: CancellationToken));
 
                 _updater._log.ZLogInformation("Updating Medieval Engineers");
                 await Run(() => _downloader.InstallAppAsync(MedievalDsAppId, MedievalDsDepotId,
                         _updater._runtimeConfig.Current.Steam.Branch, installPath, 4,
                         branchPassword: _updater._runtimeConfig.Current.Steam.BranchPassword,
                         installFilter: path => !overlayFiles.Contains(path) && !redistFiles.InstalledFiles.Contains(path),
-                        debugName: "medieval-ds"),
-                    cancellationToken);
+                        debugName: "medieval-ds", ct: CancellationToken));
 
                 // Apply overlays
                 foreach (var overlay in overlays)
-                    await overlay.ApplyOverlay();
+                    await overlay.ApplyOverlay(CancellationToken);
             }
 
-            private async Task<T> Run<T>(Func<Task<T>> call, CancellationToken cancellationToken = default)
+            private async Task<T> Run<T>(Func<Task<T>> call)
             {
                 var attempt = 0;
                 while (true)
                 {
-                    if (cancellationToken.IsCancellationRequested)
+                    if (CancellationToken.IsCancellationRequested)
                         throw new TaskCanceledException();
                     attempt++;
                     try
                     {
                         var reAuth = attempt > 2;
-                        using var lease = await _limiter.AcquireAsync(reAuth ? MaxPermits : 1, cancellationToken);
+                        using var lease = await _limiter.AcquireAsync(reAuth ? MaxPermits : 1, CancellationToken);
                         if (reAuth)
                         {
                             await _downloader.LogoutAsync();
@@ -128,27 +123,28 @@ namespace Meds.Watchdog
             }
         }
 
-        public async Task Run(Func<UpdaterToken, Task> callback)
+        public async Task Run(Func<UpdaterToken, Task> callback, CancellationToken ct = default)
         {
             await Run(async tok =>
             {
                 await callback(tok);
                 return 0;
-            });
+            }, ct);
         }
 
-        public async Task<T> Run<T>(Func<UpdaterToken, Task<T>> callback)
+        public async Task<T> Run<T>(Func<UpdaterToken, Task<T>> callback, CancellationToken ct = default)
         {
             using var scope = _svc.CreateScope();
             var downloader = scope.ServiceProvider.GetRequiredService<SteamDownloader>();
-            await downloader.LoginAsync();
+            await downloader.LoginAsync(ct: ct);
             try
             {
-                return await callback(new UpdaterToken(this, downloader));
+                ct.ThrowIfCancellationRequested();
+                return await callback(new UpdaterToken(this, downloader, ct));
             }
             finally
             {
-                await downloader.LogoutAsync();
+                await downloader.LogoutAsync(ct);
             }
         }
 

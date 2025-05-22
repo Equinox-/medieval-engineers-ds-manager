@@ -1,10 +1,12 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using SteamKit2;
 using static SteamKit2.SteamApps.PICSProductInfoCallback;
 
 namespace Meds.Watchdog.Steam
 {
-    public static class PICSProductInfoExtensions
+    public static class SteamExtensions
     {
         public static ulong GetManifestId(this PICSProductInfo info, uint depotId, string branch)
         {

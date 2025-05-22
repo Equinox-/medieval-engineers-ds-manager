@@ -146,7 +146,12 @@ namespace Meds.Wrapper.Audit
             return state != null;
         }
 
-        internal static void PlayerLeft(ulong id) => MedievalMasterSessions.Remove(id);
+        internal static void PlayerLeft(ulong id)
+        {
+            if (MedievalMasterSessions.TryGetValue(id, out var session))
+                session.Finish();
+            MedievalMasterSessions.Remove(id);
+        }
 
         [HarmonyPatch(typeof(MySession), "OnAdminModeEnabled")]
         [AlwaysPatch]
@@ -290,7 +295,7 @@ namespace Meds.Wrapper.Audit
                 if (player == null) return;
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
-                    session.SetFlying(true);
+                    session.SetFlying(false);
 
                 AuditPayload.Create(AuditEvent.FlyingEnd, player).Emit();
             }
