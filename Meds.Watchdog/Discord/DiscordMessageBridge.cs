@@ -202,6 +202,7 @@ namespace Meds.Watchdog.Discord
                     if (msgObj != null)
                     {
                         await msgObj.ModifyAsync(composer);
+                        WriteReuse(msgObj.Id);
                         return;
                     }
                 }
@@ -215,11 +216,15 @@ namespace Meds.Watchdog.Discord
             }
 
             var msg = await _discord.Client.SendMessageAsync(channelObj, composer);
-            if (reuse.Id != null && !channel.DisableReuse)
+            WriteReuse(msg.Id);
+            return;
+
+            void WriteReuse(ulong messageId)
             {
+                if (reuse.Id == null || channel.DisableReuse) return;
                 using var writeHandle = _dataStore.Write(out var data);
                 var eventKey = new DiscordReuseData.EventKey(reuse.Id, channelObj.Id);
-                var eventData = new DiscordReuseData.EventData(msg.Id,
+                var eventData = new DiscordReuseData.EventData(messageId,
                     reuse.Ttl.HasValue ? DiscordReuseData.EventData.ToExpiryTime(DateTime.UtcNow + reuse.Ttl.Value) : 0);
                 if (eventData.IsExpired)
                     data.Discord.Events.Remove(eventKey);
