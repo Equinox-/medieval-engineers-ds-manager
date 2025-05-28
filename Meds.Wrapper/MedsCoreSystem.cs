@@ -8,6 +8,7 @@ using Medieval.World.Persistence;
 using MedievalEngineersDedicated;
 using Meds.Shared;
 using Meds.Shared.Data;
+using Meds.Wrapper.Audit;
 using Meds.Wrapper.Metrics;
 using Meds.Wrapper.Output.Prometheus;
 using Meds.Wrapper.Shim;
@@ -116,6 +117,10 @@ namespace Meds.Wrapper
                 PlayerMetrics.Update();
         }
 
+        // Once per minute
+        [Update(60_000)]
+        public void UpdateAudit(long dt) => MedievalMasterAudit.RegularUpdate();
+
         // Every 5 minutes
         [Update(5 * 60 * 1000)]
         public void UpdateDataStore(long dt)
@@ -143,6 +148,12 @@ namespace Meds.Wrapper
                 planetInfo,
                 gridDbInfo
             ));
+        }
+
+        protected override void Shutdown()
+        {
+            base.Shutdown();
+            MedievalMasterAudit.Shutdown();
         }
     }
 }

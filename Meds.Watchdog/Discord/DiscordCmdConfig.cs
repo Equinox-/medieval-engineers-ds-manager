@@ -119,7 +119,7 @@ namespace Meds.Watchdog.Discord
                             return;
                         }
 
-                        var time = info.CreationTimeUtc;
+                        var time = info.LastWriteTimeUtc;
                         FileUtils.MoveAtomic(backupPath, path);
                         await ctx.EditResponseAsync($"Restored backup for {file} taken at {time.AsDiscordTime()}");
                         return;
@@ -154,9 +154,9 @@ namespace Meds.Watchdog.Discord
                         return;
                     }
 
-                    if (info.CreationTimeUtc + FreshBackupExpiry < DateTime.UtcNow)
+                    if (info.LastWriteTimeUtc + FreshBackupExpiry < DateTime.UtcNow)
                     {
-                        await ctx.EditResponseAsync($"Refusing to edit config {file} without a recent backup, the most recent one was at {info.CreationTimeUtc.AsDiscordTime()}.");
+                        await ctx.EditResponseAsync($"Refusing to edit config {file} without a recent backup, the most recent one was at {info.LastWriteTimeUtc.AsDiscordTime()}.");
                         return;
                     }
                 }

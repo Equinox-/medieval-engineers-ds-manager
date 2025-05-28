@@ -74,6 +74,7 @@ namespace Meds.Wrapper.Audit
                     {
                         StartLine().Append("Used Flight");
                         _hasFlown = true;
+                        Notify();
                     }
                 }
                 else
@@ -82,9 +83,16 @@ namespace Meds.Wrapper.Audit
                     _flying = null;
                     fly.Finish();
                 }
-
-                Notify();
             }
+
+            public void RegularUpdate()
+            {
+                var notify = false;
+                notify |= LogArea();
+
+                if (notify) Notify();
+            }
+            
 
             public StringBuilder StartLine()
             {
@@ -114,19 +122,20 @@ namespace Meds.Wrapper.Audit
                 Notify(finish: true);
             }
 
-            private void LogArea()
+            private bool LogArea()
             {
                 var pos = _player.ControlledEntity?.GetPosition();
-                if (pos == null) return;
+                if (pos == null) return false;
                 var planet = MyGamePruningStructureSandbox.GetClosestPlanet(pos.Value);
                 var areas = planet?.Get<MyPlanetAreasComponent>();
-                if (areas == null) return;
+                if (areas == null) return false;
                 var localPos = pos.Value - planet.GetPosition();
                 var areaId = areas.GetArea(localPos);
-                if (areaId == _lastAreaId) return;
+                if (areaId == _lastAreaId) return false;
                 _lastAreaId = areaId;
                 MyPlanetAreasComponent.UnpackAreaId(areaId, out string king, out var region, out var area);
                 StartLine().Append("Entered Area ").Append(king).Append(" ").Append(region).Append(", ").Append(area);
+                return true;
             }
 
             public void Notify(bool finish = false)
@@ -158,6 +167,19 @@ namespace Meds.Wrapper.Audit
             if (MedievalMasterSessions.TryGetValue(id, out var session))
                 session.Finish();
             MedievalMasterSessions.Remove(id);
+        }
+
+        internal static void RegularUpdate()
+        {
+            foreach (var session in MedievalMasterSessions.Values)
+                session.RegularUpdate();
+        }
+
+        internal static void Shutdown()
+        {
+            foreach (var session in MedievalMasterSessions.Values)
+                session.Finish();
+            MedievalMasterSessions.Clear();
         }
 
         [HarmonyPatch(typeof(MySession), "OnAdminModeEnabled")]
