@@ -39,6 +39,8 @@ namespace Meds.Wrapper.Audit
         FlyingEnd,
 
         SpawnItems,
+
+        ChatCommand,
     }
 
     public class AuditPayload
@@ -56,6 +58,8 @@ namespace Meds.Wrapper.Audit
         public ControlOpPayload? ControlOp;
 
         public ClipboardOpPayload? ClipboardOp;
+
+        public ChatCommandPayload? ChatCommand;
 
         public static AuditPayload Create(AuditEvent evt, MyPlayer acting, MyPlayer owning = null, Vector3D? owningLocation = null)
         {
@@ -106,6 +110,12 @@ namespace Meds.Wrapper.Audit
         public AuditPayload ClipboardOpPayload(in ClipboardOpPayload payload)
         {
             ClipboardOp = payload;
+            return this;
+        }
+
+        public AuditPayload ChatCommandPayload(in ChatCommandPayload payload)
+        {
+            ChatCommand = payload;
             return this;
         }
 
@@ -232,5 +242,11 @@ namespace Meds.Wrapper.Audit
             FactionTag = faction.FactionTag,
             FactionName = faction.FactionName
         };
+    }
+
+    public struct ChatCommandPayload
+    {
+        public string Prefix;
+        public string Command;
     }
 }

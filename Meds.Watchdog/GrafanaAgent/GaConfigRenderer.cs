@@ -64,9 +64,7 @@ namespace Meds.Watchdog.GrafanaAgent
         {
             var install = svc.GetRequiredService<InstallConfiguration>();
             var vanillaCfg = ConfigRefreshable<VanillaRemoteApiConfig>.FromConfigFile(
-                Path.Combine(install.RuntimeDirectory, "MedievalEngineersDedicated-Dedicated.cfg"),
-                VanillaRemoteApiConfig.Read
-            );
+                install.DedicatedServerConfigFile, VanillaRemoteApiConfig.Read);
             return svc.GetRequiredService<Refreshable<Configuration>>()
                 .Map(GrafanaAgentConfigInputs.Create)
                 .Combine(vanillaCfg, (inputs, vanilla) => Render(install, inputs, vanilla));

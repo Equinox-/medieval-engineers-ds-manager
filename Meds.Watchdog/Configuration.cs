@@ -126,6 +126,9 @@ namespace Meds.Watchdog
         public class SteamConfig : MemberwiseEquatable<SteamConfig>
         {
             [XmlAttribute]
+            public bool SkipUpdate = false;
+
+            [XmlAttribute]
             public string Branch = "communityedition";
 
             [XmlAttribute]

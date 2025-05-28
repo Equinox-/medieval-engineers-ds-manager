@@ -63,6 +63,7 @@ namespace Meds.Watchdog
         private readonly Refreshable<TimeSpan> _readinessDelay;
         private readonly Refreshable<bool> _sendModChangesOnline;
         private readonly Refreshable<bool> _sendModChangesOffline;
+        private readonly Refreshable<bool> _skip;
 
         private DateTime? _restartCooldownEndsAt;
         private CancellationTokenSource _modCheckDelayInterrupt;
@@ -78,6 +79,7 @@ namespace Meds.Watchdog
             _modSubscriber = modSubscriber;
             _data = data;
 
+            _skip = cfg.Map(x => x.Steam.SkipUpdate);
             _restartAfterUpdate = cfg.Map(x => x.RestartAfterModUpdate >= 0 ? (TimeSpan?)TimeSpan.FromSeconds(x.RestartAfterModUpdate) : null);
             _readinessDelay = cfg.Map(x => TimeSpan.FromSeconds(x.ReadinessTimeout + x.LivenessTimeout));
             _sendModChangesOnline = discord.IsOutputChannelConfigured(DiscordMessageBridge.ModUpdatedServerOnline);
@@ -89,14 +91,17 @@ namespace Meds.Watchdog
             using var subscription = _modSubscriber.Subscribe(ReportMods);
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
+                if (_skip.Current)
                 {
-                    CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromHours(1));
-                    await Task.Run(() => ReportModUpdates(cts.Token), cts.Token);
-                }
-                catch (Exception err)
-                {
-                    _log.ZLogWarning(err, "Failed to check for mod updates in the background");
+                    try
+                    {
+                        var cts = new CancellationTokenSource(TimeSpan.FromHours(1));
+                        await Task.Run(() => ReportModUpdates(cts.Token), cts.Token);
+                    }
+                    catch (Exception err)
+                    {
+                        _log.ZLogWarning(err, "Failed to check for mod updates in the background");
+                    }
                 }
 
                 _modCheckDelayInterrupt = new CancellationTokenSource();

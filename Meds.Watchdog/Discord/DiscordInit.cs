@@ -75,7 +75,7 @@ namespace Meds.Watchdog.Discord
                         args.Context.CommandName,
                         string.Join(", ", args.Context.Interaction?.Data?.Options?.Select(x => x.Name + " " + x.Value) ?? Array.Empty<string>()),
                         uuid);
-                    return args.Context.FollowUpAsync(new DiscordFollowupMessageBuilder { Content = $"Command processing failed!  Error ID = {uuid}" });
+                    return args.Context.FollowUpAsync(new DiscordFollowupMessageBuilder { Content = $"Command processing failed!  Error ID = `{uuid}`, Message = `{args.Exception?.Message}`" });
                 };
 
                 commands.RegisterCommands<DiscordCmdDiagnostic>();
@@ -84,6 +84,7 @@ namespace Meds.Watchdog.Discord
                 commands.RegisterCommands<DiscordCmdSaveSearch>();
                 commands.RegisterCommands<DiscordCmdStatus>();
                 commands.RegisterCommands<DiscordCmdPlayers>();
+                commands.RegisterCommands<DiscordCmdConfig>();
             }
         }
 

@@ -40,6 +40,15 @@ namespace Meds.Watchdog
         [XmlIgnore]
         public string GrafanaAgentDirectory => Path.Combine(Directory, "grafana-agent");
 
+        [XmlIgnore]
+        public string DedicatedServerConfigFile => Path.Combine(RuntimeDirectory, "MedievalEngineersDedicated-Dedicated.cfg");
+
+        [XmlIgnore]
+        public string WorldDirectory => Path.Combine(RuntimeDirectory, "world");
+
+        [XmlIgnore]
+        public string WorldConfigFile => Path.Combine(WorldDirectory, "Sandbox.sbc");
+
         public override void OnLoaded(string path)
         {
             base.OnLoaded(path);

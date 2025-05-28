@@ -18,7 +18,9 @@ using VRage.Collections;
 using VRage.Components;
 using VRage.Components.Session;
 using VRage.Engine;
+using VRage.Entity.Block;
 using VRage.Network;
+using VRage.Physics;
 using VRageMath;
 using MySession = Sandbox.Game.World.MySession;
 

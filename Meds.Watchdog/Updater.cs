@@ -67,6 +67,8 @@ namespace Meds.Watchdog
 
             public async Task Update()
             {
+                if (_updater._runtimeConfig.Current.Steam.SkipUpdate) return;
+
                 var installPath = _updater._installConfig.InstallDirectory;
                 var overlays = await _updater.LoadOverlays(installPath);
                 CancellationToken.ThrowIfCancellationRequested();

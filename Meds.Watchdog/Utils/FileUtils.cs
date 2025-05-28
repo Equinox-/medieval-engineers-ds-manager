@@ -27,15 +27,20 @@ namespace Meds.Watchdog.Utils
             {
                 using (var stream = File.Create(temp))
                     writer(stream);
-                if (!MoveFileEx(temp, target, MoveFileExFlags.ReplaceExisting | MoveFileExFlags.WriteThrough))
-                    throw new Exception(
-                        $"Failed to move file: {Marshal.GetLastWin32Error()}",
-                        Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+                MoveAtomic(temp, target);
             }
             finally
             {
                 File.Delete(temp);
             }
+        }
+
+        public static void MoveAtomic(string from, string to)
+        {
+            if (!MoveFileEx(from, to, MoveFileExFlags.ReplaceExisting | MoveFileExFlags.WriteThrough))
+                throw new Exception(
+                    $"Failed to move file: {Marshal.GetLastWin32Error()}",
+                    Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
         }
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]

@@ -9,8 +9,10 @@ using Medieval.GUI;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Meds.Wrapper.Trace;
+using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Character;
+using Sandbox.Game.GameSystems.Chat;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using Sandbox.Game.SessionComponents.Clipboard;
@@ -19,6 +21,7 @@ using VRage.Game;
 using VRage.Game.Components;
 using VRage.Network;
 using VRage.ObjectBuilders;
+using VRage.ObjectBuilders.Inventory;
 using VRage.Scene;
 using VRageMath;
 
@@ -38,6 +41,7 @@ namespace Meds.Wrapper.Audit
             private readonly StringBuilder _log = new StringBuilder();
             private long _lastAreaId;
             private long _throttleUntil;
+            private bool _hasFlown;
             private static readonly long ThrottleTime = Stopwatch.Frequency * 15;
 
             public MedievalMasterSession(MyPlayer player)
@@ -67,11 +71,14 @@ namespace Meds.Wrapper.Audit
                 if (flying)
                 {
                     _flying = Trace.StartSpan("Flying");
-                    StartLine().Append("Started Flying");
+                    if (!_hasFlown)
+                    {
+                        StartLine().Append("Used Flight");
+                        _hasFlown = true;
+                    }
                 }
                 else
                 {
-                    StartLine().Append("Stopped Flying");
                     var fly = _flying.Value;
                     _flying = null;
                     fly.Finish();
@@ -345,6 +352,81 @@ namespace Meds.Wrapper.Audit
                 AuditPayload.Create(AuditEvent.SpawnItems, player)
                     .InventoryOpPayload(new InventoryOpPayload { Subtype = obj.Item.SubtypeName, Amount = obj.Item.Amount })
                     .Emit();
+            }
+        }
+
+        [HarmonyPatch(typeof(MyInventory), "AddItems_Request")]
+        public static class AuditAddItemsOnInventory
+        {
+            public static void Postfix(MyObjectBuilder_InventoryItem itemBuilder)
+            {
+                if (itemBuilder == null || MyEventContext.Current.HasValidationFailed) return;
+                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
+                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
+                if (player == null)
+                    return;
+
+                if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
+                {
+                    session.StartLine().Append("Spawn ").Append(itemBuilder.SubtypeName).Append(" (x").Append(itemBuilder.Amount).Append(")");
+                    session.Notify();
+                }
+
+                AuditPayload.Create(AuditEvent.SpawnItems, player)
+                    .InventoryOpPayload(new InventoryOpPayload { Subtype = itemBuilder.SubtypeName, Amount = itemBuilder.Amount })
+                    .Emit();
+            }
+        }
+
+        [HarmonyPatch(typeof(MyChatSystem), nameof(MyChatSystem.RegisterChatCommand))]
+        [AlwaysPatch]
+        public static class AuditChatCommand
+        {
+            private static void AuditLog(string key, ulong sender, string message, Exception failure)
+            {
+                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(sender));
+                if (player == null)
+                    return;
+
+                if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
+                {
+                    var sb = session.StartLine().Append("Used Command ").Append(message);
+                    if (failure != null)
+                        sb.Append(", Failed: ").Append(failure.Message);
+                    session.Notify();
+                }
+
+                AuditPayload.Create(AuditEvent.SpawnItems, player)
+                    .ChatCommandPayload(new ChatCommandPayload
+                    {
+                        Prefix = key,
+                        Command = message,
+                    })
+                    .Emit();
+            }
+
+            public static void Prefix(string key, ref MyChatSystem.HandleMessage messageHandler)
+            {
+                var original = messageHandler;
+                messageHandler = (sender, message, type) =>
+                {
+                    var result = false;
+                    Exception failure = null;
+                    try
+                    {
+                        return result = original(sender, message, type);
+                    }
+                    catch (Exception err)
+                    {
+                        failure = err;
+                        throw;
+                    }
+                    finally
+                    {
+                        if (failure != null || result)
+                            AuditLog(key, sender, message, failure);
+                    }
+                };
             }
         }
     }
