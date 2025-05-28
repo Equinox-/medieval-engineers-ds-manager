@@ -25,6 +25,7 @@ using VRage.Library.Collections;
 using VRage.Network;
 using VRage.ParallelWorkers;
 using VRage.Physics;
+using VRage.Scene;
 using VRage.Session;
 using VRage.Utils;
 using VRageRender;
@@ -169,7 +170,7 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    
+
     // https://communityedition.medievalengineers.com/mantis/view.php?id=419
     [HarmonyPatch(typeof(WorkerManager), "NotifyWorkStart")]
     [AlwaysPatch(ByRequest = "Mec419")]
@@ -276,6 +277,26 @@ namespace Meds.Wrapper.Shim
             // Replace "track.Queue != WorkerGroupId.Null" with "track.Queue == WorkerGroupId.Null"
             instructions[42].opcode = OpCodes.Brtrue;
             return instructions;
+        }
+    }
+
+    [HarmonyPatch]
+    [AlwaysPatch]
+    public static class LogMismatchEntityId
+    {
+        private static ILogger Log => Entrypoint.LoggerFor(typeof(Mec419RareDeadlock_ExecutePendingWork));
+
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(MyScene), nameof(MyScene.TryGetEntity), new[] { typeof(EntityId), typeof(MyEntity).MakeByRefType() });
+            yield return AccessTools.Method(typeof(MyStagingScene), nameof(MyScene.TryGetEntity), new[] { typeof(EntityId), typeof(MyEntity).MakeByRefType() });
+        }
+
+        public static void Postfix(EntityId entityId, ref MyEntity entity, ref bool __result)
+        {
+            if (!__result) return;
+            if (entityId != entity?.Id)
+                Log.ZLogWarning("Tried to load entity {0} but got {1} ({2})", entityId, entity?.Id, entity?.DefinitionId);
         }
     }
 }

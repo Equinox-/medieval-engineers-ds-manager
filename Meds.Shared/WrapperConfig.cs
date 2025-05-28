@@ -13,7 +13,7 @@ namespace Meds.Shared
 
         [XmlElement]
         public string Instance;
-        
+
         [XmlElement]
         public string LogDirectory;
 
@@ -72,6 +72,44 @@ namespace Meds.Shared
 
         [XmlElement("RequestPatch")]
         public List<string> RequestPatch = new List<string>();
+
+        [XmlElement]
+        public MinidumpConfig Minidump = new MinidumpConfig();
+    }
+
+    public class MinidumpConfig : MemberwiseEquatable<MinidumpConfig>
+    {
+        /// <summary>Default action for errors not specified in Cases.</summary>
+        [XmlElement]
+        public Action? DefaultAction;
+
+        /// <summary>Maximum space in MB for heap dumps to occupy.</summary>
+        [XmlElement]
+        public int? MaximumSpaceMb;
+
+        [XmlElement("Case")]
+        public List<Case> Cases = new List<Case>();
+
+        public struct Case
+        {
+            [XmlAttribute]
+            public string Trigger;
+
+            [XmlAttribute]
+            public Action Action;
+        }
+
+        public enum Action
+        {
+            /// <summary>Don't take any action.</summary>
+            None,
+
+            /// <summary>Save a minidump with thread state and stacks.</summary>
+            DumpThreads,
+
+            /// <summary>Save a heap dump with thread state, stacks, and the full memory contents.</summary>
+            DumpHeap,
+        }
     }
 
     public class BackupConfig : MemberwiseEquatable<BackupConfig>

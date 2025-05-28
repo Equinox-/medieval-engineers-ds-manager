@@ -49,6 +49,7 @@ namespace Meds.Wrapper.Shim
                     Log?.ZLogInformation("Skipping patch {0} ({1} was not requested)", type.FullName, attr.ByRequest);
                     continue;
                 }
+
                 Patch(type);
             }
 
@@ -188,11 +189,12 @@ namespace Meds.Wrapper.Shim
         {
             public static void Prefix(MinidumpSystem.Params configuration)
             {
+                var cfg = Entrypoint.Config.Install.Adjustments?.Minidump;
                 var dir = Entrypoint.Config.Install.DiagnosticsDirectory;
                 if (dir != null)
                     configuration.Directory = dir;
-                configuration.DefaultAction = MinidumpSystem.MinidumpAction.DumpThreads;
-                configuration.MaximumSpaceMb = 50 * 1024;
+                configuration.DefaultAction = ToVRage(cfg?.DefaultAction ?? MinidumpConfig.Action.DumpThreads);
+                configuration.MaximumSpaceMb = cfg?.MaximumSpaceMb ?? 50 * 1024;
                 configuration.Cases ??= new List<MinidumpSystem.MinidumpCase>();
                 configuration.Cases.InsertRange(0, new[]
                 {
@@ -202,6 +204,28 @@ namespace Meds.Wrapper.Shim
                         Action = MinidumpSystem.MinidumpAction.None,
                     }
                 });
+                if (cfg?.Cases != null)
+                    configuration.Cases.InsertRange(0, cfg.Cases.Select(ToVRage));
+            }
+
+            private static MinidumpSystem.MinidumpCase ToVRage(MinidumpConfig.Case val) => new MinidumpSystem.MinidumpCase
+            {
+                Trigger = val.Trigger,
+                Action = ToVRage(val.Action),
+            };
+
+            private static MinidumpSystem.MinidumpAction ToVRage(MinidumpConfig.Action val)
+            {
+                switch (val)
+                {
+                    case MinidumpConfig.Action.DumpThreads:
+                        return MinidumpSystem.MinidumpAction.DumpThreads;
+                    case MinidumpConfig.Action.DumpHeap:
+                        return MinidumpSystem.MinidumpAction.DumpHeap;
+                    case MinidumpConfig.Action.None:
+                    default:
+                        return MinidumpSystem.MinidumpAction.None;
+                }
             }
         }
 
