@@ -1,8 +1,13 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DSharpPlus.SlashCommands;
 using Meds.Shared;
+using Meds.Watchdog.Save;
 using Meds.Watchdog.Utils;
+using Microsoft.Diagnostics.Runtime;
 using Microsoft.Extensions.Logging;
 
 namespace Meds.Watchdog.Discord
@@ -26,10 +31,7 @@ namespace Meds.Watchdog.Discord
         [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task CoreDumpCommand(
             InteractionContext context,
-            [Choice("now", "0")]
-            [Choice("1 minute", "1m")]
-            [Choice("5 minutes", "5m")]
-            [Option("delay", "Delay before core dump, optional.")]
+            [Choice("now", "0")] [Choice("1 minute", "1m")] [Choice("5 minutes", "5m")] [Option("delay", "Delay before core dump, optional.")]
             TimeSpan? delay = default,
             [Option("reason", "Reason for creating the core dump, optional.")]
             string reason = null)
@@ -49,9 +51,7 @@ namespace Meds.Watchdog.Discord
         [SlashCommandPermissions(DiscordService.CommandPermission)]
         public async Task PerformanceProfileCommand(
             InteractionContext context,
-            [Choice("1 minute", "1m")]
-            [Choice("5 minutes", "5m")]
-            [Option("duration", "Duration to profile for")]
+            [Choice("1 minute", "1m")] [Choice("5 minutes", "5m")] [Option("duration", "Duration to profile for")]
             TimeSpan? duration = default,
             [Option("mode", "Profiling mode (sampling [default], or timeline)")]
             DiagnosticController.ProfilingMode mode = DiagnosticController.ProfilingMode.Sampling,
@@ -122,6 +122,98 @@ namespace Meds.Watchdog.Discord
             {
                 await context.EditResponseAsync("Transfer timed out");
             }
+        }
+
+        [SlashCommand("diagnostic-inspect", "Inspects a core dump diagnostic file remotely.")]
+        [SlashCommandPermissions(DiscordService.CommandPermission)]
+        public async Task InspectCoreDump(
+            InteractionContext context,
+            [Option("diagnostic", "Core dump name")] [Autocomplete(typeof(CoreDumpAutoCompleter))]
+            string diagnosticName,
+            [Option("include-threads", "List thread stack traces")]
+            bool threads = false,
+            [Option("include-heap-histogram", "List histogram of objects and their size")]
+            bool heapHistogram = false)
+        {
+            await context.CreateResponseAsync($"Loading diagnostic `{diagnosticName}`...");
+            if (!_diagnostic.TryGetDiagnostic(diagnosticName, out var diagnostic))
+            {
+                await context.EditResponseAsync($"Failed to load diagnostic `{diagnostic}`");
+                return;
+            }
+
+            using var target = DataTarget.LoadDump(diagnostic.Info.FullName);
+            using var runtime = target.ClrVersions[0].CreateRuntime();
+            var lines = new List<string>();
+            if (threads)
+            {
+                await context.EditResponseAsync($"Enumerating threads for `{diagnosticName}`...");
+                lines.Add("Threads");
+                foreach (var thread in runtime.Threads)
+                {
+                    lines.AddRange(DescribeThread(thread));
+                    lines.Add("");
+                }
+                lines.Add("");
+            }
+
+            if (heapHistogram)
+            {
+                var progress = new ProgressReporter(context, $"Enumerating heap for `{diagnosticName}`", " segments");
+                var heap = runtime.Heap;
+                lines.Add("Heap Histogram");
+                lines.AddRange(DescribeHeap(heap, progress.Reporter));
+                lines.Add("");
+            }
+
+            await context.RespondLongText(lines);
+        }
+
+        private static IEnumerable<string> DescribeHeap(ClrHeap heap, DelReportProgress reporter)
+        {
+            if (!heap.CanWalkHeap)
+                yield return "  Warning: Heap is not in a consistent state";
+            var segments = heap.Segments;
+            var entries = new Dictionary<ClrType, HeapStats>();
+            for (var i = 0; i < segments.Length; i++)
+            {
+                reporter(segments.Length, i, 0);
+                foreach (var obj in segments[i].EnumerateObjects())
+                {
+                    var type = obj.Type;
+                    if (type == null || type.IsFree) continue;
+
+                    if (!entries.TryGetValue(type, out var stats))
+                        entries.Add(type, stats = new HeapStats());
+
+                    stats.Instances++;
+                    stats.Bytes += obj.Size;
+                }
+            }
+            reporter(segments.Length, segments.Length, 0);
+
+            const int limit = 128;
+            var table = new DiscordUtils.TableFormatter(0);
+            table.AddRow("KiB", "Instances", "Type");
+            foreach (var top in entries
+                         .OrderByDescending(x => x.Value.Bytes)
+                         .Take(limit))
+                table.AddRow((top.Value.Bytes / 1024).ToString(), top.Value.Instances.ToString(), top.Key.Name ?? "unknown");
+            foreach (var line in table.Lines())
+                yield return $"  {line}";
+        }
+
+        private class HeapStats
+        {
+            public ulong Instances;
+            public ulong Bytes;
+        }
+
+        private static IEnumerable<string> DescribeThread(ClrThread thread)
+        {
+            yield return $"  Thread id=0x{thread.ManagedThreadId}, osId=0x{thread.OSThreadId:X}, state={thread.State}";
+            foreach (var frame in thread.EnumerateStackTrace(false, 32))
+                yield return $"    {frame}";
         }
     }
 }

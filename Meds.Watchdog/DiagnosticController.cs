@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -31,6 +32,7 @@ namespace Meds.Watchdog
         private readonly InstallConfiguration _installConfig;
         private readonly HealthTracker _healthTracker;
         private readonly ILogger<DiagnosticController> _log;
+        public const string CoreDumpExt = ".dmp";
 
         public DiagnosticController(IPublisher<ChatMessage> chatPublisher,
             InstallConfiguration installConfig, Refreshable<Configuration> runtimeConfig,
@@ -74,7 +76,7 @@ namespace Meds.Watchdog
                 await Task.Delay(PollInterval, cancellationToken);
             }
 
-            var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}.dmp";
+            var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{CleanAndPrefix(reason)}{CoreDumpExt}";
             var dir = _installConfig.DiagnosticsDirectory;
             Directory.CreateDirectory(dir);
             var finalPath = Path.Combine(dir, name);
@@ -94,7 +96,7 @@ namespace Meds.Watchdog
                 }
 
                 File.Move(tempPath, finalPath);
-                _autoCompleterAll = null;
+                _autocompletes.Clear();
                 return new DiagnosticOutput(new FileInfo(finalPath));
             }
             catch (Exception err)
@@ -198,7 +200,7 @@ namespace Meds.Watchdog
                 }
 
                 Directory.Move(tempDir, finalDir);
-                _autoCompleterAll = null;
+                _autocompletes.Clear();
                 return new DiagnosticOutput(new FileInfo(finalDir));
             }
             catch (Exception err)
@@ -271,29 +273,38 @@ namespace Meds.Watchdog
             }
         }
 
-        private readonly object _autoCompleteLock = new object();
-        private long _autoCompleterExpires;
-        private volatile AutoCompleteTree<DiagnosticOutput> _autoCompleterAll;
-
-        private bool AutoCompleteExpired => _autoCompleterAll == null || Volatile.Read(ref _autoCompleterExpires) <= Stopwatch.GetTimestamp();
-
-        private void EnsureAutoCompleter()
+        private readonly struct CachedAutocomplete : IEquatable<CachedAutocomplete>
         {
-            if (!AutoCompleteExpired)
-                return;
-            lock (_autoCompleteLock)
+            public readonly AutoCompleteTree<DiagnosticOutput> Tree;
+            public readonly long ExpiresAt;
+
+            public CachedAutocomplete(AutoCompleteTree<DiagnosticOutput> tree)
             {
-                if (!AutoCompleteExpired) return;
-                _autoCompleterAll = new AutoCompleteTree<DiagnosticOutput>(AllDiagnostics.Select(x => (x.Info.Name, x)));
-                // 1 minute cache
-                _autoCompleterExpires = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 60;
+                Tree = tree;
+                ExpiresAt = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 60;
             }
+
+            public bool Expired => Stopwatch.GetTimestamp() >= ExpiresAt;
+
+            public bool Equals(CachedAutocomplete other) => Tree.Equals(other.Tree);
+
+            public override bool Equals(object obj) => obj is CachedAutocomplete other && Equals(other);
+
+            public override int GetHashCode() => Tree.GetHashCode();
         }
 
-        public IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> AutoCompleteDiagnostic(string prompt, int? limit = null)
+        private readonly ConcurrentDictionary<string, CachedAutocomplete> _autocompletes = new ConcurrentDictionary<string, CachedAutocomplete>();
+
+        private CachedAutocomplete CreateAutocomplete(string ext) => new CachedAutocomplete(new AutoCompleteTree<DiagnosticOutput>(AllDiagnostics
+            .Where(x => x.Info.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+            .Select(x => (x.Info.Name, x))));
+
+        public IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> AutoCompleteDiagnostic(string prompt, int? limit = null, string ext = "")
         {
-            EnsureAutoCompleter();
-            return _autoCompleterAll.Apply(prompt, limit);
+            return _autocompletes.AddOrUpdate(ext, CreateAutocomplete,
+                    (extCaptured, existing) => existing.Expired ? CreateAutocomplete(extCaptured) : existing)
+                .Tree
+                .Apply(prompt, limit);
         }
 
         public bool TryGetDiagnostic(string name, out DiagnosticOutput diagnostic)
@@ -352,7 +363,7 @@ namespace Meds.Watchdog
                         Directory.Delete(diagnostic.Info.FullName, true);
                     else
                         File.Delete(diagnostic.Info.FullName);
-                    _autoCompleterAll = null;
+                    _autocompletes.Clear();
                     return new DiagnosticOutput(new FileInfo(finalZipPath));
                 }
                 finally
@@ -399,15 +410,21 @@ namespace Meds.Watchdog
         public override string ToString() => Info.Name;
     }
 
-    public sealed class DiagnosticFilesAutoCompleter : DiscordAutoCompleter<DiagnosticOutput>
+    public class DiagnosticFilesAutoCompleter : DiscordAutoCompleter<DiagnosticOutput>
     {
-        protected override IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> Provide(AutocompleteContext ctx, string prefix)
+        protected virtual string Extension => ""; 
+        protected sealed override IEnumerable<AutoCompleteTree<DiagnosticOutput>.Result> Provide(AutocompleteContext ctx, string prefix)
         {
-            return ctx.Services.GetRequiredService<DiagnosticController>().AutoCompleteDiagnostic(prefix);
+            return ctx.Services.GetRequiredService<DiagnosticController>().AutoCompleteDiagnostic(prefix, ext: Extension);
         }
 
-        protected override string FormatData(string key, DiagnosticOutput data) => key;
+        protected sealed override string FormatData(string key, DiagnosticOutput data) => key;
 
-        protected override string FormatArgument(DiagnosticOutput data) => data.Info.Name;
+        protected sealed override string FormatArgument(DiagnosticOutput data) => data.Info.Name;
+    }
+
+    public sealed class CoreDumpAutoCompleter : DiagnosticFilesAutoCompleter
+    {
+        protected override string Extension => DiagnosticController.CoreDumpExt;
     }
 }

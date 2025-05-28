@@ -127,7 +127,7 @@ namespace Meds.Watchdog.Discord
             _lifetimeController.Request = new LifecycleStateRequest(DateTime.UtcNow + realDelay , request);
             var prevState = DiscordStatusMonitor.FormatStateRequest(prev, _healthTracker.Readiness.State);
             var newState = DiscordStatusMonitor.FormatStateRequest(request);
-            var delayString = delay > TimeSpan.FromSeconds(1) ? $"in {realDelay:g}" : "now";
+            var delayString = realDelay > TimeSpan.FromSeconds(1) ? $"in {realDelay:g}" : "now";
             await context.CreateResponseAsync($"Changing from \"{prevState}\" to \"{newState}\" {delayString}");
         }
     }
