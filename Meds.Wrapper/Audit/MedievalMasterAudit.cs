@@ -356,6 +356,7 @@ namespace Meds.Wrapper.Audit
         }
 
         [HarmonyPatch(typeof(MyInventory), "AddItems_Request")]
+        [AlwaysPatch]
         public static class AuditAddItemsOnInventory
         {
             public static void Postfix(MyObjectBuilder_InventoryItem itemBuilder)
