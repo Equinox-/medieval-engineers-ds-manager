@@ -397,7 +397,7 @@ namespace Meds.Wrapper.Audit
                     session.Notify();
                 }
 
-                AuditPayload.Create(AuditEvent.SpawnItems, player)
+                AuditPayload.Create(AuditEvent.ChatCommand, player)
                     .ChatCommandPayload(new ChatCommandPayload
                     {
                         Prefix = key,
