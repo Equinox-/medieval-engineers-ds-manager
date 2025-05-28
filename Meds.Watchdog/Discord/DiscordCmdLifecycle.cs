@@ -36,7 +36,7 @@ namespace Meds.Watchdog.Discord
             [Choice("1 minute", "1m")]
             [Choice("5 minutes", "5m")]
             [Option("delay", "Delay before restart, optional.")]
-            TimeSpan? delay = default,
+            TimeSpan? delay = null,
             [Option("reason", "Reason the server needs to be restarted, optional.")]
             string reason = null)
         {
@@ -106,7 +106,7 @@ namespace Meds.Watchdog.Discord
             [Choice("1 minute", "1m")]
             [Choice("5 minutes", "5m")]
             [Option("delay", "Delay before shutdown, optional.")]
-            TimeSpan? delay = default,
+            TimeSpan? delay = null,
             [Option("reason", "Reason the server will be shutdown, optional.")]
             string reason = null)
         {
@@ -117,12 +117,12 @@ namespace Meds.Watchdog.Discord
         [SlashCommandPermissions(DiscordService.CommandPermission)]
         public Task StartCommand(InteractionContext context)
         {
-            return ChangeState(context, new LifecycleState(LifecycleStateCase.Running));
+            return ChangeState(context, new LifecycleState(LifecycleStateCase.Running), TimeSpan.Zero);
         }
 
         private async Task ChangeState(InteractionContext context, LifecycleState request, TimeSpan? delay = null)
         {
-            var realDelay = delay ?? TimeSpan.Zero;
+            var realDelay = delay ?? TimeSpan.FromMinutes(5);
             var prev = _lifetimeController.Active;
             _lifetimeController.Request = new LifecycleStateRequest(DateTime.UtcNow + realDelay , request);
             var prevState = DiscordStatusMonitor.FormatStateRequest(prev, _healthTracker.Readiness.State);
