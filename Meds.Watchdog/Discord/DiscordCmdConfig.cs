@@ -107,6 +107,8 @@ namespace Meds.Watchdog.Discord
                     case BackupRestoreAction.Backup:
                     {
                         File.Copy(path, backupPath, true);
+                        File.SetCreationTimeUtc(backupPath, DateTime.UtcNow);
+                        File.SetLastWriteTimeUtc(backupPath, DateTime.UtcNow);
                         await ctx.EditResponseAsync($"Created backup for {file} at {DateTime.UtcNow.AsDiscordTime()}");
                         return;
                     }
