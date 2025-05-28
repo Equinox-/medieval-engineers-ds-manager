@@ -280,6 +280,30 @@ namespace Meds.Wrapper.Shim
         }
     }
 
+    // Fixes access to rtnIdentity.DisplayName when rtnIdentity is always null.
+    [HarmonyPatch(typeof(MyPlayers), nameof(MyPlayers.GetIdentity), typeof(MyPlayer))]
+    [AlwaysPatch]
+    public static class IdentityAccessNre
+    {
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream)
+        {
+            var identityDisplayName = AccessTools.PropertyGetter(typeof(MyIdentity), nameof(MyIdentity.DisplayName));
+            foreach (var i in stream)
+            {
+                if (i.Calls(identityDisplayName))
+                {
+                    i.opcode = OpCodes.Pop;
+                    i.operand = null;
+                    yield return i;
+                    yield return new CodeInstruction(OpCodes.Ldstr, "null");
+                    continue;
+                }
+                yield return i;
+            }
+        }
+
+    }
+
     [HarmonyPatch]
     [AlwaysPatch]
     public static class LogMismatchEntityId

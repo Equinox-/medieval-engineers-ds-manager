@@ -117,6 +117,10 @@ namespace Meds.Wrapper
                 PlayerMetrics.Update();
         }
 
+        // Once per minute
+        [Update(60_000)]
+        public void UpdateAudit(long dt) => MedievalMasterAudit.RegularUpdate();
+
         // Every 5 minutes
         [Update(5 * 60 * 1000)]
         public void UpdateDataStore(long dt)

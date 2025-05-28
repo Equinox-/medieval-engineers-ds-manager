@@ -85,6 +85,15 @@ namespace Meds.Wrapper.Audit
                 }
             }
 
+            public void RegularUpdate()
+            {
+                var notify = false;
+                notify |= LogArea();
+
+                if (notify) Notify();
+            }
+            
+
             public StringBuilder StartLine()
             {
                 LogArea();
@@ -158,6 +167,12 @@ namespace Meds.Wrapper.Audit
             if (MedievalMasterSessions.TryGetValue(id, out var session))
                 session.Finish();
             MedievalMasterSessions.Remove(id);
+        }
+
+        internal static void RegularUpdate()
+        {
+            foreach (var session in MedievalMasterSessions.Values)
+                session.RegularUpdate();
         }
 
         internal static void Shutdown()
