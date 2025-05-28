@@ -51,7 +51,6 @@ namespace Meds.Wrapper.Audit
                 _span = Trace.StartSpan($"Medieval Master by {player.Identity?.DisplayName ?? player.Id.SteamId.ToString()}");
                 _sessionId = $"mm-audit-{_span.SpanId:X8}";
                 _start = DateTime.UtcNow;
-                _log.Append("```\n").Append("Trace: ").Append(Trace.TraceId);
             }
 
             private string Elapsed
@@ -138,8 +137,9 @@ namespace Meds.Wrapper.Audit
                 var builder = MedsModApi.SendModEvent("MedievalMasterAudit", MedsAppPackage.Instance);
                 builder.SetReuseIdentifier(_sessionId, TimeSpan.FromHours(1));
                 var name = _player.Identity?.DisplayName ?? _player.Id.SteamId.ToString();
+                var traceInfo = string.Format(Entrypoint.Config?.Runtime?.Current?.Audit?.TraceIdFormat ?? AuditConfig.DefaultTraceIdFormat, Trace.TraceId);
                 builder.SetMessage(
-                    $"{(finish ? $"{name} used Medieval Master for {Elapsed}" : $"{name} started using Medieval Master {_start.AsDiscordTime(DiscordTimeFormat.Relative)}")}\n{_log}\n```");
+                    $"{(finish ? $"{name} used Medieval Master for {Elapsed}" : $"{name} started using Medieval Master {_start.AsDiscordTime(DiscordTimeFormat.Relative)}")} {traceInfo}\n```\n{_log}\n```");
                 builder.Send();
                 _throttleUntil = Stopwatch.GetTimestamp() + ThrottleTime;
             }

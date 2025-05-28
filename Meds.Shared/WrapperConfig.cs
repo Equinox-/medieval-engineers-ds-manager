@@ -50,6 +50,10 @@ namespace Meds.Shared
 
     public class AuditConfig : MemberwiseEquatable<AuditConfig>
     {
+        public const string DefaultTraceIdFormat = "(Trace: {0})";
+
+        [XmlElement]
+        public string TraceIdFormat;
     }
 
     public class AdjustmentsConfig : MemberwiseEquatable<AdjustmentsConfig>
