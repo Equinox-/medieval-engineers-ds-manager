@@ -9,10 +9,12 @@ using HarmonyLib;
 using Meds.Metrics;
 using Meds.Metrics.Group;
 using Meds.Wrapper.Shim;
+using VRage.Collections.Concurrent;
 using VRage.Game;
 using VRage.Library;
 using VRage.Network;
 using VRage.ObjectBuilders;
+using VRage.Replication;
 using VRage.Steam;
 // ReSharper disable InconsistentNaming
 
@@ -117,10 +119,6 @@ namespace Meds.Wrapper.Metrics
                 Type.GetType("VRage.Network.MyReplicationServer+ClientData, VRage") ??
                 throw new NullReferenceException("Failed to resolve ClientData");
 
-            private static readonly FieldInfo AwakeGroupsField = AccessTools.Field(ClientDataType, "AwakeGroupsQueue");
-
-            private static readonly FieldInfo StateField = AccessTools.Field(ClientDataType, "State");
-
             // private static readonly FieldInfo NetworkPing = AccessTools.Field(ClientDataType, "NetworkPing");
 
             private static readonly AccessTools.FieldRef<FastPriorityQueue<MyStateDataEntry>.Node, long> PriorityField =
@@ -137,20 +135,53 @@ namespace Meds.Wrapper.Metrics
                 }
             }
 
-            public static void Postfix(MyReplicationLayer __instance, object clientData)
+            public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> isn)
             {
-                var awakeGroups = (FastPriorityQueue<MyStateDataEntry>)AwakeGroupsField.GetValue(clientData);
-                var state = (MyClientStateBase)StateField.GetValue(clientData);
-                // var ping = (MyNetworkPing)NetworkPing.GetValue(clientData);
+                var replicablesStreaming = AccessTools.Field(ClientDataType, "ReplicableStreaming");
+                var replicablesPrep = AccessTools.Field(replicablesStreaming.FieldType, "m_preparation");
 
-                var groupCount = awakeGroups.Count;
-                var groupDelay = groupCount > 0 ? __instance.GetSyncFrameCounter() - PriorityField.Invoke(awakeGroups.First) : 0;
-                if (PlayerMetrics.TryGetHolder(state.EndpointId.Value, out var holder))
-                {
-                    holder.StateGroupCount.SetValue(groupCount);
-                    holder.StateGroupDelay.SetValue(groupDelay);
-                    // holder.Ping.Record((long)(ping.ImmediatePingMs / 1000 * Stopwatch.Frequency));
-                }
+                yield return new CodeInstruction(OpCodes.Ldarg_0);
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return CodeInstruction.LoadField(ClientDataType, "State");
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return CodeInstruction.LoadField(ClientDataType, "Replicables");
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return new CodeInstruction(OpCodes.Ldfld, replicablesStreaming);
+                yield return CodeInstruction.LoadField(replicablesStreaming.FieldType, "m_currentlyStreamedReplicables");
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return new CodeInstruction(OpCodes.Ldfld, replicablesStreaming);
+                yield return new CodeInstruction(OpCodes.Ldfld, replicablesPrep);
+                yield return CodeInstruction.LoadField(replicablesPrep.FieldType, "m_processingSet");
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return CodeInstruction.LoadField(ClientDataType, "StateGroups");
+                yield return new CodeInstruction(OpCodes.Ldarg_1);
+                yield return CodeInstruction.LoadField(ClientDataType, "AwakeGroupsQueue");
+                yield return CodeInstruction.Call(typeof(StateSync), nameof(OnSendStateSync));
+
+                foreach (var instruction in isn)
+                    yield return instruction;
+            }
+
+            public static void OnSendStateSync(
+                MyReplicationLayer layer,
+                MyClientStateBase state,
+                MyConcurrentDictionary<IMyReplicable, MyReplicableClientData> replicables,
+                HashSet<IMyReplicable> streamingReplicables,
+                HashSet<IMyReplicable> processingReplicables,
+                MyConcurrentDictionary<IMyStateGroup, MyStateDataEntry> stateGroups,
+                FastPriorityQueue<MyStateDataEntry> awakeGroups)
+            {
+                if (!PlayerMetrics.TryGetHolder(state.EndpointId.Value, out var holder)) return;
+                var activeGroupCount = awakeGroups.Count;
+                var groupDelay = activeGroupCount > 0 ? layer.GetSyncFrameCounter() - PriorityField.Invoke(awakeGroups.First) : 0;
+
+                holder.ReplicableCount.SetValue(replicables.Count);
+                holder.ReplicablesProcessing.SetValue(processingReplicables.Count);
+                holder.ReplicablesStreaming.SetValue(streamingReplicables.Count);
+
+                holder.StateGroupCount.SetValue(stateGroups.Count);
+                holder.StateGroupsActive.SetValue(activeGroupCount);
+                holder.StateGroupDelay.SetValue(groupDelay);
             }
         }
 

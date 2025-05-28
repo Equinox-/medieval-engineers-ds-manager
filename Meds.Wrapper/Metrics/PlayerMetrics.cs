@@ -131,9 +131,14 @@ namespace Meds.Wrapper.Metrics
 
             internal readonly Counter BytesSent;
             internal readonly Counter BytesReceived;
+
+            internal readonly Gauge ReplicableCount;
+            internal readonly Gauge ReplicablesProcessing;
+            internal readonly Gauge ReplicablesStreaming;
+
             internal readonly Gauge StateGroupCount;
+            internal readonly Gauge StateGroupsActive;
             internal readonly Gauge StateGroupDelay;
-            // internal readonly Timer Ping;
 
             private MetricName? _tags;
 
@@ -170,9 +175,12 @@ namespace Meds.Wrapper.Metrics
                 _networkGroup = MetricRegistry.Group(_group.Name.WithSeries(PlayersNetwork));
                 BytesSent = _networkGroup.Counter("bytes.sent");
                 BytesReceived = _networkGroup.Counter("bytes.received");
+                ReplicableCount = _networkGroup.Gauge("replicable.count", 0);
+                ReplicablesProcessing = _networkGroup.Gauge("replicable.processing", 0);
+                ReplicablesStreaming = _networkGroup.Gauge("replicable.streaming", 0);
+                StateGroupsActive = _networkGroup.Gauge("stateGroup.active", 0);
                 StateGroupCount = _networkGroup.Gauge("stateGroup.count", 0);
                 StateGroupDelay = _networkGroup.Gauge("stateGroup.delay", 0);
-                // Ping = MetricRegistry.Timer(_group.Name.WithSeries(PlayersNetworkPing));
             }
 
             internal void Update(MyPlayer player)
