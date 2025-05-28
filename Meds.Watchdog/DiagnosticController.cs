@@ -181,6 +181,7 @@ namespace Meds.Watchdog
 
                 _chatPublisher.SendGenericMessage(_runtimeConfig.Current.StatusChangeChannel, $"Profiling for {duration.FormatHumanDuration()}");
                 await (starting?.Invoke() ?? Task.CompletedTask);
+
                 while (!profiler.HasExited)
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -196,7 +197,7 @@ namespace Meds.Watchdog
                     return null;
                 }
 
-                File.Move(tempDir, finalDir);
+                Directory.Move(tempDir, finalDir);
                 _autoCompleterAll = null;
                 return new DiagnosticOutput(new FileInfo(finalDir));
             }
@@ -207,7 +208,7 @@ namespace Meds.Watchdog
             }
             finally
             {
-                Directory.Delete(tempDir, true);
+                if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
             }
         }
 
