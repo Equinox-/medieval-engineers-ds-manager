@@ -82,10 +82,7 @@ namespace Meds.Wrapper.Audit
             if (actor == null)
                 return;
             AuditPayload.Create(AuditEvent.PaxRopeControlStart, actor, owningLocation: controlled.Entity?.GetPosition())
-                .ControlOpPayload(new ControlOpPayload
-                {
-                    Entity = controlled.Entity?.DefinitionId?.SubtypeName,
-                })
+                .ControlOpPayload(ControlOpPayload.Create(controlled))
                 .Emit();
         }
     }

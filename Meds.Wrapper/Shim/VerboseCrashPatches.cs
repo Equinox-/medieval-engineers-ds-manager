@@ -60,7 +60,7 @@ namespace Meds.Wrapper.Shim
             Entrypoint
                 .LoggerFor(ec.GetType())
                 .ZLogErrorWithPayload(error,
-                    new EntityComponentPayload(ec, null, container),
+                    new EntityComponentPayload(ec),
                     "Failed to invoke {0} on {1}",
                     function,
                     container?.Entity?.ToString());

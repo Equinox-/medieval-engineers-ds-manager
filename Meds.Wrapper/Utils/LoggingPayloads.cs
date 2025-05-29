@@ -127,51 +127,73 @@ namespace Meds.Wrapper.Utils
         }
     }
 
+    public struct BasicEntityPayload
+    {
+        public long Id;
+        public long RootId;
+        public string Subtype;
+
+        public static BasicEntityPayload Create(MyEntity entity) => new BasicEntityPayload
+        {
+            Id = entity.EntityId,
+            RootId = entity.GetTopMostParent().EntityId,
+            Subtype = entity.DefinitionId?.SubtypeName
+        };
+
+        public static BasicEntityPayload? CreateNullable(MyEntity entity) => entity != null ? (BasicEntityPayload?)Create(entity) : null;
+    }
+
     public class EntityPayload
     {
-        public long? EntityId;
-        public long? EntityRootId;
-        public string EntitySubtype;
+        public BasicEntityPayload Basic;
         public PositionPayload Position;
         public int? BlockCount;
 
         public EntityPayload(MyEntity entity)
         {
-            EntityId = entity.EntityId;
-            EntityRootId = entity.GetTopMostParent()?.EntityId;
-            EntitySubtype = entity.DefinitionId?.SubtypeName;
+            Basic = BasicEntityPayload.Create(entity);
             PositionPayload.TryCreate(entity.GetPosition(), out Position);
             if (entity.Components.TryGet(out MyGridDataComponent grid))
                 BlockCount = grid.BlockCount;
         }
     }
 
+    public struct BasicEntityComponentPayload
+    {
+        public BasicEntityPayload? Entity;
+        public string Subtype;
+
+        public static BasicEntityComponentPayload Create(MyEntityComponent cmp, MyEntityComponentDefinition def = null) => new BasicEntityComponentPayload
+        {
+            Entity = BasicEntityPayload.CreateNullable(cmp.Entity),
+            Subtype = def?.Id.SubtypeName ?? (cmp as MyMultiComponent)?.SubtypeId.String ?? cmp.GetType().Name
+        };
+
+        public static BasicEntityComponentPayload? CreateNullable(MyEntityComponent cmp, MyEntityComponentDefinition def = null) =>
+            cmp != null ? (BasicEntityComponentPayload?)Create(cmp, def) : null;
+    }
+
     public class EntityComponentPayload
     {
+        public BasicEntityComponentPayload Basic;
         public PackagePayload Package;
         public string Type;
         public string Method;
-        public long? EntityId;
-        public long? EntityRootId;
-        public string EntitySubtype;
         public DefinitionPayload? Definition;
         public PlayerPayload? Player;
 
-        public EntityComponentPayload(MyEntityComponent comp, string method = null,
-            MyEntityComponentContainer container = null)
+        public EntityComponentPayload(MyEntityComponent comp, string method = null)
         {
-            container ??= comp.Container;
             Package = new PackagePayload(comp.GetType());
             Type = comp.GetType().Name;
             Method = method;
-            EntityId = container?.Entity?.EntityId;
-            EntityRootId = container?.Entity?.GetTopMostParent()?.EntityId;
-            EntitySubtype = container?.Entity?.DefinitionId?.SubtypeName;
-            if (DefinitionForObject.TryGet(comp, out var def))
+            if (!DefinitionForObject.TryGet(comp, out var def)) def = null;
+            Basic = BasicEntityComponentPayload.Create(comp, def as MyEntityComponentDefinition);
+            if (def != null)
                 Definition = new DefinitionPayload(def);
             else
                 Definition = null;
-            var holdingPlayer = MyPlayers.Static?.GetControllingPlayer(comp.Entity);
+            var holdingPlayer = AuditPayload.PlayerForEntity(comp.Entity);
             Player = holdingPlayer != null ? (PlayerPayload?)PlayerPayload.Create(holdingPlayer) : null;
         }
     }
@@ -197,7 +219,7 @@ namespace Meds.Wrapper.Utils
                 Definition = new DefinitionPayload(def);
             else
                 Definition = null;
-            var holdingPlayer = MyPlayers.Static?.GetControllingPlayer(tool.Holder);
+            var holdingPlayer = AuditPayload.PlayerForEntity(tool.Holder);
             Player = holdingPlayer != null ? (PlayerPayload?)PlayerPayload.Create(holdingPlayer) : null;
         }
     }

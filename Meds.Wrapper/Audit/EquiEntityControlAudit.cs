@@ -82,16 +82,11 @@ namespace Meds.Wrapper.Audit
         private static void AuditLog(MyEntityComponent controller, MyEntityComponent controlled,
             MyEntityComponentDefinition controlledDefinition, string slotName)
         {
-            var actor = MyPlayers.Static?.GetControllingPlayer(controller.Entity);
+            var actor = AuditPayload.PlayerForEntity(controller.Entity);
             if (actor == null)
                 return;
             AuditPayload.Create(AuditEvent.EquiControlStart, actor, owningLocation: controlled.Entity?.GetPosition())
-                .ControlOpPayload(new ControlOpPayload
-                {
-                    Entity = controlled.Entity?.DefinitionId?.SubtypeName,
-                    Component = controlledDefinition?.Id.SubtypeName,
-                    Slot = slotName,
-                })
+                .ControlOpPayload( ControlOpPayload.Create(controlled, controlledDefinition, slotName))
                 .Emit();
         }
     }

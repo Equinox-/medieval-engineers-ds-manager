@@ -27,8 +27,8 @@ namespace Meds.Wrapper.Audit
             if (actor == null)
                 return;
 
-            var srcOwner = MyPlayers.Static?.GetControllingPlayer(src.Entity);
-            var dstOwner = MyPlayers.Static?.GetControllingPlayer(dst.Entity);
+            var srcOwner = AuditPayload.PlayerForEntity(src.Entity);
+            var dstOwner = AuditPayload.PlayerForEntity(dst.Entity);
 
             if (srcOwner == actor)
             {

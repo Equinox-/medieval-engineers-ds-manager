@@ -96,6 +96,7 @@ namespace Meds.Wrapper
             CoreMetrics.Register();
             PaxMetrics.Register(Config.Metrics);
             VoxelResetPatches.Register();
+            DamageAudit.Register();
             MyMultiplayer.Static.ClientReady += id => PlayerSystem.Instance?.HandlePlayerJoinedLeft(true, id);
             MyMultiplayer.Static.ClientLeft += (id, _) => PlayerSystem.Instance?.HandlePlayerJoinedLeft(false, id);
             MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);
