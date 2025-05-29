@@ -4,6 +4,7 @@ using System.Reflection;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Meds.Wrapper.Audit;
+using Meds.Wrapper.Shim;
 using Sandbox.Definitions.Equipment;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Entity.Stats;
@@ -215,8 +216,10 @@ namespace Meds.Wrapper.Utils
         public static bool TryCreate(MyPlayer player, out PositionPayload payload)
         {
             payload = default;
-            return player.ControlledEntity != null &&
-                   TryCreate(player.ControlledEntity.GetPosition(), out payload, player.Identity?.Id);
+            var pos = player.ControlledEntity?.GetPosition();
+            if (RpcClientStateHolder.TryGetState(player.Id, out var clientState))
+                pos = clientState.Position;
+            return pos != null && TryCreate(pos.Value, out payload, player.Identity?.Id);
         }
 
         public static bool TryCreate(Vector3D position, out PositionPayload payload, long? identity = null)

@@ -7,6 +7,7 @@ using Medieval.GameSystems;
 using Medieval.GameSystems.Building;
 using Medieval.GUI;
 using Meds.Shared;
+using Meds.Wrapper.Metrics;
 using Meds.Wrapper.Shim;
 using Meds.Wrapper.Trace;
 using Sandbox.Game;
@@ -42,7 +43,12 @@ namespace Meds.Wrapper.Audit
             private long _lastAreaId;
             private long _throttleUntil;
             private bool _hasFlown;
+            private bool _hasSpectated;
+            private string _name;
             private static readonly long ThrottleTime = Stopwatch.Frequency * 15;
+
+            private TraceSpan? _flying;
+            private TraceSpan? _spectating;
 
             public MedievalMasterSession(MyPlayer player)
             {
@@ -62,69 +68,73 @@ namespace Meds.Wrapper.Audit
                 }
             }
 
-            private TraceSpan? _flying;
-
-            public void SetFlying(bool flying)
+            private bool UpdateFlying()
             {
-                if (_flying.HasValue == flying) return;
+                var flying = _player.ControlledEntity?.Get<MyFlightComponent>()?.Enabled ?? false;
+                if (_flying.HasValue == flying) return false;
                 if (flying)
                 {
                     _flying = Trace.StartSpan("Flying");
-                    if (!_hasFlown)
-                    {
-                        StartLine().Append("Used Flight");
-                        _hasFlown = true;
-                        Notify();
-                    }
+                    if (_hasFlown) return false;
+                    StartLine().Append("Used Flight");
+                    _hasFlown = true;
+                    return true;
                 }
-                else
-                {
-                    var fly = _flying.Value;
-                    _flying = null;
-                    fly.Finish();
-                }
+                _flying.FinishAndClear();
+                return false;
             }
 
-            public void RegularUpdate()
+            private bool UpdateSpectator()
+            {
+                const double SpectatorEnableDistance = 100;
+
+                var pos = _player.ControlledEntity?.GetPosition();
+                if (!pos.HasValue) return false;
+                if (!RpcClientStateHolder.TryGetState(_player.Id, out var clientState)) return false;
+                var spectating = Vector3D.DistanceSquared(clientState.Position, pos.Value) >= SpectatorEnableDistance * SpectatorEnableDistance;
+                if (spectating == _spectating.HasValue) return false;
+                if (spectating)
+                {
+                    _spectating = Trace.StartSpan("Spectating");
+                    if (_hasSpectated) return false;
+                    StartLine().Append("Used Spectator");
+                    _hasSpectated = true;
+                    return true;
+                }
+                _spectating.FinishAndClear();
+                return false;
+            }
+
+            private bool PollingUpdate()
             {
                 var notify = false;
                 notify |= LogArea();
-
-                if (notify) Notify();
+                notify |= UpdateFlying();
+                notify |= UpdateSpectator();
+                return notify;
             }
-            
 
-            public StringBuilder StartLine()
+            private StringBuilder StartLine()
             {
-                LogArea();
                 if (_log.Length != 0) _log.AppendLine();
                 _log.Append(Elapsed).Append(" ");
                 return _log;
             }
 
-            public void Begin()
-            {
-                if (_player.ControlledEntity?.Get<MyFlightComponent>()?.Enabled ?? false)
-                    SetFlying(true);
-                Notify();
-            }
-
             public void Finish()
             {
-                if (_flying.HasValue)
-                {
-                    var fly = _flying.Value;
-                    _flying = null;
-                    fly.Finish();
-                }
-
+                PollingUpdate();
+                _flying.FinishAndClear();
+                _spectating.FinishAndClear();
                 _span.Finish();
                 Notify(finish: true);
             }
 
             private bool LogArea()
             {
-                var pos = _player.ControlledEntity?.GetPosition();
+                var pos = RpcClientStateHolder.TryGetState(_player.Id, out var clientState)
+                    ? clientState.Position
+                    : _player.ControlledEntity?.GetPosition();
                 if (pos == null) return false;
                 var planet = MyGamePruningStructureSandbox.GetClosestPlanet(pos.Value);
                 var areas = planet?.Get<MyPlanetAreasComponent>();
@@ -134,23 +144,48 @@ namespace Meds.Wrapper.Audit
                 if (areaId == _lastAreaId) return false;
                 _lastAreaId = areaId;
                 MyPlanetAreasComponent.UnpackAreaId(areaId, out string king, out var region, out var area);
-                StartLine().Append("Entered Area ").Append(king).Append(" ").Append(region).Append(", ").Append(area);
+                var sb = StartLine().Append("Entered Area ").Append(king).Append(" ").Append(region).Append(", ").Append(area);
+                if (_flying.HasValue) sb.Append(" [F]");
+                if (_spectating.HasValue) sb.Append(" [S]");
                 return true;
             }
 
-            public void Notify(bool finish = false)
+            private void Notify(bool finish = false)
             {
                 if (!finish && Stopwatch.GetTimestamp() < _throttleUntil) return;
-
-                LogArea();
                 var builder = MedsModApi.SendModEvent("MedievalMasterAudit", MedsAppPackage.Instance);
                 builder.SetReuseIdentifier(_sessionId, TimeSpan.FromHours(1));
-                var name = _player.Identity?.DisplayName ?? _player.Id.SteamId.ToString();
+                _name = _player.Identity?.DisplayName ?? _name ?? _player.Id.SteamId.ToString();
                 var traceInfo = string.Format(Entrypoint.Config?.Runtime?.Current?.Audit?.TraceIdFormat ?? AuditConfig.DefaultTraceIdFormat, Trace.TraceId);
                 builder.SetMessage(
-                    $"{(finish ? $"{name} used Medieval Master for {Elapsed}" : $"{name} started using Medieval Master {_start.AsDiscordTime(DiscordTimeFormat.Relative)}")} {traceInfo}\n```\n{_log}\n```");
+                    $"{(finish ? $"{_name} used Medieval Master for {Elapsed}" : $"{_name} started using Medieval Master {_start.AsDiscordTime(DiscordTimeFormat.Relative)}")} {traceInfo}\n```\n{_log}\n```");
                 builder.Send();
                 _throttleUntil = Stopwatch.GetTimestamp() + ThrottleTime;
+            }
+
+            public UpdateToken Update() => new UpdateToken(this);
+
+            public struct UpdateToken : IDisposable
+            {
+                private readonly MedievalMasterSession _session;
+                private bool _notify;
+
+                public UpdateToken(MedievalMasterSession session)
+                {
+                    _session = session;
+                    _notify = session.PollingUpdate();
+                }
+
+                public StringBuilder StartLine()
+                {
+                    _notify = true;
+                    return _session.StartLine();
+                }
+
+                public void Dispose()
+                {
+                    if (_notify) _session.Notify();
+                }
             }
         }
 
@@ -172,7 +207,7 @@ namespace Meds.Wrapper.Audit
         internal static void RegularUpdate()
         {
             foreach (var session in MedievalMasterSessions.Values)
-                session.RegularUpdate();
+                session.Update().Dispose();
         }
 
         internal static void Shutdown()
@@ -197,7 +232,7 @@ namespace Meds.Wrapper.Audit
                 if (wasEnabled && !MedievalMasterSessions.ContainsKey(userId))
                 {
                     MedievalMasterSessions.Add(userId, session = new MedievalMasterSession(player));
-                    session.Begin();
+                    session.Update().Dispose();
                 }
 
                 AuditPayload.Create(
@@ -241,10 +276,10 @@ namespace Meds.Wrapper.Audit
                 var clipboardInfo = payload.ClipboardOp;
                 if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(userId, out var session))
                 {
-                    session.StartLine().Append("Pasted ")
+                    using var update = session.Update();
+                    update.StartLine().Append("Pasted ")
                         .Append(clipboardInfo.Value.Grids).Append(" grids with ")
                         .Append(clipboardInfo.Value.Blocks).Append(" blocks");
-                    session.Notify();
                 }
 
                 payload.Emit();
@@ -286,10 +321,10 @@ namespace Meds.Wrapper.Audit
                 var clipboardInfo = payload.ClipboardOp;
                 if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(userId, out var session))
                 {
-                    session.StartLine().Append("Cut ")
+                    using var update = session.Update();
+                    update.StartLine().Append("Cut ")
                         .Append(clipboardInfo.Value.Grids).Append(" grids with ")
                         .Append(clipboardInfo.Value.Blocks).Append(" blocks");
-                    session.Notify();
                 }
 
                 payload.Emit();
@@ -307,7 +342,7 @@ namespace Meds.Wrapper.Audit
                 if (player == null) return;
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
-                    session.SetFlying(true);
+                    session.Update().Dispose();
 
                 AuditPayload.Create(AuditEvent.FlyingStart, player).Emit();
             }
@@ -323,10 +358,10 @@ namespace Meds.Wrapper.Audit
                 var player = MyPlayers.Static?.GetControllingPlayer(__instance.Entity);
                 if (player == null) return;
 
-                if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
-                    session.SetFlying(false);
-
                 AuditPayload.Create(AuditEvent.FlyingEnd, player).Emit();
+
+                if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
+                    session.Update().Dispose();
             }
         }
 
@@ -343,8 +378,8 @@ namespace Meds.Wrapper.Audit
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
-                    session.StartLine().Append("Spawn ").Append(itemId.SubtypeName).Append(" (x").Append(amount).Append(")");
-                    session.Notify();
+                    using var update = session.Update();
+                    update.StartLine().Append("Spawn ").Append(itemId.SubtypeName).Append(" (x").Append(amount).Append(")");
                 }
 
                 AuditPayload.Create(AuditEvent.SpawnItems, player)
@@ -367,8 +402,8 @@ namespace Meds.Wrapper.Audit
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
-                    session.StartLine().Append("Spawn ").Append(obj.Item.SubtypeName).Append(" (x").Append(obj.Item.Amount).Append(")");
-                    session.Notify();
+                    using var update = session.Update();
+                    update.StartLine().Append("Spawn ").Append(obj.Item.SubtypeName).Append(" (x").Append(obj.Item.Amount).Append(")");
                 }
 
                 AuditPayload.Create(AuditEvent.SpawnItems, player)
@@ -391,8 +426,8 @@ namespace Meds.Wrapper.Audit
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
-                    session.StartLine().Append("Spawn ").Append(itemBuilder.SubtypeName).Append(" (x").Append(itemBuilder.Amount).Append(")");
-                    session.Notify();
+                    using var update = session.Update();
+                    update.StartLine().Append("Spawn ").Append(itemBuilder.SubtypeName).Append(" (x").Append(itemBuilder.Amount).Append(")");
                 }
 
                 AuditPayload.Create(AuditEvent.SpawnItems, player)
@@ -413,10 +448,10 @@ namespace Meds.Wrapper.Audit
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
-                    var sb = session.StartLine().Append("Used Command ").Append(message);
+                    using var update = session.Update();
+                    var sb = update.StartLine().Append("Used Command ").Append(message);
                     if (failure != null)
                         sb.Append(", Failed: ").Append(failure.Message);
-                    session.Notify();
                 }
 
                 AuditPayload.Create(AuditEvent.ChatCommand, player)

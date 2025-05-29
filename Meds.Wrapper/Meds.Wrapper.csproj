@@ -155,6 +155,7 @@
         <Compile Include="Shim\PatchExtensions.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\ReportModsPatch.cs" />
+        <Compile Include="Shim\RpcClientStateHolder.cs" />
         <Compile Include="Shim\ShimLog.cs" />
         <Compile Include="Shim\TieredBackups.cs" />
         <Compile Include="Shim\VerboseCrashPatches.cs" />

@@ -180,6 +180,14 @@ namespace Meds.Wrapper.Trace
             log.Logger.ZLogInformationWithPayload(span, "Emitted Span");
         }
 
+        public static void FinishAndClear(this ref TraceSpan? span)
+        {
+            if (!span.HasValue) return;
+            var val = span.Value;
+            span = null;
+            val.Finish();
+        }
+
         private sealed class AuditLoggerHolder
         {
             public IHost Owner;
