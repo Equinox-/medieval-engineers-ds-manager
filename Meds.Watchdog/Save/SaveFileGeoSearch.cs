@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 
@@ -7,15 +8,17 @@ namespace Meds.Watchdog.Save
 {
     public static class SaveFileGeoSearch
     {
-        public readonly struct LodSearch
+        public class LodSearch
         {
             public readonly List<ChunkId> Chunks;
+            public readonly BoundingBox WorldBox;
             public readonly BoundingBox[] LodCellBox;
             public readonly int[] LodCellCount;
 
             public LodSearch(GridDatabaseConfig config, SaveFileIndex index, BoundingBox worldBox)
             {
                 Chunks = new List<ChunkId>();
+                WorldBox = worldBox;
                 LodCellCount = new int[config.MaxLod + 1];
                 LodCellBox = new BoundingBox[config.MaxLod + 1];
                 for (byte lod = 0; lod <= config.MaxLod; lod++)
@@ -98,6 +101,15 @@ namespace Meds.Watchdog.Save
             var groups = new HashSet<GroupId>();
             Collect(save, search, groups, null);
             return groups;
+        }
+
+        public static HashSet<SteamId> Players(SaveFileAccessor save, LodSearch search)
+        {
+            return save.Players().Where(player =>
+            {
+                var pos = player.EntityAccessor.PositionOptional?.Position;
+                return pos.HasValue && search.WorldBox.Includes(pos.Value);
+            }).Select(x => x.Id).ToHashSet();
         }
     }
 }

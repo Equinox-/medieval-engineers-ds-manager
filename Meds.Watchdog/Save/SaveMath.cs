@@ -111,4 +111,10 @@ namespace Meds.Watchdog.Save
         [XmlElement("Up", typeof(SerializableVector3))]
         public Vector3 Up;
     }
+
+    public static class SaveMathExt
+    {
+        public static bool Includes(this in BoundingBox box, Vector3 pos) => pos.X >= box.Min.X && pos.Y >= box.Min.Y && pos.Z >= box.Min.Z
+                                                                             && pos.X <= box.Max.X && pos.Y <= box.Max.Y && pos.Z <= box.Max.Z;
+    }
 }

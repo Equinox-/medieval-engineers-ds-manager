@@ -58,7 +58,9 @@ namespace Meds.Watchdog.Save
             stream = null;
             if (_zip != null)
             {
-                var entry = _zip.Value.GetEntry(path);
+                var entry = _zip.Value.GetEntry(path)
+                            ?? _zip.Value.GetEntry(path.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                            ?? _zip.Value.GetEntry(path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
                 if (entry != null)
                 {
                     stream = entry.Open();
@@ -131,15 +133,19 @@ namespace Meds.Watchdog.Save
         private const string GroupExtension = ".group";
         private const string ChunksFolder = "WorldChunks";
         private const string ChunkExtension = ".chunk";
+        private const string PlayerFolder = "Players";
+        private const string PlayerExtension = ".player";
 
         private static string EntityPath(EntityId id) => Path.Combine(EntityFolder, $"{id.Value & 0xFF:X02}", $"{id.Value:X016}{EntityExtension}");
         private static string GroupPath(GroupId id) => Path.Combine(GroupFolder, $"{id.Value & 0xFF:X02}", $"{id.Value:X016}{GroupExtension}");
+        private static string PlayerPath(SteamId id) => Path.Combine(PlayerFolder, $"{id.Value}{PlayerExtension}");
 
         private static string ChunkPath(ChunkId id) =>
             Path.Combine(ChunksFolder, $"{id.DatabaseHash() >> 24:X02}", $"{id.X}_{id.Y}_{id.Z}_{id.Lod}{ChunkExtension}");
 
         public bool TryGetEntityFileInfo(EntityId id, out SaveEntryInfo info) => TryGetFileInfo(EntityPath(id), out info);
         public bool TryGetGroupFileInfo(GroupId id, out SaveEntryInfo info) => TryGetFileInfo(GroupPath(id), out info);
+        public bool TryGetPlayerFileInfo(SteamId id, out SaveEntryInfo info) => TryGetFileInfo(PlayerPath(id), out info);
         public bool TryGetChunkFileInfo(ChunkId id, out SaveEntryInfo info) => TryGetFileInfo(ChunkPath(id), out info);
 
         private readonly DelTryParseObject<EntityAccessor> _entityParser = (string path, ulong id, Stream stream, out EntityAccessor result) =>
@@ -158,11 +164,22 @@ namespace Meds.Watchdog.Save
             return result.Group != null;
         };
 
+        private readonly DelTryParseObject<PlayerAccessor> _playerParser = (string path, ulong id, Stream stream, out PlayerAccessor result) =>
+        {
+            var doc = new XmlDocument();
+            doc.Load(stream);
+            result = new PlayerAccessor(doc["MyObjectBuilder_PlayerStorage"]);
+            return result.Entity != null && result.Id != 0;
+        };
+
         public bool TryGetEntity(EntityId id, out EntityAccessor entity) =>
             TryGetObject(EntityPath(id), id.Value, _entityParser, out entity);
 
         public bool TryGetGroup(GroupId id, out GroupAccessor group) =>
             TryGetObject(GroupPath(id), id.Value, _groupParser, out group);
+
+        public bool TryGetPlayer(SteamId id, out PlayerAccessor group) =>
+            TryGetObject(PlayerPath(id), id.Value, _playerParser, out group);
 
         public bool TryGetChunk(ChunkId id, out ChunkAccessor group) => TryGetChunk(ChunkPath(id), out group);
 
@@ -186,7 +203,7 @@ namespace Meds.Watchdog.Save
                 });
         }
 
-        private IEnumerable<(string path, ulong id)> ObjectsToLoad(string folder, string suffix)
+        private IEnumerable<(string path, ulong id)> ObjectsToLoad(string folder, string suffix, NumberStyles idStyle)
         {
             var paths = PathsToLoad(folder, suffix);
             foreach (var path in paths)
@@ -194,21 +211,22 @@ namespace Meds.Watchdog.Save
                 var fileName = Path.GetFileName(path);
                 if (!fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (ulong.TryParse(fileName.Substring(0, fileName.Length - suffix.Length), NumberStyles.HexNumber, null, out var id))
+                if (ulong.TryParse(fileName.Substring(0, fileName.Length - suffix.Length), idStyle, null, out var id))
                     yield return (path, id);
             }
         }
 
         public delegate bool DelTryParseObject<T>(string path, ulong objectId, Stream stream, out T result);
 
-        private IEnumerable<T> Objects<T>(string folder, string suffix, DelTryParseObject<T> parser, DelReportProgress progressReporter = null)
+        private IEnumerable<T> Objects<T>(string folder, string suffix, DelTryParseObject<T> parser, NumberStyles idStyle,
+            DelReportProgress progressReporter = null)
         {
             var total = 0;
             var successful = 0;
             var failed = 0;
             var reporting = 0;
 
-            var objects = ObjectsToLoad(folder, suffix);
+            var objects = ObjectsToLoad(folder, suffix, idStyle);
             // ReSharper disable once InvertIf
             if (progressReporter != null)
             {
@@ -251,7 +269,7 @@ namespace Meds.Watchdog.Save
 
         public IEnumerable<T> Entities<T>(DelTryParseObject<T> parser, DelReportProgress progressReporter = null)
         {
-            return Objects(EntityFolder, EntityExtension, parser, progressReporter);
+            return Objects(EntityFolder, EntityExtension, parser, NumberStyles.HexNumber, progressReporter);
         }
 
         public IEnumerable<EntityAccessor> Entities(DelReportProgress progressReporter = null)
@@ -261,12 +279,22 @@ namespace Meds.Watchdog.Save
 
         public IEnumerable<T> Groups<T>(DelTryParseObject<T> parser, DelReportProgress progressReporter = null)
         {
-            return Objects(GroupFolder, GroupExtension, parser, progressReporter);
+            return Objects(GroupFolder, GroupExtension, parser, NumberStyles.HexNumber, progressReporter);
         }
 
         public IEnumerable<GroupAccessor> Groups(DelReportProgress progressReporter = null)
         {
             return Groups(_groupParser, progressReporter);
+        }
+
+        public IEnumerable<T> Players<T>(DelTryParseObject<T> parser, DelReportProgress progressReporter = null)
+        {
+            return Objects(PlayerFolder, PlayerExtension, parser, NumberStyles.None, progressReporter);
+        }
+
+        public IEnumerable<PlayerAccessor> Players(DelReportProgress progressReporter = null)
+        {
+            return Players(_playerParser, progressReporter);
         }
 
         public IEnumerable<ChunkAccessor> Chunks(DelReportProgress progressReporter = null)
@@ -344,7 +372,7 @@ namespace Meds.Watchdog.Save
 
             return false;
         }
-        
+
         public IEnumerable<SaveEntryInfo> AllFiles()
         {
             if (_zip != null)

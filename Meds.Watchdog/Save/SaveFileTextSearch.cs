@@ -55,5 +55,10 @@ namespace Meds.Watchdog.Save
         {
             return save.Groups(CreateSearcher(regex), progressReporter);
         }
+
+        public static IEnumerable<SaveFileTextSearchResult> Players(SaveFileAccessor save, Regex regex, DelReportProgress progressReporter = null)
+        {
+            return save.Players(CreateSearcher(regex), progressReporter);
+        }
     }
 }

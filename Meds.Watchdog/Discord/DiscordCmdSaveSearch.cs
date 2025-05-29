@@ -33,6 +33,9 @@ namespace Meds.Watchdog.Discord
 
             [ChoiceName("Group")]
             Group,
+
+            [ChoiceName("Player")]
+            Player,
         }
 
         [SlashCommand("save-search-text", "Searches all objects in a save using a regular expression")]
@@ -105,6 +108,7 @@ namespace Meds.Watchdog.Discord
             {
                 SearchObjectType.Entity => SaveFileTextSearch.Entities(save, compiledRegex, progress.Reporter),
                 SearchObjectType.Group => SaveFileTextSearch.Groups(save, compiledRegex, progress.Reporter),
+                SearchObjectType.Player => SaveFileTextSearch.Players(save, compiledRegex, progress.Reporter),
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
             };
             var formatted = FormatSearchResults(
@@ -159,6 +163,7 @@ namespace Meds.Watchdog.Discord
                 {
                     desc += $"Lod {i}: ({search.LodCellCount[i]} - {search.LodCellBox[i]}\n";
                 }
+
                 return true;
             }
 
@@ -190,6 +195,13 @@ namespace Meds.Watchdog.Discord
                     objectCount = groups.Count;
                     objectIds = groups
                         .OrderByDescending(x => save.TryGetGroupFileInfo(x, out var info) ? info.Size : 0)
+                        .Select(x => x.Value);
+                    break;
+                case SearchObjectType.Player:
+                    var players = SaveFileGeoSearch.Players(save, lodSearch);
+                    objectCount = players.Count;
+                    objectIds = players
+                        .OrderByDescending(x => save.TryGetPlayerFileInfo(x, out var info) ? info.Size : 0)
                         .Select(x => x.Value);
                     break;
                 default:
@@ -248,6 +260,21 @@ namespace Meds.Watchdog.Discord
                                 ? data.Planet.GetAreaName(group.ChunkData.Value.WorldBounds(data.GridDatabase).Center)
                                 : "Unknown";
                         row[3] = group.TopLevelEntities.Count.ToString();
+                        return true;
+                    };
+                    break;
+                case SearchObjectType.Player:
+                    headers = new[] { "Steam ID", "Display Name", "Location" };
+                    formatter = (id, row) =>
+                    {
+                        SteamId steamId = id;
+                        if (!save.TryGetPlayer(steamId, out var player))
+                            return false;
+                        row[0] = steamId.ToString();
+                        row[1] = player.DisplayName ?? "Unknown";
+                        var pos = player.EntityAccessor.PositionOptional?.Position;
+                        using (_dataStore.Read(out var data))
+                            row[2] = pos.HasValue ? data.Planet.GetAreaName(pos.Value) : "Unknown";
                         return true;
                     };
                     break;

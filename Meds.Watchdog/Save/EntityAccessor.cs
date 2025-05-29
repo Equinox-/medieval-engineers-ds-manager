@@ -12,6 +12,21 @@ namespace Meds.Watchdog.Save
 
         public PositionAndOrientation Position => Entity["PositionAndOrientation"].DeserializeAs<PositionAndOrientation>();
 
+        public PositionAndOrientation? PositionOptional
+        {
+            get
+            {
+                try
+                {
+                    return Position;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
         public string Subtype => Entity.Attributes?["Subtype"]?.Value;
 
         public EntityId Id => new EntityId(ulong.Parse(Entity["EntityId"]!.InnerText));
@@ -68,6 +83,12 @@ namespace Meds.Watchdog.Save
                 ChunkData = chunkData;
             else
                 ChunkData = null;
+        }
+
+        public EntityAccessor(XmlElement entity, ChunkObjectData? chunkData)
+        {
+            Entity = entity;
+            ChunkData = chunkData;
         }
     }
 }

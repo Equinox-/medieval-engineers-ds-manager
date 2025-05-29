@@ -167,6 +167,9 @@ namespace Meds.Watchdog.Discord
 
             [ChoiceName("Group")]
             Group,
+
+            [ChoiceName("Player")]
+            Player,
         }
 
         private readonly struct BisectState
@@ -207,6 +210,7 @@ namespace Meds.Watchdog.Discord
             {
                 BisectObjectType.Entity => 4096,
                 BisectObjectType.Group => 1024,
+                BisectObjectType.Player => 1024,
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
             };
 
@@ -223,6 +227,7 @@ namespace Meds.Watchdog.Discord
                 {
                     BisectObjectType.Entity => save.TryGetEntityFileInfo(objectId, out info),
                     BisectObjectType.Group => save.TryGetGroupFileInfo(objectId, out info),
+                    BisectObjectType.Player => save.TryGetPlayerFileInfo(objectId, out info),
                     _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
                 };
                 var curr = new BisectState(isPresent, info.Size, saveFile);
@@ -238,6 +243,9 @@ namespace Meds.Watchdog.Discord
                 prev = curr;
             }
 
+            if (events.Count == 0 && prev.HasValue)
+                events.Add(prev.Value);
+            
             await context.RespondPaginated(events,
                 new DiscordUtils.TableFormatter(3),
                 (table, evt) => table.AddRow(
@@ -257,6 +265,9 @@ namespace Meds.Watchdog.Discord
 
             [ChoiceName("Group")]
             Group,
+
+            [ChoiceName("Player")]
+            Player,
         }
 
         [SlashCommand("save-inspect", "Inspects a single object within a save")]
@@ -340,6 +351,26 @@ namespace Meds.Watchdog.Discord
                     embed.RemoveFieldWithName(entitiesTag);
                     embed.AddField(entitiesTag, RenderEntityList(save, group.TopLevelEntities));
                     hasClosure = includeClosure && index.TryGetClosureForGroup(objectId, out closure);
+                    break;
+                }
+                case InspectObjectType.Player:
+                {
+                    if (!save.TryGetPlayer(objectId, out var player))
+                    {
+                        await context.EditResponseAsync($"Failed to load player {objectIdString} in `{saveFile}`");
+                        return;
+                    }
+
+                    embed.AddField("name", player.DisplayName ?? "Unknown", true);
+                    embed.AddField("identity", player.IdentityId?.ToString() ?? "unknown", true);
+
+                    var pos = player.EntityAccessor.PositionOptional?.Position;
+                    if (pos.HasValue)
+                        using (_dataStore.Read(out var dataStore))
+                            embed.AddField("location", dataStore.Planet.GetAreaName(pos.Value));
+
+                    await context.EditResponseAsync(embed);
+                    hasClosure = false;
                     break;
                 }
                 default:

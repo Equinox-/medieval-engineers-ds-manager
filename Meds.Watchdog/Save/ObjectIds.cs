@@ -116,4 +116,32 @@ namespace Meds.Watchdog.Save
 
         public static implicit operator ulong(GroupId value) => value.Value;
     }
+
+    public readonly struct SteamId : IEquatable<SteamId>
+    {
+        public readonly ulong Value;
+
+        public SteamId(ulong value) => Value = value;
+
+        public override string ToString() => Value.ToString();
+
+        public bool Equals(SteamId other) => Value == other.Value;
+
+        public override bool Equals(object obj) => obj is SteamId other && Equals(other);
+
+        public override int GetHashCode() => Value.GetHashCode();
+
+        public static bool TryParse(string id, out SteamId result)
+        {
+            result = default;
+            if (!ObjectIds.TryParseObjectId(id, out var raw))
+                return false;
+            result = new SteamId(raw);
+            return true;
+        }
+
+        public static implicit operator SteamId(ulong value) => new SteamId(value);
+
+        public static implicit operator ulong(SteamId value) => value.Value;
+    }
 }

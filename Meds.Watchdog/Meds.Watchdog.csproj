@@ -84,6 +84,7 @@
         <Compile Include="Save\KeenCubemap.cs" />
         <Compile Include="Save\KeenPlanetAreas.cs" />
         <Compile Include="Save\ObjectIds.cs" />
+        <Compile Include="Save\PlayerAccessor.cs" />
         <Compile Include="Save\SaveSyncData.cs" />
         <Compile Include="Save\SaveConfigAccessor.cs" />
         <Compile Include="Save\SaveFile.cs" />
