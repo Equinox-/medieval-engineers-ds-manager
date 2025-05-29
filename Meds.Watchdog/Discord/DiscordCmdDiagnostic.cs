@@ -163,6 +163,7 @@ namespace Meds.Watchdog.Discord
                 var heap = runtime.Heap;
                 lines.Add("Heap Histogram");
                 lines.AddRange(DescribeHeap(heap, progress.Reporter));
+                await progress.Finish();
                 lines.Add("");
             }
 
@@ -174,6 +175,12 @@ namespace Meds.Watchdog.Discord
             if (!heap.CanWalkHeap)
                 yield return "  Warning: Heap is not in a consistent state";
             var segments = heap.Segments;
+            if (segments.Length == 0)
+            {
+                yield return "  Heap was not collected";
+                yield break;
+            }
+
             var entries = new Dictionary<ClrType, HeapStats>();
             for (var i = 0; i < segments.Length; i++)
             {
