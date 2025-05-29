@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -71,38 +72,6 @@ namespace Meds.Watchdog.Discord
 
             using var save = saveFile.Open();
 
-            CreateSearchObjectFormatter(save, target, out var objectHeaders, out var objectFormatter);
-            var groupNames = compiledRegex.GetGroupNames();
-            string[] matchHeaders;
-            if (groupNames.Length == 1)
-                matchHeaders = new[] { "Match" };
-            else
-            {
-                matchHeaders = new string[groupNames.Length - 1];
-                for (var i = 1; i < groupNames.Length; i++)
-                {
-                    var name = groupNames[i];
-                    matchHeaders[i - 1] = name == i.ToString() ? "Group " + name : name;
-                }
-            }
-
-            bool MatchFormatter(Match match, string[] row)
-            {
-                if (groupNames.Length == 1)
-                {
-                    row[0] = match.Value.Trim();
-                    return true;
-                }
-
-                for (var i = 1; i < groupNames.Length; i++)
-                {
-                    var group = match.Groups[i];
-                    row[i - 1] = group.Success ? group.Value : "";
-                }
-
-                return true;
-            }
-
             var progress = new ProgressReporter(context);
             var results = target switch
             {
@@ -111,15 +80,130 @@ namespace Meds.Watchdog.Discord
                 SearchObjectType.Player => SaveFileTextSearch.Players(save, compiledRegex, progress.Reporter),
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
             };
-            var formatted = FormatSearchResults(
-                results.Select(match => (match.ObjectId, (IEnumerable<Match>)match.Matches)),
-                objectHeaders, objectFormatter,
-                matchHeaders, MatchFormatter);
-            await progress.Finish();
-            if (formatted.RowCount > 1)
-                await context.RespondLongText(formatted.Lines());
+
+            var aggValue = TryFindGroup("aggValue");
+            var aggTerm = TryFindGroup("aggTerm");
+            if (aggValue != null || aggTerm != null)
+                await WriteAggregationResults(aggValue, aggTerm);
             else
-                await context.EditResponseAsync("No results");
+                await WriteSearchResults(save);
+
+            return;
+
+            int? TryFindGroup(string group)
+            {
+                var groupNames = compiledRegex.GetGroupNames();
+                for (var i = 0; i < groupNames.Length; i++)
+                    if (group.Equals(groupNames[i], StringComparison.OrdinalIgnoreCase))
+                        return i;
+                return null;
+            }
+
+            async Task WriteAggregationResults(int? valueCapture, int? termCapture)
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var groups = new Dictionary<string, AggregationGroup>(StringComparer.OrdinalIgnoreCase);
+                foreach (var result in results)
+                {
+                    seen.Clear();
+                    foreach (var match in result.Matches)
+                    {
+                        if (!valueCapture.HasValue || !float.TryParse(match.Groups[valueCapture.Value].Value, out var value))
+                            value = float.NaN;
+                        var groupName = termCapture.HasValue ? match.Groups[termCapture.Value].Value : null;
+
+                        if (float.IsNaN(value) && groupName == null) continue;
+
+                        groupName ??= "null";
+                        if (!groups.TryGetValue(groupName, out var group))
+                            groups.Add(groupName, group = new AggregationGroup());
+
+                        if (seen.Add(groupName)) group.Objects++;
+                        group.Matches++;
+                        if (!float.IsNaN(value)) group.Sum += value;
+                    }
+                }
+
+                await progress.Finish();
+                if (groups.Count == 0)
+                {
+                    await context.EditResponseAsync("No results");
+                    return;
+                }
+
+                var formatted = new DiscordUtils.TableFormatter(0);
+                formatted.AddRow("Term", "Objects", "Matches", "Sum");
+                foreach (var group in groups.OrderByDescending(x => x.Value))
+                    formatted.AddRow(group.Key,
+                        group.Value.Objects.ToString(),
+                        group.Value.Matches.ToString(),
+                        group.Value.Sum.ToString(CultureInfo.InvariantCulture));
+                await context.RespondLongText(formatted.Lines());
+            }
+
+            async Task WriteSearchResults(SaveFileAccessor saveCaptured)
+            {
+                CreateSearchObjectFormatter(saveCaptured, target, out var objectHeaders, out var objectFormatter);
+                var groupNames = compiledRegex.GetGroupNames();
+                string[] matchHeaders;
+                if (groupNames.Length == 1)
+                    matchHeaders = new[] { "Match" };
+                else
+                {
+                    matchHeaders = new string[groupNames.Length - 1];
+                    for (var i = 1; i < groupNames.Length; i++)
+                    {
+                        var name = groupNames[i];
+                        matchHeaders[i - 1] = name == i.ToString() ? "Group " + name : name;
+                    }
+                }
+
+                var formatted = FormatSearchResults(
+                    results.Select(match => (match.ObjectId, (IEnumerable<Match>)match.Matches)),
+                    objectHeaders, objectFormatter,
+                    matchHeaders, MatchFormatter);
+                await progress.Finish();
+                if (formatted.RowCount > 1)
+                    await context.RespondLongText(formatted.Lines());
+                else
+                    await context.EditResponseAsync("No results");
+                return;
+
+                bool MatchFormatter(Match match, string[] row)
+                {
+                    if (groupNames.Length == 1)
+                    {
+                        row[0] = match.Value.Trim();
+                        return true;
+                    }
+
+                    for (var i = 1; i < groupNames.Length; i++)
+                    {
+                        var group = match.Groups[i];
+                        row[i - 1] = group.Success ? group.Value : "";
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        private class AggregationGroup : IComparable<AggregationGroup>
+        {
+            public int Objects;
+            public int Matches;
+            public float Sum;
+
+            public int CompareTo(AggregationGroup other)
+            {
+                if (ReferenceEquals(this, other)) return 0;
+                if (other is null) return 1;
+                var sumComparison = Sum.CompareTo(other.Sum);
+                if (sumComparison != 0) return sumComparison;
+                var matchesComparison = Matches.CompareTo(other.Matches);
+                if (matchesComparison != 0) return matchesComparison;
+                return Objects.CompareTo(other.Objects);
+            }
         }
 
         [SlashCommand("save-search-geo", "Searches all objects in a save using an area")]

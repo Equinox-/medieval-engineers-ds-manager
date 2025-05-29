@@ -24,7 +24,6 @@ namespace Meds.Wrapper.Metrics
     {
         private const string Players = "me.players";
         private const string PlayersNetwork = "me.players.network";
-        private const string PlayersNetworkPing = "me.players.network.ping";
         private const string PlayerTags = "me.players.tags";
 
         private static readonly ConcurrentDictionary<ulong, PlayerMetricHolder> Holders = new ConcurrentDictionary<ulong, PlayerMetricHolder>();
