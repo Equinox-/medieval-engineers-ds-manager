@@ -78,10 +78,7 @@ namespace Meds.Wrapper.Audit
         {
             if (!add)
                 return;
-            var actor = MyPlayers.Static?.GetPlayer(MyEventContext.Current.Sender);
-            if (actor == null)
-                return;
-            AuditPayload.Create(AuditEvent.PaxRopeControlStart, actor, owningLocation: controlled.Entity?.GetPosition())
+            AuditPayload.Create(AuditEvent.PaxRopeControlStart, owningLocation: controlled.Entity?.GetPosition())
                 .ControlOpPayload(ControlOpPayload.Create(controlled))
                 .Emit();
         }

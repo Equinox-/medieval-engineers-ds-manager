@@ -238,6 +238,7 @@ namespace Meds.Wrapper.Utils
         public static bool TryCreate(MyPlayer player, out PositionPayload payload)
         {
             payload = default;
+            if (player == null) return false;
             var pos = player.ControlledEntity?.GetPosition();
             if (RpcClientStateHolder.TryGetState(player.Id, out var clientState))
                 pos = clientState.Position;

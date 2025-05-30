@@ -9,14 +9,16 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
-using VRage.Components;
 using VRage.Components.Entity.CubeGrid;
 using VRage.Components.Interfaces;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRage.Library.Utils;
+using VRage.Network;
+using VRage.Utils;
 using VRageMath;
 using ZLogger;
 
@@ -46,6 +48,20 @@ namespace Meds.Wrapper.Audit
         ChatCommand,
 
         Damage,
+
+        FactionCreate,
+        FactionDelete,
+
+        FactionApplicationCreate,
+        FactionApplicationAccept,
+        FactionApplicationReject,
+
+        FactionDiplomacyRequest,
+        FactionDiplomacyAccept,
+
+        FactionMemberSetRank,
+        FactionMemberLeft,
+        FactionMemberKicked,
     }
 
     public class AuditPayload
@@ -60,7 +76,29 @@ namespace Meds.Wrapper.Audit
         public ControlOpPayload? ControlOp;
         public ClipboardOpPayload? ClipboardOp;
         public ChatCommandPayload? ChatCommand;
-        public DamagePayload? Damage;
+        public DamagePayload Damage;
+        public FactionPayload? Faction;
+        public PlayerPayload? FactionMember;
+        public DiplomacyPayload Diplomacy;
+
+        public static MyPlayer GetActingPlayer(long? identity = null, ulong? steam = null)
+        {
+            if (steam != null)
+            {
+                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(steam.Value));
+                if (player != null) return player;
+            }
+
+            // ReSharper disable once InvertIf
+            if (identity != null)
+            {
+                var id = MyIdentities.Static?.GetIdentity(identity.Value);
+                var player = id != null ? MyPlayers.Static?.GetPlayer(id) : null;
+                if (player != null) return player;
+            }
+
+            return MyPlayers.Static?.GetPlayer(MyEventContext.Current.IsLocallyInvoked ? new EndpointId(Sync.MyId) : MyEventContext.Current.Sender);
+        }
 
         public static MyPlayer PlayerForEntity(MyEntity entity)
         {
@@ -70,19 +108,27 @@ namespace Meds.Wrapper.Audit
             return null;
         }
 
-        public static AuditPayload Create(AuditEvent evt, MyPlayer acting = null, MyPlayer owning = null, Vector3D? owningLocation = null,
-            Vector3D? position = null)
+        public static AuditPayload CreateWithoutPosition(AuditEvent evt, MyPlayer acting = null)
         {
+            acting ??= GetActingPlayer();
             var payload = new AuditPayload
             {
                 AuditEvent = MyEnum<AuditEvent>.GetName(evt),
                 ActingPlayer = acting != null ? (PlayerPayload?)PlayerPayload.Create(acting) : null,
-                Position = position != null && PositionPayload.TryCreate(position.Value, out var posPayload) ? posPayload
-                    : PositionPayload.TryCreate(acting, out posPayload) ? (PositionPayload?)posPayload : null
             };
 
             if (acting != null && MedievalMasterAudit.TryGetTrace(acting.Id.SteamId, out var trace))
                 payload.Trace = trace.RefPayload();
+
+            return payload;
+        }
+
+        public static AuditPayload Create(AuditEvent evt, MyPlayer acting = null, MyPlayer owning = null, Vector3D? owningLocation = null,
+            Vector3D? position = null)
+        {
+            var payload = CreateWithoutPosition(evt, acting);
+            payload.Position = position != null && PositionPayload.TryCreate(position.Value, out var posPayload) ? posPayload
+                : PositionPayload.TryCreate(acting, out posPayload) ? (PositionPayload?)posPayload : null;
 
             if (owning != null)
             {
@@ -130,9 +176,27 @@ namespace Meds.Wrapper.Audit
             return this;
         }
 
-        public AuditPayload DamagePayload(in DamagePayload payload)
+        public AuditPayload DamagePayload(DamagePayload payload)
         {
             Damage = payload;
+            return this;
+        }
+
+        public AuditPayload FactionPayload(in FactionPayload payload)
+        {
+            Faction = payload;
+            return this;
+        }
+
+        public AuditPayload FactionMemberPayload(in PlayerPayload payload)
+        {
+            FactionMember = payload;
+            return this;
+        }
+
+        public AuditPayload DiplomacyPayload(DiplomacyPayload payload)
+        {
+            Diplomacy = payload;
             return this;
         }
 
@@ -221,29 +285,21 @@ namespace Meds.Wrapper.Audit
         public string DisplayName;
 
         public FactionPayload? Faction;
+        public string FactionRank;
 
-        public static PlayerPayload Create(MyPlayer player)
+        public static PlayerPayload Create(MyPlayer player) => CreateInternal(player, player.Identity);
+
+        public static PlayerPayload Create(MyIdentity identity) => CreateInternal(MyPlayers.Static?.GetPlayer(identity), identity);
+
+        private static PlayerPayload CreateInternal(MyPlayer player, MyIdentity identity)
         {
-            var faction = player.Identity != null ? MyFactionManager.GetPlayerFaction(player.Identity.Id) : null;
-
-            return new PlayerPayload
-            {
-                SteamId = player.Id.SteamId,
-                DisplayName = player.Identity?.DisplayName,
-                Faction = faction != null ? (FactionPayload?)FactionPayload.Create(faction) : null
-            };
-        }
-
-        public static PlayerPayload Create(MyIdentity identity)
-        {
-            var player = MyPlayers.Static?.GetPlayer(identity);
-            var faction = MyFactionManager.GetPlayerFaction(identity.Id);
-
+            var faction = identity != null ? MyFactionManager.GetPlayerFaction(identity.Id) : null;
             return new PlayerPayload
             {
                 SteamId = player?.Id.SteamId ?? 0,
-                DisplayName = identity.DisplayName,
-                Faction = faction != null ? (FactionPayload?)FactionPayload.Create(faction) : null
+                DisplayName = identity?.DisplayName,
+                Faction = faction != null ? (FactionPayload?)FactionPayload.Create(faction) : null,
+                FactionRank = faction?.GetMemberRank(identity.Id)?.Title,
             };
         }
     }
@@ -268,7 +324,7 @@ namespace Meds.Wrapper.Audit
         public string Command;
     }
 
-    public struct DamagePayload
+    public class DamagePayload
     {
         public string Type;
         public float Amount;
@@ -296,5 +352,24 @@ namespace Meds.Wrapper.Audit
             if (MathHelper.IsZero(a.LengthSquared()) || MathHelper.IsZero(b.LengthSquared())) return null;
             return MaybeLength((Vector3)(a - b));
         }
+    }
+
+    public class DiplomacyPayload
+    {
+        public string Status;
+        public PlayerPayload? OtherPlayer;
+        public FactionPayload? OtherFaction;
+
+        public static DiplomacyPayload Create(MyStringHash status, in PlayerPayload player) => new DiplomacyPayload
+        {
+            Status = status.String,
+            OtherPlayer = player,
+        };
+
+        public static DiplomacyPayload Create(MyStringHash status, in FactionPayload faction) => new DiplomacyPayload
+        {
+            Status = status.String,
+            OtherFaction = faction,
+        };
     }
 }

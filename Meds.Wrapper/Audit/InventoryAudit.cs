@@ -22,10 +22,8 @@ namespace Meds.Wrapper.Audit
         {
             if (__state.TypeId.IsNull || amount == 0 || MyEventContext.Current.IsLocallyInvoked)
                 return;
-            var caller = MyEventContext.Current.Sender;
-            var actor = MyPlayers.Static?.GetPlayer(caller);
-            if (actor == null)
-                return;
+            var actor = AuditPayload.GetActingPlayer();
+            if (actor == null) return;
 
             var srcOwner = AuditPayload.PlayerForEntity(src.Entity);
             var dstOwner = AuditPayload.PlayerForEntity(dst.Entity);

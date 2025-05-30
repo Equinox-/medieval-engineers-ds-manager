@@ -223,15 +223,13 @@ namespace Meds.Wrapper.Audit
         {
             public static void Postfix()
             {
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var wasEnabled = MySession.Static?.IsAdminModeEnabled(userId) ?? false;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
+                var wasEnabled = MySession.Static?.IsAdminModeEnabled(player.Id.SteamId) ?? false;
                 MedievalMasterSession session;
-                if (wasEnabled && !MedievalMasterSessions.ContainsKey(userId))
+                if (wasEnabled && !MedievalMasterSessions.ContainsKey(player.Id.SteamId))
                 {
-                    MedievalMasterSessions.Add(userId, session = new MedievalMasterSession(player));
+                    MedievalMasterSessions.Add(player.Id.SteamId, session = new MedievalMasterSession(player));
                     session.Update().Dispose();
                 }
 
@@ -240,10 +238,10 @@ namespace Meds.Wrapper.Audit
                         player)
                     .Emit();
 
-                if (!wasEnabled && MedievalMasterSessions.TryGetValue(userId, out session))
+                if (!wasEnabled && MedievalMasterSessions.TryGetValue(player.Id.SteamId, out session))
                 {
                     session.Finish();
-                    MedievalMasterSessions.Remove(userId);
+                    MedievalMasterSessions.Remove(player.Id.SteamId);
                 }
             }
         }
@@ -254,10 +252,8 @@ namespace Meds.Wrapper.Audit
         {
             public static void Postfix(List<MyGridPlacer.MergeScene> createdScenes)
             {
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
                 var clipboard = new ClipboardOpPayload();
                 var bounds = BoundingBoxD.CreateInvalid();
                 foreach (var scene in createdScenes)
@@ -274,7 +270,7 @@ namespace Meds.Wrapper.Audit
                     .ClipboardOpPayload(in clipboard);
 
                 var clipboardInfo = payload.ClipboardOp;
-                if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(userId, out var session))
+                if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
                     using var update = session.Update();
                     update.StartLine().Append("Pasted ")
@@ -295,10 +291,8 @@ namespace Meds.Wrapper.Audit
                 var scene = MySession.Static.Scene;
                 if (!scene.TryGetEntity(entityId, out var entity))
                     return;
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
 
                 var clipboard = new ClipboardOpPayload();
                 var bounds = BoundingBoxD.CreateInvalid();
@@ -319,7 +313,7 @@ namespace Meds.Wrapper.Audit
                     .ClipboardOpPayload(in clipboard);
 
                 var clipboardInfo = payload.ClipboardOp;
-                if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(userId, out var session))
+                if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
                     using var update = session.Update();
                     update.StartLine().Append("Cut ")
@@ -371,10 +365,8 @@ namespace Meds.Wrapper.Audit
         {
             public static void Postfix(SerializableDefinitionId itemId, int amount)
             {
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
@@ -395,10 +387,8 @@ namespace Meds.Wrapper.Audit
             public static void Postfix(MyObjectBuilder_FloatingObject obj)
             {
                 if (obj.Item == null) return;
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
@@ -419,10 +409,8 @@ namespace Meds.Wrapper.Audit
             public static void Postfix(MyObjectBuilder_InventoryItem itemBuilder)
             {
                 if (itemBuilder == null || MyEventContext.Current.HasValidationFailed) return;
-                var userId = MyEventContext.Current.IsLocallyInvoked ? Sync.MyId : MyEventContext.Current.Sender.Value;
-                var player = MyPlayers.Static?.GetPlayer(new MyPlayer.PlayerId(userId));
-                if (player == null)
-                    return;
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
 
                 if (MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
