@@ -150,6 +150,7 @@
         <Compile Include="ServerService.cs" />
         <Compile Include="Shim\AftermathLog.cs" />
         <Compile Include="Shim\AlwaysPatchAttribute.cs" />
+        <Compile Include="Shim\DeathMessagePatch.cs" />
         <Compile Include="Shim\LoggerPatches.cs" />
         <Compile Include="Shim\MecPatches.cs" />
         <Compile Include="Shim\MiscPatches.cs" />

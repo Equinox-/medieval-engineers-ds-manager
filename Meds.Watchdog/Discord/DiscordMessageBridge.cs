@@ -464,7 +464,8 @@ namespace Meds.Watchdog.Discord
 
                 // Verbose format for broad matches
                 var embed = new DiscordEmbedBuilder();
-                embed.AddField("Sender", senderName, true);
+                if (senderName != null)
+                    embed.AddField("Sender", senderName, true);
                 embed.AddField("Message", message, true);
                 embed.AddField("Channel", channelName, true);
                 if (targetHouseName != null)
