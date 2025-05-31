@@ -32,6 +32,7 @@ namespace Meds.Wrapper.Audit
         private static void OnAppliedToFaction(MyFaction appliedFaction, MyFaction.ApplyToFactionResult result, long applicantId)
         {
             var player = AuditPayload.GetActingPlayer(identity: applicantId);
+            if (player == null) return;
             AuditPayload.CreateWithoutPosition(AuditEvent.FactionApplicationCreate, player)
                 .FactionPayload(FactionPayload.Create(appliedFaction))
                 .Emit();
@@ -45,9 +46,10 @@ namespace Meds.Wrapper.Audit
                 MyFaction.ProcessApplicationResult.Rejected => AuditPayload.CreateWithoutPosition(AuditEvent.FactionApplicationReject),
                 _ => null
             };
+            if (payload == null) return;
             var applicant = MyIdentities.Static?.GetIdentity(applicantId);
-            if (applicant != null) payload?.FactionMemberPayload(PlayerPayload.Create(applicant));
-            payload?
+            if (applicant == null || MyPlayers.Static?.GetPlayer(applicant) == null) return;
+            payload.FactionMemberPayload(PlayerPayload.Create(applicant))
                 .FactionPayload(FactionPayload.Create(appliedFaction))
                 .Emit();
         }

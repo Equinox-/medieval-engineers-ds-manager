@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using HarmonyLib;
 using Medieval.GameSystems;
@@ -18,6 +19,8 @@ using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using Sandbox.Game.SessionComponents.Clipboard;
 using Sandbox.Game.World;
+using VRage.Components.Entity.CubeGrid;
+using VRage.Entity.Block;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Network;
@@ -80,6 +83,7 @@ namespace Meds.Wrapper.Audit
                     _hasFlown = true;
                     return true;
                 }
+
                 _flying.FinishAndClear();
                 return false;
             }
@@ -101,6 +105,7 @@ namespace Meds.Wrapper.Audit
                     _hasSpectated = true;
                     return true;
                 }
+
                 _spectating.FinishAndClear();
                 return false;
             }
@@ -247,10 +252,11 @@ namespace Meds.Wrapper.Audit
         }
 
         [HarmonyPatch(typeof(MyGridPlacer), "ProcessPasting")]
+        [HarmonyPatch(typeof(MyGridPlacer), "ProcessBlockPlacement")]
         [AlwaysPatch]
-        public static class AuditPasteGrids
+        public static class AuditPlaceGrids
         {
-            public static void Postfix(List<MyGridPlacer.MergeScene> createdScenes)
+            public static void Postfix(MyGridPlacer.MyBuildServerRequest buildRequest, List<MyGridPlacer.MergeScene> createdScenes)
             {
                 var player = AuditPayload.GetActingPlayer();
                 if (player == null) return;
@@ -266,16 +272,21 @@ namespace Meds.Wrapper.Audit
                 if (clipboard.Grids == 0)
                     return;
 
-                var payload = AuditPayload.Create(AuditEvent.ClipboardPaste, player, owningLocation: bounds.Center)
+                var payload = AuditPayload
+                    .Create(buildRequest.Pasting ? AuditEvent.ClipboardPaste : AuditEvent.BlocksPlace, player, owningLocation: bounds.Center)
                     .ClipboardOpPayload(in clipboard);
 
                 var clipboardInfo = payload.ClipboardOp;
                 if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
                 {
                     using var update = session.Update();
-                    update.StartLine().Append("Pasted ")
-                        .Append(clipboardInfo.Value.Grids).Append(" grids with ")
-                        .Append(clipboardInfo.Value.Blocks).Append(" blocks");
+                    var msg = update.StartLine().Append(buildRequest.Pasting ? "Pasted " : "Placed ");
+                    if (clipboard.Grids > 1)
+                        msg.Append(clipboard.Grids).Append(" grids with ");
+                    msg.Append(clipboard.Blocks);
+                    if (clipboard.BlockSubtype != null)
+                        msg.Append(" ").Append(clipboard.BlockSubtype);
+                    msg.Append(" blocks");
                 }
 
                 payload.Emit();
@@ -322,6 +333,99 @@ namespace Meds.Wrapper.Audit
                 }
 
                 payload.Emit();
+            }
+        }
+
+        [HarmonyPatch(typeof(MyGridPlacer), nameof(MyGridPlacer.Server_RemoveRequest))]
+        [AlwaysPatch]
+        public static class AuditRemoveBlocks
+        {
+            public struct RemoveBlocksState
+            {
+                public MyGridDataComponent Grid;
+                public Vector3D Pos;
+                public ClipboardOpPayload Blocks;
+            }
+
+            public static void Prefix(EntityId gridEntityId, BlockId blockId, out RemoveBlocksState __state)
+            {
+                __state = default;
+                var scene = MySession.Static.Scene;
+                if (!scene.TryGetEntity(gridEntityId, out var entity)
+                    || !entity.Components.TryGet(out __state.Grid)
+                    || !__state.Grid.TryGetBlock(blockId, out var block))
+                    return;
+
+                __state.Pos = __state.Grid.GetBlockWorldBounds(block).Center;
+                __state.Blocks.Grids = 0;
+                __state.Blocks.Add(block);
+            }
+
+            public static void Postfix(BlockId blockId, in RemoveBlocksState __state)
+            {
+                if (__state.Grid == null || __state.Grid.TryGetBlock(blockId, out _) || __state.Blocks.Blocks == 0)
+                    return;
+                EmitEvent(in __state);
+            }
+
+            public static void EmitEvent(in RemoveBlocksState state)
+            {
+                var player = AuditPayload.GetActingPlayer();
+                if (player == null) return;
+
+                var payload = AuditPayload.Create(AuditEvent.BlocksRemove, player, owningLocation: state.Pos)
+                    .ClipboardOpPayload(in state.Blocks);
+
+                var clipboardInfo = payload.ClipboardOp;
+                if (clipboardInfo.HasValue && MedievalMasterSessions.TryGetValue(player.Id.SteamId, out var session))
+                {
+                    using var update = session.Update();
+                    var msg = update.StartLine().Append("Removed ");
+                    if (state.Blocks.Grids > 1) msg.Append(state.Blocks.Grids).Append(" grids with ");
+                    msg.Append(state.Blocks.Blocks);
+                    if (state.Blocks.BlockSubtype != null) msg.Append(" ").Append(state.Blocks.BlockSubtype);
+                    msg.Append(" blocks");
+                }
+
+                payload.Emit();
+            }
+        }
+
+        [HarmonyPatch(typeof(MyGridPlacer), nameof(MyGridPlacer.Server_RemoveRequestMultiple))]
+        [AlwaysPatch]
+        public static class AuditRemoveMultipleBlocks
+        {
+            public static void Prefix(EntityId gridEntityId, List<BlockId> blocksToRemove, out AuditRemoveBlocks.RemoveBlocksState __state)
+            {
+                __state = default;
+                var scene = MySession.Static.Scene;
+                if (!scene.TryGetEntity(gridEntityId, out var entity) || !entity.Components.TryGet(out __state.Grid))
+                    return;
+
+                __state.Blocks.Grids = 0;
+                var pos = Vector3D.Zero;
+                foreach (var id in blocksToRemove)
+                    if (__state.Grid.TryGetBlock(id, out var block))
+                    {
+                        __state.Blocks.Add(block);
+                        pos += __state.Grid.GetBlockWorldBounds(block).Center;
+                    }
+
+                if (__state.Blocks.Blocks == 0) return;
+
+                __state.Pos = pos / __state.Blocks.Blocks;
+            }
+
+            public static void Postfix(List<BlockId> blocksToRemove, ref AuditRemoveBlocks.RemoveBlocksState __state)
+            {
+                if (__state.Grid == null || __state.Blocks.Blocks == 0) return;
+                var removedBlocks = 0;
+                foreach (var id in blocksToRemove)
+                    if (!__state.Grid.TryGetBlock(id, out _))
+                        removedBlocks++;
+                if (removedBlocks == 0) return;
+                __state.Blocks.Blocks = Math.Min(__state.Blocks.Blocks, removedBlocks);
+                AuditRemoveBlocks.EmitEvent(in __state);
             }
         }
 

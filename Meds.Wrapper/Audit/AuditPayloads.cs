@@ -13,6 +13,7 @@ using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using VRage.Components.Entity.CubeGrid;
 using VRage.Components.Interfaces;
+using VRage.Entity.Block;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
@@ -39,6 +40,9 @@ namespace Meds.Wrapper.Audit
 
         ClipboardCut,
         ClipboardPaste,
+
+        BlocksPlace,
+        BlocksRemove,
 
         FlyingStart,
         FlyingEnd,
@@ -263,13 +267,47 @@ namespace Meds.Wrapper.Audit
 
     public struct ClipboardOpPayload
     {
+        public string BlockSubtype;
         public int Grids;
         public int Blocks;
 
+        public void Add(MyBlock block)
+        {
+            if (Blocks == 0)
+                BlockSubtype = block.DefinitionId.SubtypeName;
+            else if (BlockSubtype != null && BlockSubtype != block.DefinitionId.SubtypeName)
+                BlockSubtype = null;
+            Blocks++;
+        }
+
         public void Add(MyGridDataComponent grid)
         {
+            if ((Blocks == 0 || BlockSubtype != null) && grid.BlockCount > 0)
+            {
+                var type = HomogenousBlockType(grid);
+                if (Blocks == 0)
+                    BlockSubtype = type; // Set homogenous block type if there aren't already blocks in the clipboard.
+                else if (type != BlockSubtype)
+                    BlockSubtype = null; // Clear homogenous block type if the added grid isn't homogenous or is homogenous but differs.
+            }
             Grids++;
             Blocks += grid.BlockCount;
+        }
+
+        private static string HomogenousBlockType(MyGridDataComponent grid)
+        {
+            var homogenousSubtype = MyStringHash.NullOrEmpty;
+            foreach (var block in grid.Blocks)
+            {
+                var blockSubtype = block.DefinitionId.SubtypeId;
+                if (homogenousSubtype == blockSubtype)
+                    continue;
+                if (homogenousSubtype != MyStringHash.NullOrEmpty)
+                    return null;
+                homogenousSubtype = blockSubtype;
+            }
+
+            return homogenousSubtype.String;
         }
 
         public void Add(MyEntity entity)
