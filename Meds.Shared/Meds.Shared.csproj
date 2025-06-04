@@ -44,6 +44,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="DiscordTimeUtils.cs" />
+        <Compile Include="MinidumpUtils.cs" />
         <Compile Include="Properties\VersionInfo.cs" />
         <Compile Include="VersionInfoAttribute.cs" />
         <Compile Include="CollectionEquality.cs" />

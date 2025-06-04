@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
@@ -21,6 +23,19 @@ namespace Meds.Wrapper
         [DllImport("kernel32.dll")]
         private static extern uint SetErrorMode(uint uMode);
 
+        [DllImport("kernel32.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern DelUnhandledExceptionFilter SetUnhandledExceptionFilter(DelUnhandledExceptionFilter filter);
+
+        private delegate long DelUnhandledExceptionFilter(IntPtr exceptionInfo);
+
+        private static DelUnhandledExceptionFilter CoreDumpOnException(string diagnosticsDir) => info =>
+        {
+            var process = Process.GetCurrentProcess();
+            var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}_crash{MinidumpUtils.CoreDumpExt}";
+            MinidumpUtils.CaptureAtomic(process, diagnosticsDir, name);
+            return 0;
+        };
+
         public static void Main(string[] args)
         {
             // fail critical errors & no fault error box
@@ -35,6 +50,9 @@ namespace Meds.Wrapper
             if (args.Length != 2)
                 throw new Exception("Wrapper should not be invoked manually.  [installConfig] [runtimeConfig]");
             var cfg = new Configuration(args[0], args[1]);
+
+            // write core dumps to the diagnostics directory on crash
+            SetUnhandledExceptionFilter(CoreDumpOnException(cfg.Install.DiagnosticsDirectory));
 
             Console.Title = $"[{cfg.Install.Instance}] Server";
             PatchHelper.PatchStartup(cfg.Install);
