@@ -52,6 +52,7 @@ namespace Meds.Wrapper.Audit
         ChatCommand,
 
         Damage,
+        Death,
 
         FactionCreate,
         FactionDelete,
@@ -372,7 +373,7 @@ namespace Meds.Wrapper.Audit
 
         public static DamagePayload Create(in MyDamageInformation info) => new DamagePayload
         {
-            Type = info.Type.String,
+            Type = info.Type == MyStringHash.NullOrEmpty ? "Unknown" : info.Type.String,
             Amount = info.Amount,
             Damaged = BasicEntityPayload.CreateNullable(info.DamagedEntity),
             Velocity = info.HitInfo != null ? MaybeLength(info.HitInfo.Value.Velocity) : null,
