@@ -53,9 +53,7 @@ namespace Meds.Wrapper.Metrics
                 if (i.Calls(invokeMethod))
                 {
                     found = true;
-                    yield return new CodeInstruction(OpCodes.Call, profileMethod)
-                        .WithBlocks(i.blocks)
-                        .WithLabels(i.labels);
+                    yield return i.ChangeInstruction(OpCodes.Call, profileMethod);
                 }
                 else
                     yield return i;

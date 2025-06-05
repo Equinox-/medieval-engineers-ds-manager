@@ -161,9 +161,7 @@ namespace Meds.Wrapper.Shim
                 {
                     if (instruction.Is(OpCodes.Ldsfld, IsConsoleVisible))
                     {
-                        yield return new CodeInstruction(OpCodes.Ldc_I4_0)
-                            .MoveBlocksFrom(instruction)
-                            .MoveLabelsFrom(instruction);
+                        yield return instruction.ChangeInstruction(OpCodes.Ldc_I4_0);
                     }
                     else
                     {

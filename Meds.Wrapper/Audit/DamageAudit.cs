@@ -1,11 +1,9 @@
-﻿using Medieval.GameSystems.DeathNotifications;
-using Sandbox.Game.Entities.Entity.Stats;
+﻿using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.Entities.Entity.Stats.Extensions;
 using Sandbox.Game.EntityComponents.Character;
 using Sandbox.Game.GameSystems;
 using VRage.Components.Interfaces;
 using VRage.Game.Entity;
-using VRage.Session;
 
 namespace Meds.Wrapper.Audit
 {

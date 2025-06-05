@@ -52,5 +52,12 @@ namespace Meds.Wrapper.Shim
                 _ => false
             };
         }
+
+        public static CodeInstruction ChangeInstruction(this CodeInstruction ins, OpCode code, object operand = null)
+        {
+            ins.opcode = code;
+            ins.operand = operand;
+            return ins;
+        }
     }
 }

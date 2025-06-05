@@ -150,7 +150,7 @@ namespace Meds.Wrapper.Metrics
                     }
                     else if (list[i].Calls(AddItems))
                     {
-                        list[i] = list[i].Clone(AddItemsShimRef).Clone(OpCodes.Call);
+                        list[i] = list[i].ChangeInstruction(OpCodes.Call, AddItemsShimRef);
                         list.InsertRange(i, new[]
                         {
                             new CodeInstruction(OpCodes.Ldloc, goldItemType),

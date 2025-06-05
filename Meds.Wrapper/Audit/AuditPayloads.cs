@@ -244,7 +244,7 @@ namespace Meds.Wrapper.Audit
 
         public BasicEntityComponentPayload From, To;
 
-        public static InventoryOpPayload Create(MyInventory src, MyInventory dst, MyDefinitionId id, int amount) => new InventoryOpPayload
+        public static InventoryOpPayload Create(MyInventoryBase src, MyInventoryBase dst, MyDefinitionId id, int amount) => new InventoryOpPayload
         {
             Subtype = id.SubtypeName,
             Amount = amount,

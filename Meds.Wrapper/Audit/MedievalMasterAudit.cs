@@ -1,24 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using HarmonyLib;
 using Medieval.GameSystems;
 using Medieval.GameSystems.Building;
 using Medieval.GUI;
+using Medieval.World.Persistence;
 using Meds.Shared;
-using Meds.Wrapper.Metrics;
 using Meds.Wrapper.Shim;
 using Meds.Wrapper.Trace;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Character;
 using Sandbox.Game.GameSystems.Chat;
-using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using Sandbox.Game.SessionComponents.Clipboard;
-using Sandbox.Game.World;
 using VRage.Components.Entity.CubeGrid;
 using VRage.Entity.Block;
 using VRage.Game;
@@ -27,7 +26,9 @@ using VRage.Network;
 using VRage.ObjectBuilders;
 using VRage.ObjectBuilders.Inventory;
 using VRage.Scene;
+using VRage.Session;
 using VRageMath;
+using MySession = Sandbox.Game.World.MySession;
 
 // ReSharper disable InconsistentNaming
 
@@ -158,7 +159,7 @@ namespace Meds.Wrapper.Audit
             private void Notify(bool finish = false)
             {
                 if (!finish && Stopwatch.GetTimestamp() < _throttleUntil) return;
-                var builder = MedsModApi.SendModEvent("MedievalMasterAudit", MedsAppPackage.Instance);
+                var builder = MedsModApi.SendModEvent("meds.audit.medievalMaster", MedsAppPackage.Instance);
                 builder.SetReuseIdentifier(_sessionId, TimeSpan.FromHours(1));
                 _name = _player.Identity?.DisplayName ?? _name ?? _player.Id.SteamId.ToString();
                 var traceInfo = string.Format(Entrypoint.Config?.Runtime?.Current?.Audit?.TraceIdFormat ?? AuditConfig.DefaultTraceIdFormat, Trace.TraceId);
@@ -251,11 +252,16 @@ namespace Meds.Wrapper.Audit
             }
         }
 
-        [HarmonyPatch(typeof(MyGridPlacer), "ProcessPasting")]
-        [HarmonyPatch(typeof(MyGridPlacer), "ProcessBlockPlacement")]
+        [HarmonyPatch]
         [AlwaysPatch]
         public static class AuditPlaceGrids
         {
+            public static IEnumerable<MethodBase> TargetMethods() => new[]
+            {
+                AccessTools.Method(typeof(MyGridPlacer), "ProcessPasting"),
+                AccessTools.Method(typeof(MyGridPlacer), "ProcessBlockPlacement")
+            }.Where(x => x != null);
+
             public static void Postfix(MyGridPlacer.MyBuildServerRequest buildRequest, List<MyGridPlacer.MergeScene> createdScenes)
             {
                 var player = AuditPayload.GetActingPlayer();

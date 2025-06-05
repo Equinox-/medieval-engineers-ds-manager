@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization.Formatters;
@@ -44,11 +45,16 @@ namespace Meds.Wrapper.Shim
         public static void Postfix() => NoDoubleReplication.SerializingDepth--;
     }
 
-    [HarmonyPatch(typeof(MySessionPersistence), "GetSnapshot")]
-    [HarmonyPatch(typeof(MyInfiniteWorldPersistence), "UpdateChunks")]
+    [HarmonyPatch]
     [AlwaysPatch]
     public static class NoDoubleReplicationGuardSaving
     {
+        public static IEnumerable<MethodBase> TargetMethods() => new[]
+        {
+            AccessTools.Method(typeof(MySessionPersistence), "GetSnapshot"),
+            AccessTools.Method(typeof(MyInfiniteWorldPersistence), "UpdateChunks")
+        }.Where(x => x != null);
+
         public static void Prefix(ref int __state)
         {
             ref var count = ref NoDoubleReplication.SerializingDepth;

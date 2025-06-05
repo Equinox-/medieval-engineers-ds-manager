@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.Serialization;
 using HarmonyLib;
 using Meds.Metrics;
 using Meds.Metrics.Group;
@@ -12,10 +13,14 @@ using Meds.Wrapper.Shim;
 using VRage.Collections.Concurrent;
 using VRage.Game;
 using VRage.Library;
+using VRage.Library.Collections;
 using VRage.Network;
 using VRage.ObjectBuilders;
 using VRage.Replication;
+using VRage.Serialization;
 using VRage.Steam;
+using BitStreamExtensions = System.BitStreamExtensions;
+
 // ReSharper disable InconsistentNaming
 
 namespace Meds.Wrapper.Metrics
@@ -44,6 +49,7 @@ namespace Meds.Wrapper.Metrics
                 PatchHelper.Patch(typeof(StateSync));
                 PatchHelper.Patch(typeof(ReplicableSerialize));
                 PatchHelper.Patch(typeof(WorldDataSize));
+                PatchHelper.Patch(typeof(VoxelReplicableSize));
             }
             catch (Exception err)
             {
@@ -319,6 +325,51 @@ namespace Meds.Wrapper.Metrics
                 var sectorSize = world.SerializedSector?.LongLength;
                 if (sectorSize.HasValue)
                     SectorSize.Record(sectorSize.Value);
+            }
+        }
+
+        [HarmonyPatch("Sandbox.Game.Replication.MyVoxelReplicable+SerializeData", "Serialize")]
+        [AlwaysPatch]
+        public static class VoxelReplicableSize
+        {
+            private static readonly Histogram EntitySize = MetricRegistry.Histogram(MetricName.Of(WorldDownloadFragmentBytes, "fragment", "voxelEntity"));
+            private static readonly Histogram DataSize = MetricRegistry.Histogram(MetricName.Of(WorldDownloadFragmentBytes, "fragment", "voxelData"));
+
+            private static void WriteReplace<T>(BitStream stream, ref T data, MySerializeInfo info)
+            {
+                var report = typeof(T) == typeof(byte[]) ? DataSize
+                    : typeof(MyObjectBuilder_EntityBase).IsAssignableFrom(typeof(T)) ? EntitySize
+                    : null;
+                var prev = stream.BytePosition;
+                MySerializer.Write(stream, ref data, info);
+                report?.Record(stream.BytePosition - prev);
+            }
+
+            public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            {
+                var serializeMethod = typeof(MySerializer)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .Where(method =>
+                    {
+                        if (method.Name != nameof(MySerializer.Write) || !method.IsGenericMethodDefinition) return false;
+                        var genericParams = method.GetGenericArguments();
+                        if (genericParams.Length != 1) return false;
+                        var args = method.GetParameters();
+                        if (args.Length != 3) return false;
+                        return args[0].ParameterType == typeof(BitStream)
+                               && args[1].ParameterType == genericParams[0].MakeByRefType()
+                               && args[2].ParameterType == typeof(MySerializeInfo);
+                    })
+                    .FirstOrDefault();
+                var replaceMethod = AccessTools.Method(typeof(VoxelReplicableSize), nameof(WriteReplace));
+                foreach (var i in instructions)
+                {
+                    if (i.opcode == OpCodes.Call && i.operand is MethodInfo { IsGenericMethod: true } method &&
+                        method.GetGenericMethodDefinition() == serializeMethod)
+                        yield return i.ChangeInstruction(OpCodes.Call, replaceMethod.MakeGenericMethod(method.GetGenericArguments()));
+                    else
+                        yield return i;
+                }
             }
         }
     }

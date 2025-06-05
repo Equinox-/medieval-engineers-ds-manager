@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Meds.Metrics;
+using Meds.Wrapper.Shim;
 using VRage.Dedicated.RemoteAPI;
 using VRage.Logging;
 
@@ -69,7 +70,7 @@ namespace Meds.Wrapper.Output.Prometheus
                     && !(method.Name == nameof(NamedLogger.OpenBlock) || method.Name == nameof(MyLog.IncreaseIndent) ||
                          method.Name == nameof(MyLog.DecreaseIndent)))
                 {
-                    yield return new CodeInstruction(OpCodes.Nop).WithBlocks(instruction.blocks).WithLabels(instruction.labels);
+                    yield return instruction.ChangeInstruction(OpCodes.Nop);
                     var pops = 1 + method.GetParameters().Length;
                     for (var i = 0; i < pops; i++)
                         yield return new CodeInstruction(OpCodes.Pop);
