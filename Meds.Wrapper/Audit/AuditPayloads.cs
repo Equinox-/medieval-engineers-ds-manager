@@ -2,6 +2,7 @@ using System;
 using Medieval.Entities.Components.Planet;
 using Medieval.GameSystems;
 using Medieval.GameSystems.Factions;
+using Medieval.ObjectBuilders.Components;
 using Meds.Wrapper.Trace;
 using Meds.Wrapper.Utils;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,6 +68,8 @@ namespace Meds.Wrapper.Audit
         FactionMemberSetRank,
         FactionMemberLeft,
         FactionMemberKicked,
+
+        AreaStateChange,
     }
 
     public class AuditPayload
@@ -85,6 +88,7 @@ namespace Meds.Wrapper.Audit
         public FactionPayload? Faction;
         public PlayerPayload? FactionMember;
         public DiplomacyPayload Diplomacy;
+        public AreaPayload AreaOp;
 
         public static MyPlayer GetActingPlayer(long? identity = null, ulong? steam = null)
         {
@@ -202,6 +206,12 @@ namespace Meds.Wrapper.Audit
         public AuditPayload DiplomacyPayload(DiplomacyPayload payload)
         {
             Diplomacy = payload;
+            return this;
+        }
+
+        public AuditPayload AreaPayload(AreaPayload payload)
+        {
+            AreaOp = payload;
             return this;
         }
 
@@ -410,5 +420,17 @@ namespace Meds.Wrapper.Audit
             Status = status.String,
             OtherFaction = faction,
         };
+    }
+
+    public class AreaPayload
+    {
+        public long Id;
+        public string State;
+        public PlayerPayload? Owner;
+
+        public string PriorState;
+        public PlayerPayload? PriorOwner;
+
+        public double? ExpiresInHours;
     }
 }

@@ -113,6 +113,7 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Audit\AreaAudit.cs" />
         <Compile Include="Audit\AuditPayloads.cs" />
         <Compile Include="Audit\DamageAudit.cs" />
         <Compile Include="Audit\EquiEntityControlAudit.cs" />

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
 using Medieval;
 using Medieval.GameSystems;
 using Medieval.World.Persistence;
@@ -17,11 +16,8 @@ using Sandbox.Engine.Multiplayer;
 using Sandbox.Game.Entities;
 using VRage.Collections;
 using VRage.Components;
-using VRage.Components.Session;
 using VRage.Engine;
-using VRage.Entity.Block;
 using VRage.Network;
-using VRage.Physics;
 using VRageMath;
 using MySession = Sandbox.Game.World.MySession;
 
@@ -98,6 +94,7 @@ namespace Meds.Wrapper
             VoxelResetPatches.Register();
             DamageAudit.Register();
             FactionAudit.Register();
+            AreaAudit.Register();
             MyMultiplayer.Static.ClientReady += id => PlayerSystem.Instance?.HandlePlayerJoinedLeft(true, id);
             MyMultiplayer.Static.ClientLeft += (id, _) => PlayerSystem.Instance?.HandlePlayerJoinedLeft(false, id);
             MyMultiplayer.Static.ViewDistance = Config.Install.Adjustments.SyncDistance ?? Math.Max(MySession.Static.Settings.ViewDistance, 100);
