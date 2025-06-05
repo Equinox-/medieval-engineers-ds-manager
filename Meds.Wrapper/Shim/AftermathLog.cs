@@ -11,6 +11,7 @@ using Sandbox.Game.World;
 using VRage.Components.Physics;
 using VRage.Game.Components;
 using VRage.Game.Entity;
+using VRage.Library.Threading;
 using VRage.Scene;
 using VRageMath.Spatial;
 
@@ -23,6 +24,7 @@ namespace Meds.Wrapper.Shim
         // Meds.Wrapper.Shim.AftermathLog._events
         private const int MaxEventCount = 8192;
         private static readonly Queue<AftermathEvent> _events = new Queue<AftermathEvent>();
+        private static readonly FastResourceLock _lock = new FastResourceLock();
 
         [DebuggerDisplay("{Tick}, {Type}, {ObjOneName}, {ObjTwoName}")]
         private struct AftermathEvent
@@ -81,7 +83,7 @@ namespace Meds.Wrapper.Shim
 
         private static void Add(in AftermathEvent evt)
         {
-            lock (_events)
+            using (_lock.AcquireExclusiveUsing())
             {
                 while (_events.Count >= MaxEventCount)
                     _events.Dequeue();
