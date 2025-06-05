@@ -11,7 +11,7 @@ namespace Meds.Watchdog.GrafanaAgent
         public bool Enabled;
         
         [XmlElement]
-        public string Version = "v0.40.2";
+        public string Version = "v0.44.2";
 
         [XmlElement]
         public string TenantId;

@@ -129,7 +129,10 @@ namespace Meds.Watchdog.GrafanaAgent
                                         new Dictionary<string, object>
                                         {
                                             ["targets"] = new object[] { $"127.0.0.1:{vanillaRemote.Port}" },
-                                            ["labels"] = staticTags
+                                            ["labels"] = new Dictionary<string, string>(staticTags)
+                                            {
+                                                ["service_name"] = install.Instance + "-wrapper",
+                                            },
                                         }
                                     }
                                 }
@@ -196,17 +199,31 @@ namespace Meds.Watchdog.GrafanaAgent
                                             ["time"] = nameof(LogInfo.Timestamp),
                                             ["thread"] = "ThreadName",
                                             ["mod_id"] = "Payload.Package.ModId",
+                                            ["audit_event"] = "Payload.AuditEvent",
                                         })),
                                         SingleEntry("timestamp", new Dictionary<string, string>
                                         {
                                             ["source"] = "time",
                                             ["format"] = "RFC3339Nano",
                                         }),
+                                        SingleEntry("structured_metadata", new Dictionary<string, string>
+                                        {
+                                            ["logger"] = "logger",
+                                            ["level"] = "level",
+                                            ["thread"] = "thread",
+                                            ["audit_event"] = "audit_event",
+                                        }),
                                         SingleEntry("labels", new Dictionary<string, string>
                                         {
-                                            ["tool"] = "tool"
+                                            ["tool"] = "tool",
+                                            ["service_name"] = "tool",
                                         }),
-                                        SingleEntry("labeldrop", new object[] { "filename" })
+                                        SingleEntry("template", new Dictionary<string, string>
+                                        {
+                                            ["source"] = "service_name",
+                                            ["template"] = install.Instance + "-{{ ToLower .Value }}",
+                                        }),
+                                        SingleEntry("labeldrop", new object[] { "filename" }),
                                     }
                                 }
                             }
