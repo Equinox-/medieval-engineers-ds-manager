@@ -17,7 +17,9 @@ namespace Meds.Watchdog.Save
     {
         public const string WorldFolder = "world";
         public const string BackupFolder = "Backup";
-        
+
+        public const string LatestBackup = "latest-backup";
+
         private readonly ILoggerFactory _loggerFactory;
         private readonly InstallConfiguration _installConfig;
         private readonly IReadOnlyDictionary<SaveType, string> _saveRoots;
@@ -63,9 +65,20 @@ namespace Meds.Watchdog.Save
         private bool TryOpenSaveAbsolute(string path, SaveType type, out SaveFile save) => SaveFile.TryOpen(
             _loggerFactory.CreateLogger($"{nameof(SaveFiles)}.{Path.GetFileName(path)}"), path, type, out save);
 
+        public bool TryOpenLatestSave(out SaveFile latestSave)
+        {
+            latestSave = null;
+            foreach (var save in AutomaticSaves)
+                if (latestSave == null || save.TimeUtc >= latestSave.TimeUtc)
+                    latestSave = save;
+            return latestSave != null;
+        }
+
         public bool TryOpenSave(string name, out SaveFile save)
         {
             save = null;
+            if (name == LatestBackup)
+                return TryOpenLatestSave(out save);
             if (name.StartsWith("/") || name.StartsWith("\\") || name.Contains(".."))
                 return false;
             var nameIsZip = name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);

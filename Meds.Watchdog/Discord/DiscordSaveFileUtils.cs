@@ -10,18 +10,22 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Meds.Watchdog.Discord
 {
-    public abstract class SaveFilesAutoCompleter : DiscordAutoCompleter<SaveFile>
+    public abstract class SaveFilesAutoCompleter : DiscordAutoCompleter<string>
     {
         protected abstract IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix);
 
-        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(AutocompleteContext ctx, string prefix)
+        protected override IEnumerable<AutoCompleteTree<string>.Result> Provide(AutocompleteContext ctx, string prefix)
         {
-            return Provide(ctx.Services.GetRequiredService<SaveFiles>(), prefix);
+            var saves = ctx.Services.GetRequiredService<SaveFiles>();
+            if (SaveFiles.LatestBackup.StartsWith(prefix) && saves.TryOpenLatestSave(out _))
+                yield return new AutoCompleteTree<string>.Result(SaveFiles.LatestBackup, 1, SaveFiles.LatestBackup);
+            foreach (var result in Provide(saves, prefix))
+                yield return new AutoCompleteTree<string>.Result(result.Key, result.Objects, result.Data.SaveName);
         }
 
-        protected override string FormatData(string key, SaveFile data) => key;
+        protected override string FormatData(string key, string data) => key;
 
-        protected override string FormatArgument(SaveFile data) => data.SaveName;
+        protected override string FormatArgument(string data) => data;
     }
 
     public sealed class AllSaveFilesAutoCompleter : SaveFilesAutoCompleter
