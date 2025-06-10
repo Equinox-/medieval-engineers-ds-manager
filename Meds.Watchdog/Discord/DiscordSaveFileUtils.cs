@@ -12,14 +12,15 @@ namespace Meds.Watchdog.Discord
 {
     public abstract class SaveFilesAutoCompleter : DiscordAutoCompleter<string>
     {
-        protected abstract IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix);
+        protected abstract IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix, int limit);
 
         protected override IEnumerable<AutoCompleteTree<string>.Result> Provide(AutocompleteContext ctx, string prefix)
         {
             var saves = ctx.Services.GetRequiredService<SaveFiles>();
-            if (SaveFiles.LatestBackup.StartsWith(prefix) && saves.TryOpenLatestSave(out _))
+            var hasLatest = SaveFiles.LatestBackup.StartsWith(prefix) && saves.TryOpenLatestSave(out _);
+            if (hasLatest)
                 yield return new AutoCompleteTree<string>.Result(SaveFiles.LatestBackup, 1, SaveFiles.LatestBackup);
-            foreach (var result in Provide(saves, prefix))
+            foreach (var result in Provide(saves, prefix, hasLatest ? 9 : 10))
                 yield return new AutoCompleteTree<string>.Result(result.Key, result.Objects, result.Data.SaveName);
         }
 
@@ -30,12 +31,12 @@ namespace Meds.Watchdog.Discord
 
     public sealed class AllSaveFilesAutoCompleter : SaveFilesAutoCompleter
     {
-        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix) => files.AutoCompleteSave(prefix);
+        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix, int limit) => files.AutoCompleteSave(prefix, limit);
     }
 
     public sealed class AutomaticSaveFilesAutoCompleter : SaveFilesAutoCompleter
     {
-        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix) => files.AutoCompleteAutomaticSave(prefix);
+        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix, int limit) => files.AutoCompleteAutomaticSave(prefix, limit);
     }
 
     public sealed class ProgressReporter

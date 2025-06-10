@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DSharpPlus.SlashCommands;
@@ -49,7 +50,9 @@ namespace Meds.Watchdog.Discord
             [Option("regex", "Regular expression to search for")]
             string regex,
             [Option("ignoreCase", "Ignore case when matching lines")]
-            bool ignoreCase = true)
+            bool ignoreCase = true,
+            [Option("area", "Area to search, defaults to all areas")]
+            string areaText = null)
         {
             Regex compiledRegex;
             try
@@ -69,6 +72,16 @@ namespace Meds.Watchdog.Discord
                 return;
             }
 
+            PlanetAreas areaFilter = default;
+            using (_dataStore.Read(out var data))
+            {
+                if (areaText != null && !data.Planet.TryParseArea(areaText, out areaFilter))
+                {
+                    await context.EditResponseAsync($"Failed to parse area reference `{areaText}`");
+                    return;
+                }
+            }
+
             using var save = saveFile.Open();
 
             var progress = new ProgressReporter(context);
@@ -79,6 +92,27 @@ namespace Meds.Watchdog.Discord
                 SearchObjectType.Player => SaveFileTextSearch.Players(save, compiledRegex, progress.Reporter),
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
             };
+
+            if (areaText != null)
+            {
+                // ReSharper disable AccessToDisposedClosure
+                Func<GridDatabaseConfig, ulong, Vector3?> getResultPivot = target switch
+                {
+                    SearchObjectType.Entity => (gdb, id) => save.TryGetEntity(id, out var entity) ? (Vector3?)entity.CenterOrPivot(gdb) : null,
+                    SearchObjectType.Group => (gdb, id) => save.TryGetGroup(id, out var group) ? group.ChunkData?.WorldBounds(gdb).Center : null,
+                    SearchObjectType.Player => (_, id) => save.TryGetPlayer(id, out var player) ? player.EntityAccessor?.PositionOptional?.Position : null,
+                    _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
+                };
+                // ReSharper restore AccessToDisposedClosure
+                results = results.Where(result =>
+                {
+                    using var token = _dataStore.Read(out var data);
+                    var pivot = getResultPivot(data.GridDatabase, result.ObjectId);
+                    if (pivot == null) return false;
+                    var uv = data.Planet.GetAreaCoords(pivot.Value, out var face);
+                    return areaFilter.Face == face && areaFilter.MinX <= uv.X && uv.X <= areaFilter.MaxX && areaFilter.MinY <= uv.Y && uv.Y <= areaFilter.MaxY;
+                });
+            }
 
             var aggValue = TryFindGroup("aggValue");
             var aggTerm = TryFindGroup("aggTerm");
@@ -266,6 +300,7 @@ namespace Meds.Watchdog.Discord
 
             switch (target)
             {
+                // ReSharper disable AccessToDisposedClosure
                 case SearchObjectType.Entity:
                     var entities = SaveFileGeoSearch.Entities(save, lodSearch);
                     objectCount = entities.Count;
@@ -289,6 +324,7 @@ namespace Meds.Watchdog.Discord
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(target), target, null);
+                // ReSharper restore AccessToDisposedClosure
             }
 
             searchText += $"{target} Count: {objectCount}\n";
