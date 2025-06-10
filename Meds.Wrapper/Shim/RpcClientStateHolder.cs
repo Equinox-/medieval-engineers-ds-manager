@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using HarmonyLib;
+using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Players;
 using VRage.Network;
 
@@ -10,7 +11,14 @@ namespace Meds.Wrapper.Shim
     {
         private static readonly ConcurrentDictionary<EndpointId, MyClientStateBase> States = new ConcurrentDictionary<EndpointId, MyClientStateBase>();
 
-        public static bool TryGetState(EndpointId endpoint, out MyClientStateBase state) => States.TryGetValue(endpoint, out state);
+        public static bool TryGetState(MyPlayer.PlayerId player, out MyClientStateBase state)
+        {
+            state = null;
+            if (Sync.Clients == null || !Sync.Clients.TryGetClient(player.SteamId, out var client)) return false;
+            return TryGetState(client.Endpoint, out state);
+        }
+
+        public static bool TryGetState(EndpointId endpoint, out MyClientStateBase state) => States.TryGetValue(endpoint, out state) && state != null;
 
         [HarmonyPatch(typeof(MyReplicationServer), nameof(MyReplicationServer.OnClientConnected), typeof(EndpointId), typeof(MyClientStateBase))]
         [AlwaysPatch]
