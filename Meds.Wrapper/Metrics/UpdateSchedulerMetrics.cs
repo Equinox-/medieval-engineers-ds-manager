@@ -12,6 +12,8 @@ using VRage.Components;
 using VRage.Engine;
 using VRage.Game.Components;
 using VRage.Game.Entity;
+using VRage.GameServices;
+using VRage.Network;
 
 #pragma warning disable 618
 
@@ -228,6 +230,9 @@ namespace Meds.Wrapper.Metrics
             public static IEnumerable<MethodBase> TargetMethods()
             {
                 yield return AccessTools.Method(typeof(MyBlobTransmitter), nameof(MyBlobTransmitter.Update));
+                yield return AccessTools.Method(typeof(MyReplicationServer), nameof(MyReplicationServer.Update));
+                yield return AccessTools.Method(typeof(MyGameService), nameof(MyGameService.Update));
+                yield return AccessTools.Method(Type.GetType("Sandbox.Engine.Multiplayer.MyTransportLayer, Sandbox.Game"), "Tick");
                 yield return AccessTools.Method(Type.GetType("Sandbox.Engine.Networking.MyReceiveQueue, Sandbox.Game"), "Process");
             }
 
