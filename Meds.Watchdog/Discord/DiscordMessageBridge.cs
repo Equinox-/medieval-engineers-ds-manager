@@ -62,7 +62,7 @@ namespace Meds.Watchdog.Discord
                 .Map(x => x.Discord.ChannelSyncs, CollectionEquality<DiscordChannelSync>.List())
                 .Map(syncs =>
                 {
-                    var toDiscord = new Dictionary<string, List<DiscordChannelSync>>();
+                    var toDiscord = new Dictionary<string, List<DiscordChannelSync>>(StringComparer.OrdinalIgnoreCase);
                     if (syncs == null)
                         return toDiscord;
                     foreach (var sync in syncs)

@@ -80,6 +80,16 @@ namespace Meds.Wrapper.Audit
             }
 
             payload.Emit();
+
+            if (payload.Faction == null || payload.Diplomacy == null) return;
+            var statusDef = MyDiplomacyManager.GetDiplomaticStatusDefinition(status);
+            using var msg = MedsModApi.SendModEvent($"meds.diplomacy.{status.String}", MedsAppPackage.Instance);
+            var actingPlayerPrefix = payload.ActingPlayer != null ? payload.ActingPlayer.Value.DisplayName + " of " : "";
+            var actionDesc = result == MyFaction.SetDiplomaticStatusResult.Ok ? "declared" : "requested";
+            var otherPartyDesc = payload.Diplomacy.OtherFaction?.FactionName ?? payload.Diplomacy.OtherPlayer?.DisplayName ?? "unknown";
+            msg.SetMessage(
+                $"{actingPlayerPrefix}{payload.Faction.Value.FactionName} has {actionDesc} {statusDef?.DisplayNameText ?? status.String} with {otherPartyDesc}");
+            msg.Send();
         }
 
         private static void OnSetMemberRank(MyFaction faction, MyFaction.SetMemberRankResult result, long memberId, int _)
