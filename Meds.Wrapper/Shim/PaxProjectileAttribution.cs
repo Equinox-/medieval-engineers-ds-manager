@@ -25,7 +25,7 @@ namespace Meds.Wrapper.Shim
 
         private static MyEntity Shooter
         {
-            get => _shooter?.TryGetTarget(out var entity) ?? false ? entity : null;
+            get => _shooter != null && _shooter.TryGetTarget(out var entity) ? entity : null;
             set
             {
                 var shooter = _shooter;
