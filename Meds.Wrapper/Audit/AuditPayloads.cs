@@ -235,7 +235,7 @@ namespace Meds.Wrapper.Audit
                 }
             }
 
-            log.Logger.ZLogInformationWithPayload(this, "{0} by {1} on {2} ({3})", AuditEvent, ActingPlayer?.DisplayName,
+            log.Logger.ZLogInformationWithPayload(this, "{0} by {1} on {2} ({3})", AuditEvent, ActingPlayer?.DisplayName ?? Damage?.Attacker?.Subtype,
                 InventoryOp?.To.Entity?.Subtype ?? InventoryOp?.From.Entity?.Subtype ?? ControlOp?.Basic.Entity?.Subtype ?? Damage?.Damaged?.Subtype,
                 OwningPlayer?.DisplayName);
         }

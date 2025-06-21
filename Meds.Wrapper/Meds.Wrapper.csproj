@@ -115,6 +115,7 @@
     <ItemGroup>
         <Compile Include="Audit\AreaAudit.cs" />
         <Compile Include="Audit\AuditPayloads.cs" />
+        <Compile Include="Audit\MedsDamageAttributionComponent.cs" />
         <Compile Include="Audit\DamageAudit.cs" />
         <Compile Include="Audit\EquiEntityControlAudit.cs" />
         <Compile Include="Audit\FactionAudit.cs" />
@@ -157,6 +158,7 @@
         <Compile Include="Shim\MiscPatches.cs" />
         <Compile Include="Shim\PatchExtensions.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
+        <Compile Include="Shim\PaxProjectileAttribution.cs" />
         <Compile Include="Shim\ReportModsPatch.cs" />
         <Compile Include="Shim\RpcClientStateHolder.cs" />
         <Compile Include="Shim\ShimLog.cs" />
