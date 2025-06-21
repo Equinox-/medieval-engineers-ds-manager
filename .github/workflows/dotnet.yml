@@ -3,7 +3,7 @@ name: .NET
 on: [push]
 jobs:
   build:
-    runs-on: windows-2025
+    runs-on: windows-2022
     permissions:
       contents: read
       id-token: write # For federated auth
