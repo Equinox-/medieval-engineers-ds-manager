@@ -377,6 +377,7 @@ namespace Meds.Wrapper.Audit
     {
         public string Type;
         public float Amount;
+        public BasicEntityPayload? Attacker;
         public BasicEntityPayload? Damaged;
         public float? Velocity;
         public float? Distance;
@@ -385,6 +386,7 @@ namespace Meds.Wrapper.Audit
         {
             Type = info.Type == MyStringHash.NullOrEmpty ? "Unknown" : info.Type.String,
             Amount = info.Amount,
+            Attacker = BasicEntityPayload.CreateNullable(info.Attacker),
             Damaged = BasicEntityPayload.CreateNullable(info.DamagedEntity),
             Velocity = info.HitInfo != null ? MaybeLength(info.HitInfo.Value.Velocity) : null,
             Distance = info.HitInfo != null ? MaybeDistance(info.HitInfo.Value.StartPosition, info.HitInfo.Value.Position) : null,
