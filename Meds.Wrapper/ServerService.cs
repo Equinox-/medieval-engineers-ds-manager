@@ -80,6 +80,7 @@ namespace Meds.Wrapper
                     LoggingPayloads.VisitPayload(updateTarget, new CrashLoggingPayloadConsumer(_log, unwrapped));
                 else
                     _log.ZLogError(unwrapped, "Server crashed");
+                Thread.Sleep(100);
                 throw unwrapped;
             }
             finally
