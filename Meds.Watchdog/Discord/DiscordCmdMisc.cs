@@ -102,7 +102,7 @@ namespace Meds.Watchdog.Discord
                 {
                     const int split = CharacterLimit / 4;
                     await context.CreateResponseAsync(
-                        $"Message is too long without any splits, insert a `{MessageSeparator}` at last every {CharacterLimit} characters." +
+                        $"Message is too long without any splits, insert a `{MessageSeparator}` at last every {CharacterLimit} characters.  " +
                         $"Problematic section:\n```\n{msg.Substring(0, split)}\n...\n{msg.Substring(msg.Length - split)}\n```");
                     return;
                 }
@@ -110,12 +110,12 @@ namespace Meds.Watchdog.Discord
             var (channel, oldMessages, oldRules) = await ResolveRulesChannel(context);
             if (oldRules == null) return;
 
-            var diff = new UnidiffRenderer(contextLines: 7)
+            var diff = new UnidiffRenderer()
                 .Generate(oldRules.Replace(MessageSeparator, ""), newRules.Replace(MessageSeparator, ""), "old.txt", "new.txt");
             var hash = Sha256String(diff);
             if (confirmationCode == null)
             {
-                var msg = new DiscordInteractionResponseBuilder { IsEphemeral = true };
+                var msg = new DiscordInteractionResponseBuilder { IsEphemeral = false };
                 msg.AddLongResponse(diff, lang: "diff",
                     inlineContent: $"Use confirmation code `{hash}` to commit proposed change:");
                 await context.CreateResponseAsync(msg);
