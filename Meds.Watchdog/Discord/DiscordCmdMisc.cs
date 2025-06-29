@@ -111,7 +111,7 @@ namespace Meds.Watchdog.Discord
             if (oldRules == null) return;
 
             var diff = new UnidiffRenderer()
-                .Generate(oldRules.Replace(MessageSeparator, ""), newRules.Replace(MessageSeparator, ""), "old.txt", "new.txt");
+                .Generate(RemoveSeparators(oldRules), RemoveSeparators(newRules), "old.txt", "new.txt");
             var hash = Sha256String(diff);
             if (confirmationCode == null)
             {
@@ -184,6 +184,10 @@ namespace Meds.Watchdog.Discord
                 return start ? context.CreateResponseAsync(content) : context.EditResponseAsync(content);
             }
         }
+
+        private static string RemoveSeparators(string msg) => msg
+            .Replace(Environment.NewLine + MessageSeparator + Environment.NewLine, "")
+            .Replace(MessageSeparator, "");
 
         private static List<string> SplitToMessages(string text)
         {
