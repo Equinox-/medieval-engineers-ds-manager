@@ -52,6 +52,7 @@
         <Compile Include="Discord\DiscordCmdBase.cs" />
         <Compile Include="Discord\DiscordCmdConfig.cs" />
         <Compile Include="Discord\DiscordCmdDiagnostic.cs" />
+        <Compile Include="Discord\DiscordCmdMisc.cs" />
         <Compile Include="Discord\DiscordCmdPlayers.cs" />
         <Compile Include="Discord\DiscordCmdSave.cs" />
         <Compile Include="Discord\DiscordCmdSaveSearch.cs" />
@@ -112,8 +113,9 @@
         <Compile Include="Utils\SimpleWebsocket.cs" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.0" />
-      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.0" />
+      <PackageReference Include="DiffPlex" Version="1.8.0" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.1" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.1" />
       <PackageReference Include="Equ" Version="2.3.0" />
       <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />

@@ -131,6 +131,22 @@ namespace Meds.Watchdog.Discord
             return context.EditResponseAsync(msg);
         }
 
+        public static void AddLongResponse<T>(this BaseDiscordMessageBuilder<T> msg, string content, string lang = "", string ext = "txt",
+            string inlineContent = "") where T : BaseDiscordMessageBuilder<T>
+        {
+            msg.Content = inlineContent;
+            if (msg.Content.Length > 0) msg.Content += "\n";
+            if (content.Length < MessageLengthLimit - 32 - inlineContent.Length - lang.Length)
+            {
+                msg.Content += $"```{lang}\n{content}\n```";
+            }
+            else
+            {
+                msg.Content += "Response attached.";
+                msg.AddFile($"response.{ext}", new MemoryStream(Encoding.UTF8.GetBytes(content)));
+            }
+        }
+
         public delegate Page DelCreatePage<in T>(IEnumerable<T> pageItems, int firstInclusive, int lastExclusive);
 
         private const int DefaultPageSize = 10;

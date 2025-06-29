@@ -85,6 +85,7 @@ namespace Meds.Watchdog.Discord
                 commands.RegisterCommands<DiscordCmdStatus>();
                 commands.RegisterCommands<DiscordCmdPlayers>();
                 commands.RegisterCommands<DiscordCmdConfig>();
+                commands.RegisterCommands<DiscordCmdMisc>();
             }
         }
 
