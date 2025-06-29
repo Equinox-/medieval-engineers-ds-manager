@@ -110,7 +110,8 @@ namespace Meds.Watchdog.Discord
             var (channel, oldMessages, oldRules) = await ResolveRulesChannel(context);
             if (oldRules == null) return;
 
-            var diff = new UnidiffRenderer().Generate(oldRules.Replace(MessageSeparator, ""), newRules.Replace(MessageSeparator, ""), "old.txt", "new.txt");
+            var diff = new UnidiffRenderer(contextLines: 7)
+                .Generate(oldRules.Replace(MessageSeparator, ""), newRules.Replace(MessageSeparator, ""), "old.txt", "new.txt");
             var hash = Sha256String(diff);
             if (confirmationCode == null)
             {
