@@ -89,8 +89,8 @@ namespace Meds.Watchdog.Discord
                 }
         }
 
-        private const int EmbedDescriptionLimit = 4096;
-        private const int MessageLengthLimit = 2000;
+        public const int EmbedDescriptionLimit = 4096;
+        public const int MessageLengthLimit = 2000;
 
         public static Task RespondLongText(this InteractionContext context, IEnumerable<string> lines)
         {
@@ -142,7 +142,7 @@ namespace Meds.Watchdog.Discord
             }
             else
             {
-                msg.Content += "Response attached.";
+                msg.Content += " (attached)";
                 msg.AddFile($"response.{ext}", new MemoryStream(Encoding.UTF8.GetBytes(content)));
             }
         }

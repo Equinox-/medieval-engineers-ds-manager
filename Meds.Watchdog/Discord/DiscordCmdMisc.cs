@@ -18,7 +18,6 @@ namespace Meds.Watchdog.Discord
         private readonly Refreshable<DiscordConfig> _cfg;
 
         private const string MessageSeparator = "<!--New Message-->";
-        private const int CharacterLimit = 2000;
 
         public DiscordCmdMisc(DiscordService discord, Refreshable<Configuration> cfg) : base(discord)
         {
@@ -98,11 +97,11 @@ namespace Meds.Watchdog.Discord
             var newRules = await wc.DownloadStringTaskAsync(new Uri(newRulesFile.Url));
             var newMessages = SplitToMessages(newRules);
             foreach (var msg in newMessages)
-                if (msg.Length > CharacterLimit)
+                if (msg.Length > DiscordUtils.MessageLengthLimit)
                 {
-                    const int split = CharacterLimit / 4;
+                    const int split = DiscordUtils.MessageLengthLimit / 4;
                     await context.CreateResponseAsync(
-                        $"Message is too long without any splits, insert a `{MessageSeparator}` at last every {CharacterLimit} characters.  " +
+                        $"Message is too long without any splits, insert a `{MessageSeparator}` at least every {DiscordUtils.MessageLengthLimit} characters.  " +
                         $"Problematic section:\n```\n{msg.Substring(0, split)}\n...\n{msg.Substring(msg.Length - split)}\n```");
                     return;
                 }
@@ -116,7 +115,7 @@ namespace Meds.Watchdog.Discord
             if (confirmationCode == null)
             {
                 var msg = new DiscordInteractionResponseBuilder { IsEphemeral = false };
-                msg.AddLongResponse(diff, lang: "diff",
+                msg.AddLongResponse(diff, lang: "diff", ext: "diff",
                     inlineContent: $"Use confirmation code `{hash}` to commit proposed change:");
                 await context.CreateResponseAsync(msg);
                 return;
@@ -171,7 +170,7 @@ namespace Meds.Watchdog.Discord
                 return;
             }
 
-            await changelogChannel.SendMessageAsync(builder => builder.AddLongResponse(diff, lang: "diff", inlineContent: "Rules updated:"));
+            await changelogChannel.SendMessageAsync(builder => builder.AddLongResponse(diff, lang: "diff", ext: "diff", inlineContent: "Rules updated:"));
             await AppendLog($"Posted changelog to <#{changelogChannel.Id}>");
             return;
 
