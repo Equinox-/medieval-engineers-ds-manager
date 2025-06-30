@@ -53,7 +53,7 @@ namespace Meds.Wrapper
             var cfg = new Configuration(args[0], args[1]);
 
             // write core dumps to the diagnostics directory on crash
-            _prevExceptionFilter = SetUnhandledExceptionFilter(CoreDumpOnException(cfg.Install.DiagnosticsDirectory));
+            // _prevExceptionFilter = SetUnhandledExceptionFilter(CoreDumpOnException(cfg.Install.DiagnosticsDirectory));
 
             Console.Title = $"[{cfg.Install.Instance}] Server";
             PatchHelper.PatchStartup(cfg.Install);
