@@ -28,12 +28,13 @@ namespace Meds.Wrapper
 
         private delegate long DelUnhandledExceptionFilter(IntPtr exceptionInfo);
 
+        private static DelUnhandledExceptionFilter _prevExceptionFilter;
         private static DelUnhandledExceptionFilter CoreDumpOnException(string diagnosticsDir) => info =>
         {
             var process = Process.GetCurrentProcess();
             var name = $"core_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}_crash{MinidumpUtils.CoreDumpExt}";
             MinidumpUtils.CaptureAtomic(process, diagnosticsDir, name);
-            return 0;
+            return _prevExceptionFilter?.Invoke(info) ?? 0;
         };
 
         public static void Main(string[] args)
@@ -52,7 +53,7 @@ namespace Meds.Wrapper
             var cfg = new Configuration(args[0], args[1]);
 
             // write core dumps to the diagnostics directory on crash
-            SetUnhandledExceptionFilter(CoreDumpOnException(cfg.Install.DiagnosticsDirectory));
+            _prevExceptionFilter = SetUnhandledExceptionFilter(CoreDumpOnException(cfg.Install.DiagnosticsDirectory));
 
             Console.Title = $"[{cfg.Install.Instance}] Server";
             PatchHelper.PatchStartup(cfg.Install);
