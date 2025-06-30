@@ -11,24 +11,30 @@ namespace Meds.Wrapper.Audit
         public PlayerPayload? ShootingPlayer;
         public BasicEntityPayload? ShootingEntity;
 
+        public MyEntity ShootingEntityRuntime
+        {
+            set
+            {
+                var player = MyPlayers.Static.GetControllingPlayer(value);
+                var existing = value.Components.Get<MedsDamageAttributionComponent>();
+                if (player != null)
+                {
+                    ShootingPlayer = PlayerPayload.Create(player);
+                    ShootingEntity = null;
+                }
+                else
+                {
+                    ShootingPlayer = existing?.ShootingPlayer;
+                    ShootingEntity = BasicEntityPayload.Create(value);
+                }
+            }
+        }
+
         public MedsDamageAttributionComponent()
         {
         }
 
-        public MedsDamageAttributionComponent(MyEntity shooter)
-        {
-            var player = MyPlayers.Static.GetControllingPlayer(shooter);
-            var existing = shooter.Components.Get<MedsDamageAttributionComponent>();
-            if (player != null)
-            {
-                ShootingPlayer = PlayerPayload.Create(player);
-                ShootingEntity = null;
-            }
-            else
-            {
-                ShootingPlayer = existing?.ShootingPlayer;
-                ShootingEntity = BasicEntityPayload.Create(shooter);
-            }
-        }
+        public static void Apply(MyEntityComponentContainer container, MyEntity shooter) =>
+            container.GetOrAdd<MedsDamageAttributionComponent>().ShootingEntityRuntime = shooter;
     }
 }

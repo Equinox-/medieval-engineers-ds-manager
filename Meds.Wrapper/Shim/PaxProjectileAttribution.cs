@@ -66,16 +66,16 @@ namespace Meds.Wrapper.Shim
                 {
                     ["Pax.Cannons.MyPAX_CustomProjectile"] = new[] { "OnAddedToScene" },
                     ["Pax.Cannons.MyPAX_MortarBomb"] = new[] { "OnAddedToScene" },
+                    ["Pax.Cannons.MyPAX_MachineGun"] = new[] { "FIRE", "Use" },
                 });
 
             public static IEnumerable<MethodBase> TargetMethods() => _methods;
 
-            public static void Postfix(MyEntityComponent __instance)
+            public static void Prefix(MyEntityComponent __instance)
             {
                 var shooter = Shooter ?? AuditPayload.GetActingPlayer()?.ControlledEntity;
                 if (shooter == null) return;
-                var component = new MedsDamageAttributionComponent(shooter);
-                __instance.Container.Add(component);
+                MedsDamageAttributionComponent.Apply(__instance.Container, shooter);
             }
         }
 
