@@ -156,6 +156,7 @@
         <Compile Include="Shim\LoggerPatches.cs" />
         <Compile Include="Shim\MecPatches.cs" />
         <Compile Include="Shim\MiscPatches.cs" />
+        <Compile Include="Shim\NoDoubleReplicationPatches.cs" />
         <Compile Include="Shim\PatchExtensions.cs" />
         <Compile Include="Shim\PatchHelper.cs" />
         <Compile Include="Shim\PaxProjectileAttribution.cs" />
