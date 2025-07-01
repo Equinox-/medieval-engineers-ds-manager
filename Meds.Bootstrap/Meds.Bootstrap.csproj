@@ -9,7 +9,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>Meds.Bootstrap</RootNamespace>
         <AssemblyName>Meds.Bootstrap</AssemblyName>
-        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
         <LangVersion>8</LangVersion>

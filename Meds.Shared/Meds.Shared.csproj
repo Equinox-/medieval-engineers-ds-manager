@@ -9,7 +9,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>Meds.Shared</RootNamespace>
         <AssemblyName>Meds.Shared</AssemblyName>
-        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <PlatformTarget>x64</PlatformTarget>
         <ErrorReport>prompt</ErrorReport>
