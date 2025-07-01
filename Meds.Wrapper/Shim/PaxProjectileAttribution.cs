@@ -67,6 +67,7 @@ namespace Meds.Wrapper.Shim
                     ["Pax.Cannons.MyPAX_CustomProjectile"] = new[] { "OnAddedToScene" },
                     ["Pax.Cannons.MyPAX_MortarBomb"] = new[] { "OnAddedToScene" },
                     ["Pax.Cannons.MyPAX_MachineGun"] = new[] { "FIRE", "Use" },
+                    ["Pax.Cannons.MyPAX_Cannon"] = new[] { "RemoteControl", "Use" },
                 });
 
             public static IEnumerable<MethodBase> TargetMethods() => _methods;
@@ -166,6 +167,7 @@ namespace Meds.Wrapper.Shim
                 {
                     ["Pax.RangedDefenders.MyPAX_ShootingDefender"] = new[] { "ShootCustomProjectile" },
                     ["Pax.Cannons.MyPAX_MachineGun"] = new[] { "FireBullet" },
+                    ["Pax.Cannons.MyPAX_Cannon"] = new[] { "ShootCustomProjectile" },
                 });
 
             public static IEnumerable<MethodBase> TargetMethods() => _methods;
