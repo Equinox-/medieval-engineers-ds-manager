@@ -13,9 +13,9 @@ jobs:
         submodules: 'true'
     - name: setup-msbuild
       uses: microsoft/setup-msbuild@v1.3.1
-    # Restore NuGet
-    - name: Setup NuGet.exe for use with actions
-      uses: NuGet/setup-nuget@v1.1.1
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '4.7.x'
     - name: Generate NuGet Cache Key
       id: nuget_cache_key
       run: powershell -Command echo "key=nuget-cache-$((Get-FileHash -InputStream ([IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes((Select-String -Path "*/*.csproj" -Pattern "PackageReference" | foreach {$_.line.Trim()} | Sort-Object))))).Hash)" >> $env:GITHUB_OUTPUT
