@@ -57,6 +57,7 @@ namespace Meds.Bootstrap
                 {
                     log.Info($"Waiting for {waitForPid} to exit...");
                     var start = DateTime.UtcNow;
+                    var killTimeout = TimeSpan.FromSeconds(15);
                     while (true)
                     {
                         try
@@ -64,6 +65,11 @@ namespace Meds.Bootstrap
                             var process = Process.GetProcessById(waitForPid);
                             if (process.HasExited)
                                 break;
+                            if (DateTime.UtcNow - start > killTimeout)
+                            {
+                                log.Error($"Process {waitForPid} did not exit after {killTimeout}, killing it");
+                                process.Kill();
+                            }
                         }
                         catch (ArgumentException)
                         {

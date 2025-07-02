@@ -4,16 +4,8 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
-using Havok;
-using Medieval.Entities.Components;
-using Medieval.Entities.Components.Crafting;
-using Medieval.GameSystems;
 using Medieval.World.Persistence;
-using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
-using Sandbox.Engine.Multiplayer;
-using Sandbox.Engine.Physics;
-using Sandbox.Game.Entities.Character;
 using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Players;
@@ -21,15 +13,10 @@ using VRage.Components;
 using VRage.Definitions.Components;
 using VRage.Engine;
 using VRage.Game.Entity;
-using VRage.Library.Collections;
-using VRage.Network;
 using VRage.ParallelWorkers;
 using VRage.Physics;
 using VRage.Scene;
-using VRage.Session;
 using VRage.Utils;
-using VRageRender;
-using VRageRender.Messages;
 using ZLogger;
 
 // ReSharper disable InconsistentNaming
@@ -298,29 +285,26 @@ namespace Meds.Wrapper.Shim
                     yield return new CodeInstruction(OpCodes.Ldstr, "null");
                     continue;
                 }
+
                 yield return i;
             }
         }
-
     }
 
-    [HarmonyPatch]
+    [HarmonyPatch(typeof(MyEntityGridDatabase.ObjectLoader), "TryLoadEntityInternal")]
     [AlwaysPatch]
-    public static class LogMismatchEntityId
+    public static class ReloadEntitiesMarkedForClose
     {
-        private static ILogger Log => Entrypoint.LoggerFor(typeof(Mec419RareDeadlock_ExecutePendingWork));
+        private static bool TryGetEntityReplacement(MyScene scene, EntityId id, out MyEntity entity) =>
+            scene.TryGetEntity(id, out entity) && !entity.MarkedForClose;
 
-        public static IEnumerable<MethodBase> TargetMethods()
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream)
         {
-            yield return AccessTools.Method(typeof(MyScene), nameof(MyScene.TryGetEntity), new[] { typeof(EntityId), typeof(MyEntity).MakeByRefType() });
-            yield return AccessTools.Method(typeof(MyStagingScene), nameof(MyScene.TryGetEntity), new[] { typeof(EntityId), typeof(MyEntity).MakeByRefType() });
-        }
-
-        public static void Postfix(EntityId entityId, ref MyEntity entity, ref bool __result)
-        {
-            if (!__result) return;
-            if (entityId != entity?.Id)
-                Log.ZLogWarning("Tried to load entity {0} but got {1} ({2})", entityId, entity?.Id, entity?.DefinitionId);
+            foreach (var i in stream)
+                if (i.operand is MethodInfo method && method.DeclaringType == typeof(MyScene) && method.Name == "TryGetEntity")
+                    yield return i.ChangeInstruction(OpCodes.Call, AccessTools.Method(typeof(ReloadEntitiesMarkedForClose), nameof(TryGetEntityReplacement)));
+                else
+                    yield return i;
         }
     }
 }

@@ -73,9 +73,11 @@ namespace Meds.Watchdog.Discord
             }
 
             PlanetAreas areaFilter = default;
-            using (_dataStore.Read(out var data))
+            var areaFilterValid = false;
+            if (areaText != null)
             {
-                if (areaText != null && !data.Planet.TryParseArea(areaText, out areaFilter))
+                using (_dataStore.Read(out var data)) areaFilterValid = data.Planet.TryParseArea(areaText, out areaFilter);
+                if (!areaFilterValid)
                 {
                     await context.EditResponseAsync($"Failed to parse area reference `{areaText}`");
                     return;
@@ -93,7 +95,7 @@ namespace Meds.Watchdog.Discord
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null)
             };
 
-            if (areaText != null)
+            if (areaFilterValid)
             {
                 // ReSharper disable AccessToDisposedClosure
                 Func<GridDatabaseConfig, ulong, Vector3?> getResultPivot = target switch

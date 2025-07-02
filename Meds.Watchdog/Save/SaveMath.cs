@@ -116,5 +116,9 @@ namespace Meds.Watchdog.Save
     {
         public static bool Includes(this in BoundingBox box, Vector3 pos) => pos.X >= box.Min.X && pos.Y >= box.Min.Y && pos.Z >= box.Min.Z
                                                                              && pos.X <= box.Max.X && pos.Y <= box.Max.Y && pos.Z <= box.Max.Z;
+
+        public static bool Intersects(this in BoundingBox box, in BoundingBox other) => other.Max.X >= box.Min.X && other.Min.X <= box.Max.X &&
+                                                                                        other.Max.Y >= box.Min.Y && other.Min.Y <= box.Max.Y &&
+                                                                                        other.Max.Z >= box.Min.Z && other.Min.Z <= box.Max.Z;
     }
 }
