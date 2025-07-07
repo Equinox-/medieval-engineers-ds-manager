@@ -4,29 +4,31 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using DSharpPlus.SlashCommands;
+using Meds.Shared;
 using Meds.Watchdog.Save;
 using Meds.Watchdog.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Meds.Watchdog.Discord
 {
-    public abstract class SaveFilesAutoCompleter : DiscordAutoCompleter<string>
+    public abstract class SaveFilesAutoCompleter : DiscordAutoCompleter<SaveFile>
     {
         protected abstract IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(SaveFiles files, string prefix, int limit);
 
-        protected override IEnumerable<AutoCompleteTree<string>.Result> Provide(AutocompleteContext ctx, string prefix)
+        protected override IEnumerable<AutoCompleteTree<SaveFile>.Result> Provide(AutocompleteContext ctx, string prefix)
         {
             var saves = ctx.Services.GetRequiredService<SaveFiles>();
-            var hasLatest = SaveFiles.LatestBackup.StartsWith(prefix) && saves.TryOpenLatestSave(out _);
+            SaveFile latest = null;
+            var hasLatest = SaveFiles.LatestBackup.StartsWith(prefix) && saves.TryOpenLatestSave(out latest);
             if (hasLatest)
-                yield return new AutoCompleteTree<string>.Result(SaveFiles.LatestBackup, 1, SaveFiles.LatestBackup);
-            foreach (var result in Provide(saves, prefix, hasLatest ? 9 : 10))
-                yield return new AutoCompleteTree<string>.Result(result.Key, result.Objects, result.Data.SaveName);
+                yield return new AutoCompleteTree<SaveFile>.Result(SaveFiles.LatestBackup, 1, latest);
+            foreach (var result in Provide(saves, prefix, ResultLimit - (hasLatest ? 1 : 0)))
+                yield return result;
         }
 
-        protected override string FormatData(string key, string data) => key;
+        protected override string FormatData(string key, SaveFile data) => $"{data.SaveName} ({data.TimeUtc})";
 
-        protected override string FormatArgument(string data) => data;
+        protected override string FormatArgument(SaveFile data) => data.SaveName;
     }
 
     public sealed class AllSaveFilesAutoCompleter : SaveFilesAutoCompleter

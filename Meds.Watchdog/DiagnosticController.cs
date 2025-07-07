@@ -364,7 +364,7 @@ namespace Meds.Watchdog
             return ctx.Services.GetRequiredService<DiagnosticController>().AutoCompleteDiagnostic(prefix, ext: Extension);
         }
 
-        protected sealed override string FormatData(string key, DiagnosticOutput data) => key;
+        protected sealed override string FormatData(string key, DiagnosticOutput data) => $"{key} ({data.Info.LastWriteTimeUtc})";
 
         protected sealed override string FormatArgument(DiagnosticOutput data) => data.Info.Name;
     }

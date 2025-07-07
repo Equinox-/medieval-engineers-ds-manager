@@ -195,7 +195,7 @@ namespace Meds.Watchdog.Utils
             if (_root == null)
                 return temp;
 
-            var limit = optionalLimit ?? 10;
+            var limit = optionalLimit ?? DiscordAutoCompleter<string>.ResultLimit;
             var nodes = RecommendRoots(prompt);
             while (nodes.Count > 0 && nodes.Count + temp.Count < limit)
             {
@@ -237,6 +237,8 @@ namespace Meds.Watchdog.Utils
 
     public abstract class DiscordAutoCompleter<T> : IAutocompleteProvider
     {
+        public const int ResultLimit = 20;
+
         private static readonly IEqualityComparer<T> EqualityComparer = EqualityComparer<T>.Default;
 
         protected abstract IEnumerable<AutoCompleteTree<T>.Result> Provide(AutocompleteContext ctx, string prefix);
@@ -261,8 +263,9 @@ namespace Meds.Watchdog.Utils
             var autoCompleted = Provide(ctx, prefix).OrderBy(x => x.Key);
             var formatted = autoCompleted.Select(result => new DiscordAutoCompleteChoice(
                 Format(result),
-                EqualityComparer.Equals(result.Data, default) ? result.Key : FormatArgument(result.Data)));
-            return Task.FromResult(formatted);
+                EqualityComparer.Equals(result.Data, default) ? result.Key : FormatArgument(result.Data)))
+                .ToList();
+            return Task.FromResult<IEnumerable<DiscordAutoCompleteChoice>>(formatted);
         }
     }
 }
