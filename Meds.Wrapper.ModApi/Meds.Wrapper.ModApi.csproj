@@ -35,7 +35,7 @@
     <ItemGroup>
         <Reference Include="System" />
         <Reference Include="VRage">
-            <HintPath>$(SolutionDir)\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.dll</HintPath>
+            <HintPath>$(ProjectDir)\..\Meds.Wrapper\GameInstall\DedicatedServer64\VRage.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>

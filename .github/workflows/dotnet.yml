@@ -75,7 +75,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: meds-bootstrap
-        path: Meds.Wrapper>ModApi/bin/Release/Meds.Wrapper.ModApi.dll
+        path: Meds.Wrapper.ModApi/bin/Release/Meds.Wrapper.ModApi.dll
     # Publish to GCS
     - name: Log into gcloud
       id: auth
