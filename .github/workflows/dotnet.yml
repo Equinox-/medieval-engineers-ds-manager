@@ -68,6 +68,14 @@ jobs:
       run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameInstall/ communityedition
     - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
+    # Wrapper ModAPI
+    - name: Build Wrapper ModAPI
+      run: msbuild /p:Configuration=Release Meds.Wrapper.ModApi/Meds.Wrapper.ModApi.csproj
+    - name: Upload Wrapper ModAPI
+      uses: actions/upload-artifact@v4
+      with:
+        name: meds-bootstrap
+        path: Meds.Wrapper>ModApi/bin/Release/Meds.Wrapper.ModApi.dll
     # Publish to GCS
     - name: Log into gcloud
       id: auth

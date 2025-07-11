@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Bootstrap", "Meds.Boot
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Meds.Dist", "Meds.Dist\Meds.Dist.shproj", "{75E63F26-3A84-4C7B-B6EB-78C192857D5F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meds.Wrapper.ModApi", "Meds.Wrapper.ModApi\Meds.Wrapper.ModApi.csproj", "{BAE2DED2-55C9-42AA-B88E-7754CDA49D73}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -36,5 +38,9 @@ Global
 		{12B952FD-26DA-480E-BB9F-96404D34386E}.Release|x64.Build.0 = Release|x64
 		{12B952FD-26DA-480E-BB9F-96404D34386E}.Debug|x64.ActiveCfg = Debug|x64
 		{12B952FD-26DA-480E-BB9F-96404D34386E}.Debug|x64.Build.0 = Debug|x64
+		{BAE2DED2-55C9-42AA-B88E-7754CDA49D73}.Debug|x64.ActiveCfg = Debug|x64
+		{BAE2DED2-55C9-42AA-B88E-7754CDA49D73}.Debug|x64.Build.0 = Debug|x64
+		{BAE2DED2-55C9-42AA-B88E-7754CDA49D73}.Release|x64.ActiveCfg = Release|x64
+		{BAE2DED2-55C9-42AA-B88E-7754CDA49D73}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal
