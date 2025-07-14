@@ -92,9 +92,6 @@ namespace Meds.Wrapper
 
         public static void OnCorruptedState()
         {
-            // Give workers a chance to exit.
-            Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
-
             // Force shutdown instance.
             try
             {
