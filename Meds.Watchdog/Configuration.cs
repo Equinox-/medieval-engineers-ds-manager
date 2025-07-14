@@ -25,7 +25,7 @@ namespace Meds.Watchdog
         /// Timeout for server shutdown, in seconds.
         /// </summary>
         [XmlElement]
-        public double ShutdownTimeout = 60 * 10;
+        public double ShutdownTimeout = 60 * 2;
 
         /// <summary>
         /// Timeout for server liveness after startup, in seconds.
@@ -37,7 +37,7 @@ namespace Meds.Watchdog
         /// Timeout for server readiness after startup, in seconds.
         /// </summary>
         [XmlElement]
-        public double ReadinessTimeout = 60 * 15;
+        public double ReadinessTimeout = 60 * 4;
 
         /// <summary>
         /// Schedule a restart after a mod updates, in seconds.

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Meds.Shared;
@@ -32,7 +34,8 @@ namespace Meds.Wrapper
             _log = log;
         }
 
-
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private void Run()
         {
             var allArgs = new List<string>

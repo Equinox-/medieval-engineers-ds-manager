@@ -1,20 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
-using Meds.Wrapper.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Sandbox.Engine.Physics;
-using Sandbox.Game.EntityComponents.Character;
-using VRage.Components;
-using VRage.Game.Components;
-using VRage.Game.Entity;
 using VRage.Logging;
-using ZLogger;
+
 // ReSharper disable InconsistentNaming
 
 namespace Meds.Wrapper.Shim

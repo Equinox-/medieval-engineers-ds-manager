@@ -115,6 +115,16 @@ namespace Meds.Wrapper.Shim
                 }
             }
 
+            private static bool ShouldLogMessage(string msg)
+            {
+                // Very noisy message that modders ignore.
+                if (msg.EndsWith("' does not contain Mountpoints. Creating default."))
+                    return false;
+                if (msg.EndsWith("default collision will be used !") || msg.EndsWith("Unable to load collision geometry"))
+                    return false;
+                return true;
+            }
+
             protected override void LogInternal(in NamedLogger source, LogSeverity severity, object message)
             {
                 var logger = LoggerFor(in source);
@@ -127,6 +137,7 @@ namespace Meds.Wrapper.Shim
                         case FormattableString formatString:
                             var args = formatString.GetArguments();
                             var format = formatString.Format;
+                            if (!ShouldLogMessage(format)) return;
                             switch (args.Length)
                             {
                                 case 0:
@@ -181,7 +192,9 @@ namespace Meds.Wrapper.Shim
 
                             break;
                         default:
-                            logger.ZLogWithPayload(level, payload, msg?.ToString() ?? string.Empty);
+                            var toString = msg?.ToString() ?? string.Empty;
+                            if (!ShouldLogMessage(toString)) return;
+                            logger.ZLogWithPayload(level, payload, toString);
                             break;
                     }
                 }
