@@ -3,14 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.ExceptionServices;
+using System.Security;
 using System.Threading;
 using HarmonyLib;
 using Medieval.World.Persistence;
 using Meds.Wrapper.Metrics;
 using Meds.Wrapper.Utils;
+using Microsoft.Extensions.Logging;
 using VRage.Components;
 using VRage.Game.Components;
 using VRage.Game.Entity;
+using VRage.ParallelWorkers;
 using VRage.Scene;
 using VRage.Session;
 using ZLogger;
@@ -354,6 +358,71 @@ namespace Meds.Wrapper.Shim
                     entity.DefinitionId?.SubtypeName,
                     curr.GetType().Name,
                     resurrect ? "It will be removed and re-added." : "No repair will take place.");
+        }
+    }
+
+
+    [HarmonyPatch(typeof(WorkerManager), "ExecuteWork")]
+    [AlwaysPatch]
+    public static class AsyncWorkLogging
+    {
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
+        private static void DoWorkReplacement(IWork work)
+        {
+            try
+            {
+                DoWorkWithoutCSE(work);
+            }
+            catch (Exception err)
+            {
+                // Failure was a corrupted state exception, so bubble up and crash the thread.
+                HandleError(work, err);
+                Thread.Sleep(1000);
+                throw;
+            }
+        }
+
+        private static void DoWorkWithoutCSE(IWork work)
+        {
+            try
+            {
+                work.DoWork();
+            }
+            catch (Exception err)
+            {
+                // Failure is not a corrupted state exception, so swallow it.
+                HandleError(work, err);
+            }
+        }
+
+        private static void HandleError(IWork work, Exception err)
+        {
+            var log = Entrypoint.LoggerFor(typeof(AsyncWorkLogging));
+            LoggingPayloads.VisitPayload(work, new WorkerCrashPayloadLogging(log, err), "DoWork");
+        }
+
+        private readonly struct WorkerCrashPayloadLogging : IPayloadConsumer
+        {
+            private readonly ILogger _log;
+            private readonly Exception _error;
+
+            public WorkerCrashPayloadLogging(ILogger log, Exception error)
+            {
+                _log = log;
+                _error = error;
+            }
+
+            public void Consume<T>(in T payload) => _log.ZLogErrorWithPayload(_error, payload, "Async work crashed");
+        }
+
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream)
+        {
+            foreach (var i in stream)
+                if (i.operand is MethodInfo method && method.DeclaringType == typeof(IWork) && method.Name == nameof(IWork.DoWork))
+                    yield return i.ChangeInstruction(OpCodes.Call, AccessTools.Method(typeof(AsyncWorkLogging), nameof(DoWorkReplacement)));
+                else
+                    yield return i;
         }
     }
 }
