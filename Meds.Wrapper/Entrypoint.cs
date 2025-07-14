@@ -82,9 +82,42 @@ namespace Meds.Wrapper
                 Instance = instance;
                 Instance.Run();
                 Instance = null;
-                // Give workers a chance to exit.
-                Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
             }
+
+            // Force exit in case a background thread is frozen.
+            Environment.Exit(0);
+        }
+
+        public static void OnCorruptedState()
+        {
+            // Give workers a chance to exit.
+            Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
+
+            // Force shutdown instance.
+            try
+            {
+                Instance?.StopAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Wait a bit for logging to finish.
+            Thread.Sleep(1000);
+
+            // Force dispose instance.
+            try
+            {
+                Instance?.Dispose();
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Wait a bit more for random other cleanup.
+            Thread.Sleep(1000);
 
             // Force exit in case a background thread is frozen.
             Environment.Exit(0);

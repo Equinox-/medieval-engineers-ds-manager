@@ -372,18 +372,18 @@ namespace Meds.Wrapper.Shim
         {
             try
             {
-                DoWorkWithoutCSE(work);
+                DoWorkWithoutCorruptedState(work);
             }
             catch (Exception err)
             {
                 // Failure was a corrupted state exception, so bubble up and crash the thread.
                 HandleError(work, err);
-                Thread.Sleep(1000);
+                Entrypoint.OnCorruptedState();
                 throw;
             }
         }
 
-        private static void DoWorkWithoutCSE(IWork work)
+        private static void DoWorkWithoutCorruptedState(IWork work)
         {
             try
             {

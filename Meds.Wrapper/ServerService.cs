@@ -58,38 +58,57 @@ namespace Meds.Wrapper
                          ?? throw new NullReferenceException("MyProgram#Main is missing");
             try
             {
-                using (_shutdownSubscriber.Subscribe(HandleShutdownMessage))
-                {
-                    method.Invoke(null, new object[] { allArgs.ToArray() });
-                }
+                RunCatchWithoutCorruptedState(method, allArgs.ToArray());
             }
             catch (Exception err)
             {
-                var unwrapped = err.InnerException ?? err;
-                Delegate updateTarget = null;
-                var tmp = unwrapped;
-                while (tmp != null)
-                {
-                    if (tmp is MyUpdateSchedulerException use)
-                    {
-                        updateTarget = use.Callback;
-                        break;
-                    }
-
-                    tmp = tmp.InnerException;
-                }
-
-                if (updateTarget != null)
-                    LoggingPayloads.VisitPayload(updateTarget, new CrashLoggingPayloadConsumer(_log, unwrapped));
-                else
-                    _log.ZLogError(unwrapped, "Server crashed");
-                Thread.Sleep(1000);
-                throw unwrapped;
+                // Failure was a corrupted state exception, so bubble up and crash the application.
+                HandleError(err);
+                Entrypoint.OnCorruptedState();
+                throw;
             }
             finally
             {
                 _lifetime.StopApplication();
             }
+        }
+
+        private void RunCatchWithoutCorruptedState(MethodInfo method, string[] args)
+        {
+            try
+            {
+                using (_shutdownSubscriber.Subscribe(HandleShutdownMessage))
+                {
+                    method.Invoke(null, new object[] { args });
+                }
+            }
+            catch (Exception err)
+            {
+                // Failure is not a corrupted state exception, so swallow it.
+                HandleError(err);
+            }
+        }
+
+        private void HandleError(Exception err)
+        {
+            var unwrapped = err.InnerException ?? err;
+            Delegate updateTarget = null;
+            var tmp = unwrapped;
+            while (tmp != null)
+            {
+                if (tmp is MyUpdateSchedulerException use)
+                {
+                    updateTarget = use.Callback;
+                    break;
+                }
+
+                tmp = tmp.InnerException;
+            }
+
+            if (updateTarget != null)
+                LoggingPayloads.VisitPayload(updateTarget, new CrashLoggingPayloadConsumer(_log, unwrapped));
+            else
+                _log.ZLogError(unwrapped, "Server crashed");
         }
 
         private readonly struct CrashLoggingPayloadConsumer : IPayloadConsumer
