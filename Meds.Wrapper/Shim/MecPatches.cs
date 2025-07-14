@@ -14,6 +14,7 @@ using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Players;
 using Steamworks;
 using VRage.Components;
+using VRage.Components.Entity.CubeGrid;
 using VRage.Definitions.Components;
 using VRage.Engine;
 using VRage.Game.Entity;
@@ -135,8 +136,8 @@ namespace Meds.Wrapper.Shim
     }
 
     [HarmonyPatch(typeof(Workers), nameof(Workers.Do), typeof(IWork), typeof(WorkerGroupId?), typeof(int))]
-    [AlwaysPatch(ByRequest = nameof(SynchronousMoppBuild))]
-    public static class SynchronousMoppBuild
+    [AlwaysPatch]
+    public static class SynchronousMoppBuild_Update
     {
         public static bool Prefix(IWork iWork, ref WorkHandle __result)
         {
@@ -149,16 +150,19 @@ namespace Meds.Wrapper.Shim
         }
     }
 
-    [HarmonyPatch(typeof(Workers), nameof(Workers.Do), typeof(IWork), typeof(WorkerGroupId?), typeof(int))]
-    [AlwaysPatch(ByRequest = nameof(ParallelMoppBuild))]
-    public static class ParallelMoppBuild
+    [HarmonyPatch(typeof(MyGridPhysicsShapeComponent), nameof(MyGridPhysicsShapeComponent.Deserialize))]
+    [AlwaysPatch]
+    public static class SynchronousMoppBuild_Deserialize
     {
-        public static bool Prefix(IWork iWork, ref int maxWorkers)
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> stream)
         {
-            var type = iWork?.GetType();
-            if (type?.DeclaringType == typeof(HierarchicalMoppShape<>) && type.Name != "ImmediateUpdateWork")
-                maxWorkers = -1;
-            return false;
+            foreach (var i in stream)
+                if (i.operand is MethodInfo { DeclaringType: { IsGenericType: true } } method
+                    && method.DeclaringType.GetGenericTypeDefinition() == typeof(HierarchicalMoppShape<>)
+                    && method.Name == nameof(HierarchicalMoppShape<string>.ImmediateUpdate))
+                    yield return i.ChangeInstruction(OpCodes.Pop);
+                else
+                    yield return i;
         }
     }
 
