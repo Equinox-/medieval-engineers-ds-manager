@@ -70,6 +70,8 @@ namespace Meds.Wrapper.Shim
                     container?.Entity?.ToString());
         }
 
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private static void OnAddedToScene(MyEntityComponent ec, MyEntityComponentContainer container)
         {
             try
@@ -83,6 +85,8 @@ namespace Meds.Wrapper.Shim
             }
         }
 
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private static void OnRemovedFromScene(MyEntityComponent ec, MyEntityComponentContainer container)
         {
             try
@@ -96,6 +100,8 @@ namespace Meds.Wrapper.Shim
             }
         }
 
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private static void OnAddedToContainer(MyEntityComponent ec, MyEntityComponentContainer container)
         {
             try
@@ -109,6 +115,8 @@ namespace Meds.Wrapper.Shim
             }
         }
 
+        [HandleProcessCorruptedStateExceptions]
+        [SecurityCritical]
         private static void OnBeforeRemovedFromContainer(MyEntityComponent ec, MyEntityComponentContainer container)
         {
             try
