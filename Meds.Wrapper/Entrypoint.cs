@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Meds.Shared;
 using Meds.Wrapper.Shim;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,7 @@ namespace Meds.Wrapper
         private delegate long DelUnhandledExceptionFilter(IntPtr exceptionInfo);
 
         private static DelUnhandledExceptionFilter _prevExceptionFilter;
+
         private static DelUnhandledExceptionFilter CoreDumpOnException(string diagnosticsDir) => info =>
         {
             var process = Process.GetCurrentProcess();
@@ -58,30 +60,32 @@ namespace Meds.Wrapper
             Console.Title = $"[{cfg.Install.Instance}] Server";
             PatchHelper.PatchStartup(cfg.Install);
 
-            using var instance = new HostBuilder()
-                .ConfigureServices(services =>
-                {
-                    services.AddSingleton(cfg);
-                    services.AddSingleton(cfg.Install);
-                    services.AddSingleton<Refreshable<RenderedRuntimeConfig>>(cfg.Runtime);
-                    services.AddHostedService(svc => cfg.Runtime.Refreshing(svc));
-                    services.AddSingleton<ShimLog>();
-                    services.AddSingleton<HealthReporter>();
-                    services.AddSingleton<TieredBackups>();
-                    services.AddHostedAlias<HealthReporter>();
-                    services.AddHostedService<ServerService>();
-                    services.AddMedsMessagePipe(cfg.Install.Messaging.WatchdogToServer, cfg.Install.Messaging.ServerToWatchdog);
-                    services.AddSingleton<MedsCoreSystemArgs>();
-                    services.AddSingletonAndHost<PlayerSystem>();
-                    services.AddSingletonAndHost<ChatBridge>();
-                    services.AddSingletonAndHost<SavingSystem>();
-                })
-                .Build(cfg.Runtime.Map(x => x.Logging), cfg.Install.LogDirectory);
-            Instance = instance;
-            Instance.Run();
-            Instance = null;
-            // Give workers a chance to exit.
-            Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
+            using (var instance = new HostBuilder().ConfigureServices(services =>
+                       {
+                           services.AddSingleton(cfg);
+                           services.AddSingleton(cfg.Install);
+                           services.AddSingleton<Refreshable<RenderedRuntimeConfig>>(cfg.Runtime);
+                           services.AddHostedService(svc => cfg.Runtime.Refreshing(svc));
+                           services.AddSingleton<ShimLog>();
+                           services.AddSingleton<HealthReporter>();
+                           services.AddSingleton<TieredBackups>();
+                           services.AddHostedAlias<HealthReporter>();
+                           services.AddHostedService<ServerService>();
+                           services.AddMedsMessagePipe(cfg.Install.Messaging.WatchdogToServer, cfg.Install.Messaging.ServerToWatchdog);
+                           services.AddSingleton<MedsCoreSystemArgs>();
+                           services.AddSingletonAndHost<PlayerSystem>();
+                           services.AddSingletonAndHost<ChatBridge>();
+                           services.AddSingletonAndHost<SavingSystem>();
+                       })
+                       .Build(cfg.Runtime.Map(x => x.Logging), cfg.Install.LogDirectory))
+            {
+                Instance = instance;
+                Instance.Run();
+                Instance = null;
+                // Give workers a chance to exit.
+                Workers.Manager?.WaitAll(TimeSpan.FromMinutes(2));
+            }
+
             // Force exit in case a background thread is frozen.
             Environment.Exit(0);
         }

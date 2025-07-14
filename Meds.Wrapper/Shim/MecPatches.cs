@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Sandbox.Game.Entities.Entity.Stats;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Players;
+using Steamworks;
 using VRage.Components;
 using VRage.Definitions.Components;
 using VRage.Engine;
@@ -19,6 +20,7 @@ using VRage.Game.Entity;
 using VRage.ParallelWorkers;
 using VRage.Physics;
 using VRage.Scene;
+using VRage.Steam;
 using VRage.Utils;
 using ZLogger;
 
@@ -308,6 +310,18 @@ namespace Meds.Wrapper.Shim
                     yield return i.ChangeInstruction(OpCodes.Call, AccessTools.Method(typeof(ReloadEntitiesMarkedForClose), nameof(TryGetEntityReplacement)));
                 else
                     yield return i;
+        }
+    }
+
+    [HarmonyPatch(typeof(MySteamGameServer), nameof(MySteamGameServer.Start))]
+    [AlwaysPatch]
+    public static class SteamGameServerLogs
+    {
+        public static void Postfix(bool __result)
+        {
+            if (!__result) return;
+            var log = Entrypoint.LoggerFor(typeof(SteamGameServerLogs));
+            SteamGameServerUtils.SetWarningMessageHook((sev, msg) => log.ZLog(sev == 0 ? LogLevel.Information : LogLevel.Warning, msg.ToString()));
         }
     }
 }
