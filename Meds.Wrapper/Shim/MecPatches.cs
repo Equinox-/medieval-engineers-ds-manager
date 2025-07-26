@@ -316,16 +316,4 @@ namespace Meds.Wrapper.Shim
                     yield return i;
         }
     }
-
-    [HarmonyPatch(typeof(MySteamGameServer), nameof(MySteamGameServer.Start))]
-    [AlwaysPatch]
-    public static class SteamGameServerLogs
-    {
-        public static void Postfix(bool __result)
-        {
-            if (!__result) return;
-            var log = Entrypoint.LoggerFor(typeof(SteamGameServerLogs));
-            SteamGameServerUtils.SetWarningMessageHook((sev, msg) => log.ZLog(sev == 0 ? LogLevel.Information : LogLevel.Warning, msg.ToString()));
-        }
-    }
 }

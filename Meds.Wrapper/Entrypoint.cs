@@ -95,7 +95,8 @@ namespace Meds.Wrapper
             // Force shutdown instance.
             try
             {
-                Instance?.StopAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
+                Workers.Manager?.Close();
+                Instance?.StopAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
             }
             catch
             {
