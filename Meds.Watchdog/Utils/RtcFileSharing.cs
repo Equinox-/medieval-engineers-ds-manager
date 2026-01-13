@@ -33,7 +33,7 @@ namespace Meds.Watchdog.Utils
         public static readonly string TransferPrefix = $"https://{FrontDoorHost}/receive/";
 
         private static readonly TimeSpan DefaultPeerTimeout = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan DefaultTransferTimeout = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan DefaultTransferTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan CloseTimeout = TimeSpan.FromMinutes(1);
 
         private static readonly JsonSerializerOptions JsonOpts = new JsonSerializerOptions

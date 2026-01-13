@@ -1,21 +1,21 @@
 using System;
-using System.Collections.Concurrent;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading;
+using Cysharp.Text;
 using Meds.Wrapper.Utils;
 using Microsoft.Extensions.Logging;
 using Sandbox.Game.EntityComponents.Character;
-using VRage.Collections;
 using VRage.Components;
 using VRage.Definitions;
-using VRage.Engine;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Logging;
 using VRage.Meta;
-using VRage.Session;
+using VRage.Text;
 using ZLogger;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -90,6 +90,17 @@ namespace Meds.Wrapper.Shim
                 else if (fileName.StartsWith("Chatlog", StringComparison.OrdinalIgnoreCase))
                     _defaultName = "Chat";
                 // ReSharper restore StringLiteralTypo
+                RegisterFormatter<Exception>(new ExceptionFormatter());
+                RegisterFormatter<Type>(new TypeFormatter());
+                RegisterStringFormatter((object value, StandardFormat format) =>
+                {
+                    if (value == null) return "";
+                    if (TryGetFormatter(value.GetType(), out var customFormatter))
+                        return InvokeFormat(customFormatter, value, format);
+                    if (value is IFormattable formattable && !format.IsDefault)
+                        return formattable.ToString(format.ToString(), null);
+                    return value.ToString();
+                });
             }
 
             private EnrichedLogger LoggerFor(in NamedLogger source) => _owner.LoggerFor(source.Name, _defaultName);
@@ -256,6 +267,50 @@ namespace Meds.Wrapper.Shim
                 if (scopes.Count > 0)
                     scopes.Pop();
             }
+
+            private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+            private static void RegisterFormatter<T>(ICustomLogFormatter fmt) =>
+                RegisterStringFormatter((T value, StandardFormat format) => InvokeFormat(fmt, value, format));
+
+            private static string InvokeFormat(ICustomFormatter formatter, object value, StandardFormat format)
+            {
+                var formatString = format.IsDefault ? null : format.ToString();
+                switch (formatter)
+                {
+                    case ICustomLogFormatter customFormatter:
+                        var sb = new StringBuilder();
+                        var direct = customFormatter.Format(formatString, value, null, sb);
+                        return sb.Length == 0 ? direct : sb.Insert(0, direct).ToString();
+                    default:
+                        return formatter.Format(formatString, value, null);
+                }
+            }
+
+            private static void RegisterStringFormatter<T>(Func<T, StandardFormat, string> fmt) =>
+                Utf8ValueStringBuilder.RegisterTryFormat((T value, Span<byte> dest, out int written, StandardFormat format) =>
+                {
+                    var text = fmt(value, format);
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        written = 0;
+                        return true;
+                    }
+
+                    written = Utf8NoBom.GetMaxByteCount(text.Length);
+                    if (dest.Length < written)
+                        return false;
+                    unsafe
+                    {
+                        fixed (char* srcChars = text)
+                        fixed (byte* destBytes = dest)
+                        {
+                            written = Utf8NoBom.GetBytes(srcChars, text.Length, destBytes, dest.Length);
+                        }
+                    }
+
+                    return true;
+                });
         }
 
         private sealed class ThrowingStream : Stream
