@@ -192,6 +192,7 @@ namespace Meds.Watchdog.GrafanaAgent
             {
                 _log.ZLogInformation("Updating grafana agent binary from {0}", binaryUrl);
                 var request = WebRequest.Create(binaryUrl);
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_exeFileTemp))!);
                 using (ct.Register(request.Abort, false))
                 using (var src = await request.GetResponseAsync())
                 using (var srcStream = src.GetResponseStream())

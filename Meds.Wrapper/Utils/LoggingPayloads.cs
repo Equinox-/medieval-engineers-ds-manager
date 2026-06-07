@@ -31,7 +31,7 @@ namespace Meds.Wrapper.Utils
 
         public PackagePayload(IApplicationPackage package)
         {
-            Name = package.Name;
+            Name = package?.Name ?? "Unknown";
             ModId = (package as MyModContext)?.WorkshopItem?.Id;
         }
 
