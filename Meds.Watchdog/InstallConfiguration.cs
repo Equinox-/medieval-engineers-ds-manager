@@ -41,7 +41,15 @@ namespace Meds.Watchdog
         public string GrafanaAgentDirectory => Path.Combine(Directory, "grafana-agent");
 
         [XmlIgnore]
-        public string DedicatedServerConfigFile => Path.Combine(RuntimeDirectory, "MedievalEngineersDedicated-Dedicated.cfg");
+        public string DedicatedServerConfigFile
+        {
+            get
+            {
+                var newPath = Path.Combine(RuntimeDirectory, "MedievalEngineersDedicated-Dedicated.cfg");
+                var oldPath = Path.Combine(RuntimeDirectory, "MedievalEngineers-Dedicated.cfg");
+                return File.Exists(newPath) || !File.Exists(oldPath) ? newPath : oldPath;
+            }
+        }
 
         [XmlIgnore]
         public string WorldDirectory => Path.Combine(RuntimeDirectory, "world");
