@@ -117,10 +117,6 @@ namespace Meds.Watchdog.GrafanaAgent
                         new Dictionary<string, object>
                         {
                             ["name"] = "meds",
-                            ["positions"] = new Dictionary<string, object>
-                            {
-                                ["ignore_invalid_yaml"] = true
-                            },
                             ["scrape_configs"] = new object[]
                             {
                                 new Dictionary<string, object>
@@ -172,6 +168,10 @@ namespace Meds.Watchdog.GrafanaAgent
                                     ["basic_auth"] = RenderBasic(lokiBasicAuth),
                                     ["external_labels"] = staticTags,
                                 }
+                            },
+                            ["positions"] = new Dictionary<string, object>
+                            {
+                                ["ignore_invalid_yaml"] = true
                             },
                             ["scrape_configs"] = new object[]
                             {
