@@ -25,6 +25,7 @@ try {
     proc.WaitForExit();
 } catch (Exception ignored) {
 }
+Directory.CreateDirectory(Path.GetDirectoryName(Output));
 using (var writer = File.CreateText(Output)) {
     writer.WriteLine("using Meds.Shared;");
     writer.WriteLine("[assembly: VersionInfo(" + DateTime.UtcNow.Ticks + ", \"" + gitHash + "\")]");
@@ -33,7 +34,10 @@ using (var writer = File.CreateText(Output)) {
             </Code>
         </Task>
     </UsingTask>
-    <Target Name="GenerateVersionInfo" BeforeTargets="Build">
-        <GenerateVersionInfo Output="$(ProjectDir)\Properties\VersionInfo.cs" />
+    <ItemGroup>
+        <Compile Include="obj\VersionInfo.cs" />
+    </ItemGroup>
+    <Target Name="GenerateVersionInfo" BeforeTargets="CoreCompile" Outputs="obj\VersionInfo.cs">
+        <GenerateVersionInfo Output="$(ProjectDir)\obj\VersionInfo.cs" />
     </Target>
 </Project>
