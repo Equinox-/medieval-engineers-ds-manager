@@ -108,7 +108,10 @@ namespace Meds.Bootstrap
                 {
                     FileName = watchdogPath,
                     WorkingDirectory = watchdogDir,
-                    Arguments = $"\"{config.ConfigFile}\""
+                    Arguments = $"\"{config.ConfigFile}\"",
+                    UseShellExecute = true,
+                    CreateNoWindow = false,
+                    WindowStyle = ProcessWindowStyle.Normal,
                 };
                 log.Info($"Starting watchdog: {psi.FileName} {psi.Arguments}");
                 Process.Start(psi);

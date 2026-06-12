@@ -408,7 +408,10 @@ namespace Meds.Watchdog
             {
                 WorkingDirectory = _installConfig.InstallDirectory,
                 Arguments = $"\"{_configRenderer.InstallConfigFile}\" \"{_configRenderer.RuntimeConfigFile}\"",
-                FileName = Path.Combine(_installConfig.InstallDirectory, cfg.WrapperEntryPoint)
+                FileName = Path.Combine(_installConfig.InstallDirectory, cfg.WrapperEntryPoint),
+                UseShellExecute = true,
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal,
             };
             if (!File.Exists(startInfo.FileName))
             {

@@ -76,7 +76,10 @@ namespace Meds.Watchdog.Discord
             {
                 FileName = bootstrapPath,
                 WorkingDirectory = _configuration.Directory,
-                Arguments = $"\"{configFile}\" {Process.GetCurrentProcess().Id} true"
+                Arguments = $"\"{configFile}\" {Process.GetCurrentProcess().Id} true",
+                UseShellExecute = true,
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal,
             };
             _log.ZLogInformation("Launching bootstrap: {0} {1}", psi.FileName, psi.Arguments);
             await context.CreateResponseAsync("Launching bootstrap...");

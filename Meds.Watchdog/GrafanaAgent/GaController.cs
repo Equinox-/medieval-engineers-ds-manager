@@ -132,6 +132,9 @@ namespace Meds.Watchdog.GrafanaAgent
                 WorkingDirectory = _install.Directory,
                 Arguments = $"-config.file \"{_cfgFile}\" -server.http.address \"127.0.0.1:{cfg.HttpPort}\" -server.grpc.address \"127.0.0.1:{cfg.GrpcPort}\"",
                 FileName = _exeFile,
+                UseShellExecute = true,
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal,
             };
             process = Process.Start(startInfo);
             if (process == null)
