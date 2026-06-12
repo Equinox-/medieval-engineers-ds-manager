@@ -33,7 +33,7 @@ jobs:
     - name: Package Bootstrap
       run: |
         mkdir Meds.Wrapper/bin/package/
-        cp Meds.Bootstrap/bin/Release/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
+        cp Meds.Bootstrap/bin/x64/Release/net8.0/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
         cp Meds.Bootstrap/config.example.xml Meds.Wrapper/bin/package/config.xml
     - name: Zip Bootstrap
       uses: thedoctor0/zip-release@0.7.5
@@ -64,9 +64,9 @@ jobs:
         key: ${{ steps.me_cache_key.outputs.key }}
         restore-keys: |
           me-cache-v1-
-        path: Meds.Wrapper/GameInstall/
+        path: GameInstall/
     - name: Install ME
-      run: Meds.Watchdog/bin/Release/Meds.Watchdog.exe restore-game-binaries Meds.Wrapper/GameInstall/ communityedition
+      run: Meds.Watchdog/bin/x64/Release/net8.0/Meds.Watchdog.exe restore-game-binaries GameInstall/ communityedition
     - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
     # Wrapper ModAPI
@@ -76,7 +76,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: meds-wrapper-modapi
-        path: Meds.Wrapper.ModApi/bin/Release/
+        path: Meds.Wrapper.ModApi/bin/x64/Release/netstandard2.0/
     # Publish to GCS
     - name: Log into gcloud
       id: auth
@@ -89,7 +89,7 @@ jobs:
       uses: 'google-github-actions/upload-cloud-storage@v2'
       if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event_name != 'pull_request'
       with:
-        path: Meds.Wrapper/bin/Release
+        path: Meds.Wrapper/bin/x64/Release/net461
         destination: "meds-dist/${{github.ref}}/wrapper"
         parent: false
         headers: |-
@@ -98,7 +98,7 @@ jobs:
       uses: 'google-github-actions/upload-cloud-storage@v2'
       if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event_name != 'pull_request'
       with:
-        path: Meds.Watchdog/bin/Release
+        path: Meds.Watchdog/bin/x64/Release/net8.0
         destination: "meds-dist/${{github.ref}}/watchdog"
         parent: false
         headers: |-

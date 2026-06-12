@@ -33,4 +33,7 @@ using (var writer = File.CreateText(Output)) {
             </Code>
         </Task>
     </UsingTask>
+    <Target Name="GenerateVersionInfo" BeforeTargets="Build">
+        <GenerateVersionInfo Output="$(ProjectDir)\Properties\VersionInfo.cs" />
+    </Target>
 </Project>

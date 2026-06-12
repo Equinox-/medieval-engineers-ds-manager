@@ -17,7 +17,7 @@ namespace Meds.Watchdog.Steam
     {
         private readonly ILogger<CdnPool> _log;
         private readonly SteamClient _client;
-        private int _cellId;
+        private uint _cellId;
         private readonly ConcurrentBag<Client> _clientBag = new ConcurrentBag<Client>();
         private readonly List<Server> _servers = new List<Server>();
 
@@ -31,7 +31,7 @@ namespace Meds.Watchdog.Steam
         /// Initializes stuff needed to download content from the Steam content servers.
         /// </summary>
         /// <returns></returns>
-        public async Task Initialize(int cellId, CancellationToken ct = default)
+        public async Task Initialize(uint cellId, CancellationToken ct = default)
         {
             _cellId = cellId;
             Client.RequestTimeout = TimeSpan.FromSeconds(10);

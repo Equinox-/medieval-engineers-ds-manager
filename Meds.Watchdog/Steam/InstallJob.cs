@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -85,11 +86,17 @@ namespace Meds.Watchdog.Steam
                 try
                 {
                     // Don't need AuthenticateDepot because we're managing auth keys ourselves.
-                    var chunk = await client.DownloadDepotChunkAsync(_depotId, workItem.ChunkData, server, depotKey).ConfigureAwait(false);
+                    var chunkData = new byte[workItem.ChunkData.UncompressedLength];
+                    var chunkSize = await client.DownloadDepotChunkAsync(_depotId, workItem.ChunkData, server, chunkData, depotKey).ConfigureAwait(false);
 
-                    if (depotKey != null || CryptoHelper.AdlerHash(chunk.Data).AsSpan().SequenceEqual(chunk.ChunkInfo.Checksum))
+                    if (depotKey != null || DepotChunk.AdlerHash(chunkData.AsSpan(0, chunkSize)) == workItem.ChunkData.Checksum)
                     {
-                        await workItem.Owner.SubmitAsync(chunk).ConfigureAwait(false);
+                        await workItem.Owner.SubmitAsync(new FilePart
+                        {
+                            FileOffset = workItem.ChunkData.Offset,
+                            Array = chunkData,
+                            Length = chunkSize,
+                        }).ConfigureAwait(false);
                         Interlocked.Increment(ref _finishedChunks);
                     }
                     else
@@ -169,11 +176,18 @@ namespace Meds.Watchdog.Steam
             return job;
         }
 
+        private class FilePart
+        {
+            public ulong FileOffset;
+            public byte[] Array;
+            public int Length;
+        }
+
         private class FileParts
         {
             private readonly System.IO.FileInfo _destPath;
             private readonly DepotManifest.FileData _fileData;
-            private ConcurrentBag<DepotChunk> _completeChunks;
+            private ConcurrentBag<FilePart> _completeChunks;
             private DateTime _completionTime;
 
             private bool _started;
@@ -196,12 +210,12 @@ namespace Meds.Watchdog.Steam
                 _fileData = fileData;
                 InstallRelativePath = installRelPath;
                 _destPath = new System.IO.FileInfo(Path.Combine(installBasePath, installRelPath));
-                _completeChunks = new ConcurrentBag<DepotChunk>();
+                _completeChunks = new ConcurrentBag<FilePart>();
 
                 IsComplete = false;
             }
 
-            public async Task SubmitAsync(DepotChunk chunk)
+            public async Task SubmitAsync(FilePart chunk)
             {
                 if (IsComplete)
                     throw new InvalidOperationException("The file is already complete.");
@@ -232,9 +246,9 @@ namespace Meds.Watchdog.Steam
 
                 using (var fs = File.Create(_destPath.FullName, (int)_fileData.TotalSize))
                 {
-                    foreach (var chunk in _completeChunks.OrderBy(x => x.ChunkInfo.Offset))
+                    foreach (var chunk in _completeChunks.OrderBy(x => x.FileOffset))
                     {
-                        await fs.WriteAsync(chunk.Data, 0, chunk.Data.Length);
+                        await fs.WriteAsync(chunk.Array, 0, chunk.Length);
                     }
 
                     _completeChunks = null;

@@ -53,14 +53,14 @@ namespace Meds.Watchdog.Steam
         private readonly SteamContent _content;
         private readonly SteamUnifiedMessages _unifiedMessages;
         private readonly CallbackPump _callbacks;
-        private readonly SteamUnifiedMessages.UnifiedService<IPublishedFile> _publishedFiles;
+        private readonly PublishedFile _publishedFiles;
 
         private LoggedOnCallback _loginDetails;
 
         private readonly ConcurrentDictionary<uint, byte[]> _depotKeys = new ConcurrentDictionary<uint, byte[]>();
 
-        private readonly ConcurrentDictionary<uint, PICSProductInfo> _appInfos =
-            new ConcurrentDictionary<uint, PICSProductInfo>();
+        private readonly ConcurrentDictionary<uint, (PICSProductInfo info, ulong appToken)> _appInfos =
+            new ConcurrentDictionary<uint, (PICSProductInfo info, ulong appToken)>();
 
         private readonly ILogger<SteamDownloader> _log;
 
@@ -76,7 +76,7 @@ namespace Meds.Watchdog.Steam
             _cloud = _client.GetHandler<SteamCloud>();
             _content = _client.GetHandler<SteamContent>();
             _unifiedMessages = _client.GetHandler<SteamUnifiedMessages>();
-            _publishedFiles = _unifiedMessages.CreateService<IPublishedFile>();
+            _publishedFiles = _unifiedMessages.CreateService<PublishedFile>();
             CdnPool = cdnPool;
 
 
@@ -94,20 +94,25 @@ namespace Meds.Watchdog.Steam
             return depotKeyResult.DepotKey;
         }
 
-        private async Task<PICSProductInfo> GetAppInfoAsync(uint appId, CancellationToken ct = default)
+        private async Task<(PICSProductInfo info, ulong appToken)> GetAppInfoAsync(uint appId, CancellationToken ct = default)
         {
             if (_appInfos.TryGetValue(appId, out var appInfo))
                 return appInfo;
 
+            var appTokens = await _apps.PICSGetAccessTokens(appId, null);
+            if (!appTokens.AppTokens.TryGetValue(appId, out var appToken))
+                appToken = 0;
             var productResult = await _apps.PICSGetProductInfo(new PICSRequest
             {
-                ID = appId
+                ID = appId,
+                AccessToken = appToken,
             }, null);
-            _appInfos[appId] = productResult.Results[0].Apps[appId];
+            var app = productResult.Results![0].Apps[appId];
+            _appInfos[appId] = (app, appToken);
             return _appInfos[appId];
         }
 
-        private void CallbacksOnCallbackReceived(ICallbackMsg obj)
+        private void CallbacksOnCallbackReceived(CallbackMsg obj)
         {
             switch (obj)
             {
@@ -120,19 +125,18 @@ namespace Meds.Watchdog.Steam
 
         private async Task<ulong> GetManifestForBranch(uint appId, uint depotId, string branch, string branchPassword = null, CancellationToken ct = default)
         {
-            var appInfo = await GetAppInfoAsync(appId, ct);
-            var id = appInfo.GetManifestId(depotId, branch);
+            var (info, appToken) = await GetAppInfoAsync(appId, ct);
+            var id = info.GetManifestId(depotId, branch);
             if (id > 0)
                 return id;
-            var encryptedManifestId = appInfo.GetEncryptedManifestId(depotId, branch);
             if (branchPassword == null)
                 throw new Exception($"No password provided for branch {branch}");
             var branchPasswords = await _apps.CheckAppBetaPassword(appId, branchPassword).ToTask();
             var key = branchPasswords.BetaPasswords[branch];
             if (key == null)
                 throw new Exception($"Invalid password for branch {branch}");
-            var manifestBytes = CryptoHelper.SymmetricDecryptECB(encryptedManifestId, key);
-            return BitConverter.ToUInt64(manifestBytes, 0);
+            var privateBeta = await _apps.PICSGetPrivateBeta(appId, appToken, branch, key);
+            return privateBeta.DepotSection.GetManifestIdForDepotSection(depotId, branch);
         }
 
         private async Task<DepotManifest> GetManifestAsync(uint appId, uint depotId, ulong manifestId, string branch, string branchPassword, CancellationToken ct = default)
@@ -198,7 +202,7 @@ namespace Meds.Watchdog.Steam
                 if (loginResult.Result != EResult.OK)
                     throw new Exception($"Failed to log into Steam: {loginResult.Result:G}");
 
-                await CdnPool.Initialize((int)loginResult.CellID, ct);
+                await CdnPool.Initialize(loginResult.CellID, ct);
                 _loginDetails = loginResult;
                 okay = true;
                 return loginResult;
@@ -334,8 +338,8 @@ namespace Meds.Watchdog.Steam
             var req = new CPublishedFile_GetDetails_Request
                 { appid = appId, includechildren = true, includemetadata = true };
             req.publishedfileids.AddRange(modIds);
-            var response = await _publishedFiles.SendMessage(svc => svc.GetDetails(req));
-            return response.GetDeserializedResponse<CPublishedFile_GetDetails_Response>().publishedfiledetails
+            var response = await _publishedFiles.GetDetails(req);
+            return response.Body.publishedfiledetails
                 .ToDictionary(item => item.publishedfileid);
         }
 
@@ -351,8 +355,8 @@ namespace Meds.Watchdog.Steam
                     startindex = offset,
                     count = 32,
                 };
-                var response = await _publishedFiles.SendMessage(svc => svc.GetChangeHistory(req));
-                var responseDecoded = response.GetDeserializedResponse<CPublishedFile_GetChangeHistory_Response>();
+                var response = await _publishedFiles.GetChangeHistory(req);
+                var responseDecoded = response.Body;
                 offset += (uint)responseDecoded.changes.Count;
                 foreach (var change in responseDecoded.changes)
                 {

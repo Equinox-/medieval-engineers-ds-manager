@@ -29,4 +29,7 @@ using (var writer = File.CreateText(System.IO.Path.Combine(Path, "manifest.xml")
             </Code>
         </Task>
     </UsingTask>
+    <Target Name="GenerateManifest" AfterTargets="Build">
+        <GenerateManifest Path="$(ProjectDir)$(OutputPath)" />
+    </Target>
 </Project>

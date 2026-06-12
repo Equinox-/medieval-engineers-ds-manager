@@ -26,16 +26,9 @@ namespace Meds.Shared
 
         private static Func<FlatBufferBuilder, Dictionary<string, StringOffset>> CreateSharedStringsAccessor()
         {
-            var fieldInfo = typeof(FlatBufferBuilder).GetField("_sharedStringMap", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) ??
-                            throw new NullReferenceException("Failed to find _sharedStringMap in FlatBufferBuilder");
-            var dyn = new DynamicMethod("getFlatBufferBuilderSharedStrings", typeof(Dictionary<string, StringOffset>), new[] {typeof(FlatBufferBuilder)},
-                typeof(FlatBufferBuilder));
-            var il = dyn.GetILGenerator();
-            il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Ldfld, fieldInfo);
-            il.Emit(OpCodes.Ret);
-            return (Func<FlatBufferBuilder, Dictionary<string, StringOffset>>) dyn.CreateDelegate(
-                typeof(Func<FlatBufferBuilder, Dictionary<string, StringOffset>>));
+            var objParm = Expression.Parameter(typeof(FlatBufferBuilder), "obj");
+            var field = Expression.Field(objParm, "_sharedStringMap");
+            return Expression.Lambda<Func<FlatBufferBuilder, Dictionary<string, StringOffset>>>(field, objParm).Compile();
         }
     }
 }

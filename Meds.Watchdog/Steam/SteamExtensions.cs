@@ -10,8 +10,11 @@ namespace Meds.Watchdog.Steam
     {
         public static ulong GetManifestId(this PICSProductInfo info, uint depotId, string branch)
         {
-            return info.GetSection(EAppInfoSection.Depots)[depotId.ToString()]["manifests"][branch]["gid"].AsUnsignedLong();
+            return info.GetSection(EAppInfoSection.Depots).GetManifestIdForDepotSection(depotId, branch);
         }
+
+        public static ulong GetManifestIdForDepotSection(this KeyValue depots, uint depotId, string branch)
+            => depots[depotId.ToString()]["manifests"][branch]["gid"].AsUnsignedLong();
 
         public static byte[] GetEncryptedManifestId(this PICSProductInfo info, uint depotId, string branch)
         {

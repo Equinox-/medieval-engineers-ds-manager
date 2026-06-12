@@ -199,7 +199,7 @@ namespace Meds.Wrapper.Audit
 
         internal static bool TryGetTrace(ulong id, out TraceState state)
         {
-            state = MedievalMasterSessions.GetValueOrDefault(id)?.Trace;
+            state = MedievalMasterSessions.TryGetValue(id, out var sess) ? sess?.Trace : null;
             return state != null;
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -221,15 +222,21 @@ namespace Meds.Shared
                     {
                         var buf = msg.Value.DataBuffer;
                         var packet = Packet.GetRootAsPacket(buf);
-                        var seg = buf.ToArraySegment(buf.Position, buf.Length - buf.Position);
+                        var seg = buf.ToSpan(buf.Position, buf.Length - buf.Position);
+                        var array = ArrayPool<byte>.Shared.Rent(seg.Length);
+                        seg.CopyTo(array.AsSpan());
                         try
                         {
-                            _sock.SendTo(seg.Array!, seg.Offset, seg.Count, SocketFlags.None, _endpoint);
-                            _log.ZLogDebug("Sent {0} ({1} bytes)", packet.MessageType, seg.Count);
+                            _sock.SendTo(array, 0, seg.Length, SocketFlags.None, _endpoint);
+                            _log.ZLogDebug("Sent {0} ({1} bytes)", packet.MessageType, seg.Length);
                         }
                         catch (Exception err)
                         {
                             _log.ZLogWarning(err, "Failed to publish message {0}", packet.MessageType);
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(array);
                         }
                     }
                 }
@@ -288,8 +295,7 @@ namespace Meds.Shared
                         var buf = fb.Value.DataBuffer;
                         if (bytes > buf.Length)
                             buf.GrowFront(bytes);
-                        var bufferArray = buf.ToArraySegment(0, buf.Length).Array!;
-                        Array.Copy(_receiveBuffer, 0, bufferArray, buf.Length - bytes, bytes);
+                        _receiveBuffer.AsSpan(0, bytes).CopyTo(buf.ToSpan(buf.Length - bytes, bytes));
                         buf.Position = buf.Length - bytes;
                         var packet = Packet.GetRootAsPacket(buf);
                         _log.ZLogDebug("Received {0} ({1} bytes)", packet.MessageType, bytes);

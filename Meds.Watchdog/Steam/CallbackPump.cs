@@ -10,7 +10,7 @@ namespace Meds.Watchdog.Steam
     {
         private readonly SteamClient _steamClient;
 
-        public event Action<ICallbackMsg> CallbackReceived;
+        public event Action<CallbackMsg> CallbackReceived;
 
         private readonly List<Waiter> _callbackWaiters = new List<Waiter>();
         private bool _cancel;
@@ -25,7 +25,7 @@ namespace Meds.Watchdog.Steam
         /// </summary>
         /// <param name="filter">The callback filter.</param>
         /// <returns>A task returning the callback object on completion.</returns>
-        public async Task<ICallbackMsg> WaitForAsync(Func<ICallbackMsg, bool> filter = null, CancellationToken ct = default)
+        public async Task<CallbackMsg> WaitForAsync(Func<CallbackMsg, bool> filter = null, CancellationToken ct = default)
         {
             var waiter = new Waiter(filter, ct);
             lock(_callbackWaiters)
@@ -38,7 +38,7 @@ namespace Meds.Watchdog.Steam
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns>A task returning the callback object on completion.</returns>
-        public async Task<T> WaitForAsync<T>(CancellationToken ct = default) where T : ICallbackMsg
+        public async Task<T> WaitForAsync<T>(CancellationToken ct = default) where T : CallbackMsg
         {
             return (T)await WaitForAsync(x => x is T, ct);
         }
@@ -59,8 +59,6 @@ namespace Meds.Watchdog.Steam
                         Thread.Sleep(10);
                         continue;
                     }
-                    
-                    _steamClient.FreeLastCallback();
 
                     lock (_callbackWaiters)
                     {
@@ -91,19 +89,19 @@ namespace Meds.Watchdog.Steam
         /// </summary>
         private class Waiter
         {
-            public Task<ICallbackMsg> Task => _tcs.Task;
+            public Task<CallbackMsg> Task => _tcs.Task;
             
-            private readonly TaskCompletionSource<ICallbackMsg> _tcs = new TaskCompletionSource<ICallbackMsg>();
-            private readonly Func<ICallbackMsg, bool> _condition;
+            private readonly TaskCompletionSource<CallbackMsg> _tcs = new TaskCompletionSource<CallbackMsg>();
+            private readonly Func<CallbackMsg, bool> _condition;
             private CancellationTokenRegistration _cancelRegistered;
 
-            public Waiter(Func<ICallbackMsg, bool> condition, CancellationToken ct)
+            public Waiter(Func<CallbackMsg, bool> condition, CancellationToken ct)
             {
                 _condition = condition;
                 _cancelRegistered = ct.Register(() => _tcs.TrySetCanceled());
             }
 
-            public bool TryComplete(ICallbackMsg msg)
+            public bool TryComplete(CallbackMsg msg)
             {
                 if (_condition.Invoke(msg))
                 {
