@@ -197,6 +197,6 @@ PublishScripts/
 
 TestDir/
 .idea/
-Meds.Wrapper/GameInstall/
-Meds.Wrapper/GameInstall
+GameInstall/
+GameInstall
 havok-debug/
