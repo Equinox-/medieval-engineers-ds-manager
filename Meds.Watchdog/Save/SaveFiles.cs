@@ -139,8 +139,8 @@ namespace Meds.Watchdog.Save
             lock (_autoCompleteLock)
             {
                 if (!AutoCompleteExpired) return;
-                _autoCompleterAll = new AutoCompleteTree<SaveFile>(AllSaves.Select(x => (Path.GetFileName(x.SavePath), x)));
-                _autoCompleterAutomatic = new AutoCompleteTree<SaveFile>(AutomaticSaves.Select(x => (Path.GetFileName(x.SavePath), x)));
+                _autoCompleterAll = new AutoCompleteTree<SaveFile>(AllSaves.Reverse().Select(x => (Path.GetFileName(x.SavePath), x)));
+                _autoCompleterAutomatic = new AutoCompleteTree<SaveFile>(AutomaticSaves.Reverse().Select(x => (Path.GetFileName(x.SavePath), x)));
                 // 1 minute cache
                 _autoCompleterExpires = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 60;
             }
