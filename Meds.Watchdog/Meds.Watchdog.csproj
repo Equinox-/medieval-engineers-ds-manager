@@ -7,13 +7,15 @@
         <LangVersion>8</LangVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <RootNamespace>Meds.Watchdog</RootNamespace>
+        <SelfContained>false</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     </PropertyGroup>
     <ItemGroup>
-      <PackageReference Include="DiffPlex" Version="1.8.0" />
-      <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.1" />
-      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.1" />
+      <PackageReference Include="DiffPlex" Version="1.9.0" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.2" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.5.2" />
       <PackageReference Include="Equ" Version="2.3.0" />
-      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
+      <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.18" />
       <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
       <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
       <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
@@ -21,9 +23,9 @@
       <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
       <PackageReference Include="SIPSorcery" Version="8.0.3" />
       <PackageReference Include="SteamKit2" Version="3.4.0" />
-      <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-      <PackageReference Include="System.Runtime.Caching" Version="5.0.0" />
-      <PackageReference Include="System.Threading.RateLimiting" Version="7.0.0" />
+      <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
+      <PackageReference Include="System.Runtime.Caching" Version="10.0.9" />
+      <PackageReference Include="System.Threading.RateLimiting" Version="10.0.9" />
       <PackageReference Include="ZLogger" Version="1.7.1" />
     </ItemGroup>
     <ItemGroup>

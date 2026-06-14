@@ -33,7 +33,7 @@ jobs:
     - name: Package Bootstrap
       run: |
         mkdir Meds.Wrapper/bin/package/
-        cp Meds.Bootstrap/bin/Release/net8.0/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
+        cp Meds.Bootstrap/bin/Release/net8.0/win-x64/Meds.Bootstrap.exe Meds.Wrapper/bin/package/
         cp Meds.Bootstrap/config.example.xml Meds.Wrapper/bin/package/config.xml
     - name: Zip Bootstrap
       uses: thedoctor0/zip-release@0.7.5
@@ -66,7 +66,7 @@ jobs:
           me-cache-v1-
         path: GameInstall/
     - name: Install ME
-      run: Meds.Watchdog/bin/Release/net8.0/Meds.Watchdog.exe restore-game-binaries GameInstall/ communityedition
+      run: Meds.Watchdog/bin/Release/net8.0/win-x64/Meds.Watchdog.exe restore-game-binaries GameInstall/ communityedition
     - name: Build wrapper
       run: msbuild /p:Configuration=Release Meds.Wrapper/Meds.Wrapper.csproj
     # Wrapper ModAPI
@@ -89,7 +89,7 @@ jobs:
       uses: 'google-github-actions/upload-cloud-storage@v2'
       if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event_name != 'pull_request'
       with:
-        path: Meds.Wrapper/bin/Release/net461
+        path: Meds.Wrapper/bin/Release/net461/win-x64
         destination: "meds-dist/${{github.ref}}/wrapper"
         parent: false
         headers: |-
@@ -98,7 +98,7 @@ jobs:
       uses: 'google-github-actions/upload-cloud-storage@v2'
       if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event_name != 'pull_request'
       with:
-        path: Meds.Watchdog/bin/Release/net8.0
+        path: Meds.Watchdog/bin/Release/net8.0/win-x64
         destination: "meds-dist/${{github.ref}}/watchdog"
         parent: false
         headers: |-
