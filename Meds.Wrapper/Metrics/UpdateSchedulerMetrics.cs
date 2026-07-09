@@ -35,8 +35,8 @@ namespace Meds.Wrapper.Metrics
             _methodProfiling = config.MethodProfiling;
             _regionProfiling = config.RegionProfiling;
 
-            PatchHelper.Patch(typeof(TimedUpdatePatch));
-            PatchHelper.Patch(typeof(FixedUpdatePatch));
+            // PatchHelper.Patch(typeof(TimedUpdatePatch));
+            // PatchHelper.Patch(typeof(FixedUpdatePatch));
 
             if (_methodProfiling)
             {
