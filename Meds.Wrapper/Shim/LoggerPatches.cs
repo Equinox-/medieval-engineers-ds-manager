@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.CompilerServices;
 using System.Text;
 using HarmonyLib;
@@ -27,7 +28,7 @@ namespace Meds.Wrapper.Shim
             public static bool Prefix() => false;
         }
 
-        [HarmonyPatch(typeof(MyLog), "Init")]
+        [HarmonyPatch(typeof(MyLog), "Init", typeof(Action))]
         public static class PatchReplaceLogger
         {
             public static void Postfix(MyLog __instance)
