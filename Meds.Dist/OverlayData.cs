@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -57,13 +58,19 @@ namespace Meds.Dist
 
         private async Task LoadRemote()
         {
-            using (var response = await WebRequest.Create(Spec.Uri + "/manifest.xml").GetResponseAsync())
-            using (var remoteStream = response.GetResponseStream())
+            var baseUri = new Uri(Spec.Uri + (Spec.Uri.EndsWith('/') ? "" : "/"));
+            var manifestUri = new Uri(baseUri, "manifest.xml");
+            if (manifestUri.IsFile && !File.Exists(manifestUri.AbsolutePath))
             {
-                if (remoteStream == null)
-                    throw new NullReferenceException($"No response stream for overlay {Spec.Uri}");
-                Remote = (DistFileCache)DistFileCache.Serializer.Deserialize(remoteStream);
+                Remote = DistFileCache.Generate(baseUri.AbsolutePath);
+                return;
             }
+
+            using var response = await WebRequest.Create(manifestUri).GetResponseAsync();
+            await using var remoteStream = response.GetResponseStream();
+            if (remoteStream == null)
+                throw new NullReferenceException($"No response stream for overlay {Spec.Uri}");
+            Remote = (DistFileCache)DistFileCache.Serializer.Deserialize(remoteStream);
         }
 
         private void LoadLocal()

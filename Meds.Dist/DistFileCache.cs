@@ -13,7 +13,7 @@ namespace Meds.Dist
     {
         public const string CacheDir = ".sdcache";
 
-        public static XmlSerializer Serializer = new XmlSerializer(typeof(DistFileCache));
+        public static readonly XmlSerializer Serializer = new XmlSerializer(typeof(DistFileCache));
 
         [XmlIgnore]
         private readonly Dictionary<string, DistFileInfo> _files = new Dictionary<string, DistFileInfo>();
@@ -37,6 +37,21 @@ namespace Meds.Dist
                 foreach (var file in value)
                     _files[file.Path] = file;
             }
+        }
+
+        public static DistFileCache Generate(string dir)
+        {
+            var sha1 = SHA1.Create();
+            var dest = new DistFileCache();
+            foreach (var realPath in Directory.GetFiles(dir).Where(x => x.StartsWith(dir) && !x.EndsWith(".xml")))
+            {
+                var fileLength = new FileInfo(realPath).Length;
+                var fileName = realPath.Substring(dir.Length);
+                using var stream = File.OpenRead(realPath);
+                dest._files.Add(fileName, new DistFileInfo { Path = fileName, Hash = sha1.ComputeHash(stream), Size = fileLength });
+            }
+
+            return dest;
         }
     }
 
